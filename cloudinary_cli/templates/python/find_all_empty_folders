@@ -1,0 +1,15 @@
+{% extends "python/base" %}
+
+{% block content %}
+from cloudinary import api
+
+def find_end(root, f):
+    root = root.replace(" " , "%20")
+    res = list(filter(lambda x: x != 'search', list(map(lambda x: x['path'], api.subfolders(root)['folders']))))
+    tmp = [find_end(i, f) for i in res] if res != [] else f.append(root)
+    if root == "": return f
+
+empty = list(filter(lambda x: cloudinary.Search().expression("folder:{}".format(x)).execute()['total_count'] == 0, find_end("", [])))
+
+print("Empty folders:\n{}".format(empty))
+{% endblock %}

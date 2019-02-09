@@ -1,0 +1,11 @@
+{% extends "python/base" %}
+
+{% block content %}
+from cloudinary import uploader
+
+res = uploader.upload("https://res.cloudinary.com/demo/image/upload/sample.jpg", **{
+    "raw_transformation": "w_500"
+})
+
+print(res)
+{% endblock %}

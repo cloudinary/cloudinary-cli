@@ -1,0 +1,22 @@
+<button id="upload_widget" class="cloudinary-button">Upload files</button>
+
+<script src="https://widget.cloudinary.com/v2.0/global/all.js" type="text/javascript"></script>  
+
+<script type="text/javascript">  
+
+    var myWidget = cloudinary.createUploadWidget({
+        cloudName: '{{cloud_name}}',
+        api_key: '{{api_key}}',
+        upload_preset: 'preset1',
+        showAdvancedOptions: true,
+        cropping: true,
+        croppingAspectRatio:1
+        }, (error, result) => { if (result.event == "success") {
+            console.log(result.info) // result.info contains data from upload
+        } })
+
+        document.getElementById("upload_widget").addEventListener("click", function(){
+            myWidget.open();
+        }, false);
+    
+</script>
