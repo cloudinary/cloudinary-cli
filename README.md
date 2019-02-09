@@ -75,7 +75,7 @@ cld admin resources max_results=10 prefix=sample
 
 ### Additional features
 
-#### Listing files
+#### Listing all files
 
 `cld ls <field(s) to return and/or resource queries>`
 
@@ -110,9 +110,17 @@ cld upload_dir ~/Desktop/my_directory -v -f my_local_folders
 
 #### Code Sample Generation
 
-`cld make <language> <whatever>`
+`cld make <language> <name of template>`
 
 eg. 
+The following statements are equivalent:
 ```
 cld make html upload widget
+cld make upload_widget html
+cld make upload widget
 ```
+
+For language-specific templates, include the language in the command
+
+eg.
+`cld make python upload` or `cld make upload python`

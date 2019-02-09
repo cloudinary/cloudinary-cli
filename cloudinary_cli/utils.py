@@ -8,7 +8,7 @@ import os
 import cloudinary
 import re
 
-TEMPLATE_FOLDER = os.path.join(os.path.abspath(__file__), "../templates")
+TEMPLATE_FOLDER = os.path.abspath(os.path.join(os.path.abspath(__file__), "../templates"))
 
 TEMPLATE_EXTS = {
     "python": "py",
