@@ -158,9 +158,13 @@ eg.
 
 ### Caveats
 
-- Passing a parameter or option as a list must be encapsulated in single quotes, and strings within in double quotes.
+- Passing a parameter or option as a list or object must be encapsulated in single quotes, and strings within in double quotes.
+    - '["this","will","be","read","as","a","list"]'
+    - '{"an":"object","or":"dict"}'
+
+
 - Passing a string that can be evaluated as an object, list, or boolean will be evaluated as such, so please refrain from such naming conventions in your public_id, upload_preset, or named transformation:
     - 'True'
     - 'true'
-    - '["this","will","break"]'
+    - '["public","ids","looking","like","lists","wont","work"]'
     - '{"not":"okay"}'

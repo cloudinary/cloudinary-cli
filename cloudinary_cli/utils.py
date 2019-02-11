@@ -44,7 +44,6 @@ def load_template(language, _template):
     return template.render(**cloudinary._config.__dict__)
 
 def parse_option_value(value):
-    valid = re.match('^[\w-]+$', value) is not None
     if value == "True" or value == "true":
         return True
     elif value == "False" or value == "false":
