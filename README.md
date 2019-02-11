@@ -1,28 +1,42 @@
 # Cloudinary CLI
 
-## Getting started
-
-Set your CLOUDINARY_URL environment variable by adding `export CLOUDINARY_URL=<YOUR_CLOUDINARY_URL>` to your terminal config file.
-
-```
-echo "export CLOUDINARY_URL=YOUR_CLOUDINARY_URL" >> ~/.zshrc
-```
-
-To install this package, run:
-
-```
-pip install cloudinary-cli
-```
-
 ## Features
 
-This command line interface is fully and seamlessly integrated with Cloudinary's Upload, Search, and Admin APIs via the pycloudinary SDK.
+This command line interface is fully and (almost: see Caveats) seamlessly integrated with Cloudinary's Upload, Search, and Admin APIs via the pycloudinary SDK.
 
 Additional features include:
 
 - Code generation
 - Directory uploading
 - Listing files
+
+## Requirements
+
+Python 3.x
+
+## Getting started
+
+Set your CLOUDINARY_URL environment variable by adding `export CLOUDINARY_URL=<YOUR_CLOUDINARY_URL>` to your terminal config file.
+
+```
+echo "export CLOUDINARY_URL=YOUR_CLOUDINARY_URL" >> ~/.profile
+```
+
+To install this package, run:
+
+```
+pip3 install cloudinary-cli
+```
+
+## Quickstart
+
+#### 5 commands to help you get started:
+
+- `cld --help` lists the available functions
+- `cld upload --help` lists options for uploading
+- `cld admin -ls` lists functions available in the Admin API
+- `cld uploader -ls` lists functions available in the Upload API
+- `cld search --help` Search API parameters
 
 ## Docs
 
@@ -38,6 +52,23 @@ cld upload https://res.cloudinary.com/demo/image/upload/sample -t w_500,e_vector
 ```
 
 ![](http://res.cloudinary.com/brianl/image/upload/docs/docs_upload.gif)
+
+```
+Usage: cld upload [OPTIONS] IMGSTRING
+
+Options:
+  -pid, --public_id
+  -type, --_type
+  -up, --upload_preset
+  -t, --transformation       A raw transformation
+                             (eg. f_auto,q_auto,w_500,e_vectorize)
+  -e, --eager                An eager transformation or an array of eager
+                             transformations
+  -o, --options              Options to use (eg. -o
+                             option1=value1&option2=value2)
+  -open, --open              Opens the image in a new window
+  --help                     Show this message and exit.
+```
 
 ### Upload API bindings
 
@@ -102,7 +133,7 @@ Upload a local directory and preserve the folder structure.
 Example:
 
 ```
-cld upload_dir ~/Desktop/my_directory -v -f my_local_folders
+cld upload_dir ~/Desktop/my_directory -v -f my_local_folder
 ```
 
 ![](http://res.cloudinary.com/brianl/image/upload/docs/docs_upload_dir.gif)
@@ -124,3 +155,12 @@ For language-specific templates, include the language in the command
 
 eg.
 `cld make python upload` or `cld make upload python`
+
+### Caveats
+
+- Passing a parameter or option as a list must be encapsulated in single quotes, and strings within in double quotes.
+- Passing a string that can be evaluated as an object, list, or boolean will be evaluated as such, so please refrain from such naming conventions in your public_id, upload_preset, or named transformation:
+    - 'True'
+    - 'true'
+    - '["this","will","break"]'
+    - '{"not":"okay"}'

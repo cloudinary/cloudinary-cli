@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import setuptools
 
 with open("README.md", "r") as fh:
@@ -5,11 +7,11 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="cloudinary-cli",
-    version="0.1.0",
+    version="0.1.4",
     author="Brian Luk",
     author_email="brian@cloudinary.com",
     classifiers=[
-        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
@@ -23,11 +25,13 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     keywords='cloudinary cli pycloudinary image video digital asset management command line interface transformation friendly easy flexible',
     license="MIT",
+    setup_requires=["pytest-runner"],
+    tests_require=["pytest"],
     install_requires=[
         "cloudinary",
         "pygments",
         "jinja2",
-        "click"
+        "click",
     ],
     include_package_data=True,
     zip_safe=False
