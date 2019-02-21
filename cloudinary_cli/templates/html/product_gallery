@@ -5,7 +5,7 @@
 <script type="text/javascript">  
   const myWidget = cloudinary.galleryWidget({
     container: "#my-gallery",
-    cloudName: "demo",
+    cloudName: "{{cloud_name}}",
     mediaAssets: [
       {tag: "samples"}
     ]

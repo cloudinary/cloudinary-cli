@@ -1,0 +1,9 @@
+require 'cloudinary'
+
+Cloudinary.config do |config|
+  config.cloud_name = '{{cloud_name}}'
+  config.api_key = '{{api_key}}'
+  config.api_secret = '{{api_secret}}'
+end
+
+Cloudinary::Uploader.upload("https://res.cloudinary.com/demo/image/upload/sample")

@@ -1,4 +1,0 @@
-{% extends "python/base" %}
-
-{% block content %}
-{% endblock %}

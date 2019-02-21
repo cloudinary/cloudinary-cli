@@ -2,7 +2,7 @@
 
 ## Features
 
-This command line interface is fully and (almost: see Caveats) seamlessly integrated with Cloudinary's Upload, Search, and Admin APIs via the pycloudinary SDK.
+This command line interface is fully and seamlessly integrated with Cloudinary's Upload, Search, and Admin APIs via pycloudinary SDK bindings.
 
 Additional features include:
 
@@ -16,13 +16,13 @@ Python 3.x
 
 ## Getting started
 
-Set your CLOUDINARY_URL environment variable by adding `export CLOUDINARY_URL=<YOUR_CLOUDINARY_URL>` to your terminal config file.
+1. Set your CLOUDINARY_URL environment variable by adding `export CLOUDINARY_URL=<YOUR_CLOUDINARY_URL>` to your terminal config file.
 
 ```
-echo "export CLOUDINARY_URL=YOUR_CLOUDINARY_URL" >> ~/.profile
+echo "export CLOUDINARY_URL=YOUR_CLOUDINARY_URL" >> ~/.bash_profile && source ~/.bash_profile
 ```
 
-To install this package, run:
+2. To install this package, run:
 
 ```
 pip3 install cloudinary-cli
@@ -156,15 +156,13 @@ For language-specific templates, include the language in the command
 eg.
 `cld make python upload` or `cld make upload python`
 
-### Caveats
+The generated code will include your cloud details from your configuration.
 
-- Passing a parameter or option as a list or object must be encapsulated in single quotes, and strings within in double quotes.
-    - '["this","will","be","read","as","a","list"]'
-    - '{"an":"object","or":"dict"}'
+#### Scaffolding
 
+Scaffolding is done by writing the output of the `make` command to a file.
 
-- Passing a string that can be evaluated as an object, list, or boolean will be evaluated as such, so please refrain from such naming conventions in your public_id, upload_preset, or named transformation:
-    - 'True'
-    - 'true'
-    - '["public","ids","looking","like","lists","wont","work"]'
-    - '{"not":"okay"}'
+```
+cld make python upload > myfile.py
+cld make product gallery > productgallery.html
+```

@@ -5,14 +5,14 @@ from .utils import *
 import cloudinary
 from cloudinary import api, utils
 from cloudinary import uploader as _uploader
-from os import getcwd
-import os
+from os import getcwd, walk
+from os.path import abspath, dirname, splitext, join as path_join
+# import os
 from json import dumps
-from pathlib import Path
+# from pathlib import Path
 
-terminal_dims = click.get_terminal_size()
+CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0])
 
-CONTEXT_SETTINGS = dict(max_content_width=terminal_dims[0])
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option("-c", "--config", help="""
 \b
@@ -20,6 +20,8 @@ Temporary cloudinary URL to use.
 Please export your cloudinary URL to your terminal configuration file (eg. ~/.bash_profile) by doing the following:
 echo "export CLOUDINARY_URL=YOUR_CLOUDINARY_URL" >> ~/.bash_profile && source ~/.bash_profile
 """)
+@click.option("-v" "--verbosity")
+@click.option("-tf", "--template_folder", default=)
 def cli(config):
     if config:
         cloudinary._config._parse_cloudinary_url(config)
@@ -28,7 +30,7 @@ def cli(config):
 @click.command("upload", help="Upload an asset using automatic resource type.")
 @click.argument("file")
 @click.option("-pid", "--public_id")
-@click.option("-type", "--type", default="upload")
+@click.option("-type", "--type", default="upload", type=click.Choice(['upload', 'private', 'authenticated']))
 @click.option("-up", "--upload_preset")
 @click.option("-t", "--transformation", help="A raw transformation (eg. f_auto,q_auto,w_500,e_vectorize)")
 @click.option("-e", "--eager", help="An eager transformation or an array of eager transformations")
@@ -83,8 +85,9 @@ format: cld admin <function> <parameters> <keyword_arguments>
 \teg. cld admin resources max_results=10 tags=sample
 """)
 @click.argument("params", nargs=-1)
+@click.option("-o", "--option", multiple=True, nargs=2)
 @click.option("-ls", "--ls", is_flag=True, help="List all available functions")
-def admin(params, ls):
+def admin(params, option, ls):
     if ls:
         print(get_help(api))
         exit(0)
@@ -97,6 +100,8 @@ def admin(params, ls):
         print(f"Function {params[0]} does not exist in the Admin API.")
         exit(1)
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
+    for i in option:
+        options[i[0]] = i[1]
     res = func(*parameters, **options) 
     log(dumps(res, indent=2))
 
@@ -109,8 +114,9 @@ format: cld uploader <function> <parameters> <keyword_arguments>
 \t    cld uploader rename flowers secret_flowers to_type=private
 """)
 @click.argument("params", nargs=-1)
+@click.option("-o", "--option", multiple=True, nargs=2, help="Pass options as raw strings")
 @click.option("-ls", "--ls", is_flag=True, help="List all available functions")
-def uploader(params, ls):
+def uploader(params, option, ls):
     if ls:
         print(get_help(_uploader))
         exit(0)
@@ -124,6 +130,8 @@ def uploader(params, ls):
         exit(1)
     # if (callable(func) and params[0][0].islower()):
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
+    for i in option:
+        options[i[0]] = i[1]
     res = func(*parameters, **options)
     log(dumps(res, indent=2))
 
@@ -152,20 +160,20 @@ Upload a directory of assets and persist the directory structure
 @click.option("-nr", "--non_recursive", is_flag=True) # Not implemented yet :)
 def upload_dir(directory, transformation, folder, preset, verbose, very_verbose, non_recursive):
     items, skipped = [], []
-    dir_to_upload = os.path.abspath(os.path.join(os.getcwd(), directory))
+    dir_to_upload = abspath(path_join(getcwd(), directory))
     print(f"Uploading directory {dir_to_upload}")
-    parent = os.path.dirname(dir_to_upload)
+    parent = dirname(dir_to_upload)
     current_dir_abs_path = dir_to_upload[len(parent)+1:]
     for root, _, files in os.walk(dir_to_upload):
         for fi in files:
-            file_path = os.path.abspath(os.path.join(dir_to_upload, root, fi))
+            file_path = abspath(path_join(dir_to_upload, root, fi))
             full_path = file_path[len(parent) + 1:] if folder == "" else folder + "/" + file_path[len(parent) + 1:]
             if verbose or very_verbose:
                 print(f"Uploading {file_path} as {full_path}... ", end="")
-            pid = file_path[len(parent) + 1:]
-            suffix = len(Path(pid).suffix)
-            if suffix:
-                pid = pid[:-suffix]
+            pid = splittext(file_path[len(parent) + 1:])[0]
+            # suffix = len(Path(pid).suffix)
+            # if suffix:
+            #     pid = pid[:-suffix]
             try:
                 _r = _uploader.upload(file_path, public_id=f"{pid}", folder=folder, resource_type="auto", upload_preset=preset, raw_transformation=transformation)
                 if verbose or very_verbose:
@@ -193,10 +201,11 @@ Generate a cloudinary url
 """)
 @click.argument("pid")
 @click.argument("transformation", default="")
-@click.option("-t", "--resource_type", default="image")
+@click.option("-rt", "--resource_type", default="image")
+@click.option("-t", "--type", default="upload")
 @click.option("-o", "--open", is_flag=True)
-def url(pid, resource_type, transformation, open):
-    res = utils.cloudinary_url(pid, resource_type=resource_type, raw_transformation=transformation)[0]
+def url(pid, transformation, resource_type, type, open):
+    res = utils.cloudinary_url(pid, resource_type=resource_type, raw_transformation=transformation, type=type)[0]
     print(res)
     if open:
         open_url(res)
@@ -290,8 +299,5 @@ cli.add_command(sample)
 cli.add_command(couple)
 cli.add_command(dog)
 
-
 def main():
-    # ctx = click.Context(cli, max_content_width=terminal_dims[0], terminal_width=terminal_dims[0])
-    # print(ctx.__dict__)
     cli()

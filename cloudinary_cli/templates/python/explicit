@@ -1,0 +1,11 @@
+{% extends "python/base" %}
+
+{% block content %}
+from cloudinary import uploader
+
+res = uploader.explcit("sample", **{
+    "eager": "w_2000"
+})
+
+print(res)
+{% endblock %}

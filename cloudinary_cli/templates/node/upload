@@ -1,0 +1,15 @@
+const cloudinary = require('cloudinary').v2
+
+cloudinary.config({
+    cloud_name:'{{cloud_name}}',
+    api_key:'{{api_key}}',
+    api_secret:'{{api_secret}}'
+});
+
+var options = {
+    
+}
+
+cloudinary.uploader.upload('', options=options, (err, res) => {
+    console.log(err || res);
+})

@@ -1,5 +1,5 @@
 VERSION = "0.1.7"
 
-import cloudinary
+from cloudinary import USER_AGENT
 
-cloudinary.USER_AGENT = f"CloudinaryCLI/{VERSION}"
+USER_AGENT = f"CloudinaryCLI/{VERSION}"

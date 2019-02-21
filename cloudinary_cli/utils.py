@@ -2,14 +2,20 @@
 
 from jinja2 import Template, Environment, FileSystemLoader
 from pygments import highlight, lexers, formatters
+from pygments.lexers import JsonLexer
+from pygments.formatters import TerminalFormatter
 from inspect import signature
 from json import loads, dumps
 from subprocess import Popen
-import os
+from os.path import join as path_join, expanduser, abspath, isdir, basename
+from os import mkdir, rename
 import cloudinary
 import re
+from pkg_resources import resource_filename
+from shutil import copy
 
-TEMPLATE_FOLDER = "cloudinary_cli/templates"
+
+TEMPLATE_FOLDER = "templates"
 
 TEMPLATE_EXTS = {
     "python": "py",
@@ -19,6 +25,8 @@ TEMPLATE_EXTS = {
     "php": "php",
     "java": "java",
 }
+
+CUSTOM_TEMPLATE_FOLDER = abspath(path_join(expanduser("~"), '.cld-cli-templates'))
 
 def get_sample(which, transformation):
     cloudinary._config.cloud_name="demo"
@@ -35,12 +43,13 @@ def log(res):
         res = dumps(dict(res), indent=2)
     except:
         pass
-    colorful_json = highlight(res.encode('UTF-8'), lexers.JsonLexer(), formatters.TerminalFormatter())
+    colorful_json = highlight(res.encode('UTF-8'), JsonLexer(), TerminalFormatter())
     print(colorful_json)
 
 def load_template(language, _template):
-    with open(os.path.join(TEMPLATE_FOLDER, language, _template)) as f:
-        template = Environment(loader=FileSystemLoader(TEMPLATE_FOLDER)).from_string(f.read())
+    filepath = resource_filename(__name__, '/'.join([TEMPLATE_FOLDER, language, _template]))
+    with open(filepath) as f:
+        template = Environment(loader=FileSystemLoader(resource_filename(__name__, TEMPLATE_FOLDER))).from_string(f.read())
     return template.render(**cloudinary._config.__dict__)
 
 def parse_option_value(value):
@@ -57,9 +66,26 @@ def parse_option_value(value):
 def parse_args_kwargs(func, params):
     p = signature(func)
     l = len(p.parameters) - 1
+    if len(params) < l:
+        print(f"Function '{func.__name__}' requires {l} arguments")
+        exit(1)
     args = [parse_option_value(x) for x in params[:l]]
-    kwargs = {k: parse_option_value(v) for k,v in [x.split('=') for x in params[l:]]} if params[l:] else {}
+    kwargs = {k: parse_option_value(v) for k, v in [x.split('=') for x in params[l:]]} if params[l:] else {}
     return args, kwargs
 
 def open_url(url):
     Popen(["open", url])
+
+def create_custom_template(template_path, template_name=""):
+    if template_name == "":
+        template_name = basename(template_path)
+    if not isdir(CUSTOM_TEMPLATE_FOLDER):
+        mkdir(CUSTOM_TEMPLATE_FOLDER)
+    t_path = path_join(CUSTOM_TEMPLATE_FOLDER, template_name)
+    copy(template_path, t_path)
+
+def load_custom_template(name):
+    t_path = path_join(CUSTOM_TEMPLATE_FOLDER, name)
+    with open(t_path) as f:
+        template = f.read()
+    return template
