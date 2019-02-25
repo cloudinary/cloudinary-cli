@@ -6,39 +6,31 @@ import cloudinary
 from cloudinary import api, utils
 from cloudinary import uploader as _uploader
 from os import getcwd, walk
-from os.path import abspath, dirname, splitext, join as path_join
-# import os
+from os.path import abspath, dirname, basename, join as path_join
 from json import dumps
-# from pathlib import Path
 
-CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0])
+CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
 @click.group(context_settings=CONTEXT_SETTINGS)
-@click.option("-c", "--config", help="""
-\b
-Temporary cloudinary URL to use.
-Please export your cloudinary URL to your terminal configuration file (eg. ~/.bash_profile) by doing the following:
+@click.option("-c", "--config", help="""Temporary cloudinary URL to use. To use permanent configuration, export your cloudinary URL to your terminal configuration file (eg. ~/.bash_profile) by doing the following:
 echo "export CLOUDINARY_URL=YOUR_CLOUDINARY_URL" >> ~/.bash_profile && source ~/.bash_profile
 """)
-@click.option("-v" "--verbosity")
-@click.option("-tf", "--template_folder", default=)
 def cli(config):
     if config:
         cloudinary._config._parse_cloudinary_url(config)
     pass
 
-@click.command("upload", help="Upload an asset using automatic resource type.")
-@click.argument("file")
+@click.command("upload", help="Upload an asset using the `auto` resource type")
+@click.argument("file", required=True)
 @click.option("-pid", "--public_id")
 @click.option("-type", "--type", default="upload", type=click.Choice(['upload', 'private', 'authenticated']))
 @click.option("-up", "--upload_preset")
 @click.option("-t", "--transformation", help="A raw transformation (eg. f_auto,q_auto,w_500,e_vectorize)")
 @click.option("-e", "--eager", help="An eager transformation or an array of eager transformations")
-@click.option("-uo", "--upload_options", help="""
+@click.option("-uo", "--upload_options", help="""Additional upload options to use 
 \b
-Additional upload options to use 
-Usage: -uo <upload_option> <option_value>
-(eg. cld upload test.jpg -uo use_filename True -uo tags test,dogs,wow -uo context "alt:woof|caption:ruff day")
+\tUsage: -uo <upload_option> <option_value>
+\t(eg. cld upload test.jpg -uo use_filename True -uo tags test,dogs,wow -uo context "alt:woof|caption:ruff day")
 """, multiple=True, nargs=2)
 @click.option("-view", "--view", is_flag=True)
 def upload(file, public_id, type, upload_preset, transformation, eager, upload_options, view):
@@ -52,18 +44,19 @@ def upload(file, public_id, type, upload_preset, transformation, eager, upload_o
     if view:
         open_url(res['url'])
 
-@click.command("search", help="""
-\b
+@click.command("search", 
+short_help="Search API Bindings",
+help="""\b
 Search API bindings
-Usage: cld search <Lucene query syntax search string> <options>
+Usage: cld search <Lucene query search string> <options>
 (eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10)
 """)
 @click.argument("query", nargs=-1)
-@click.option("-f", "--with_field", multiple=True)
-@click.option("-s", "--sort_by", nargs=2)
-@click.option("-a", "--aggregate", nargs=1)
-@click.option("-n", "--max_results", nargs=1, default=10)
-@click.option("-c", "--next_cursor", nargs=1)
+@click.option("-f", "--with_field", multiple=True, help="Field to include in result")
+@click.option("-s", "--sort_by", nargs=2, help="Sort search results by (field, <asc|desc>)")
+@click.option("-a", "--aggregate", nargs=1, help="Aggregation to apply to the query")
+@click.option("-n", "--max_results", nargs=1, default=10, help="Maximum results to return. default: 10 max: 500")
+@click.option("-c", "--next_cursor", nargs=1, help="Continue a search using an existing cursor")
 def search(query, with_field, sort_by, aggregate, max_results, next_cursor):
     exp = cloudinary.Search().expression(" ".join(query))
     if with_field:
@@ -78,16 +71,21 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor):
     res = exp.max_results(max_results).execute()
     log(res)
 
-@click.command("admin", help="""
-\b
+@click.command("admin",
+short_help="Admin API bindings",
+help="""\b
 Admin API bindings
-format: cld admin <function> <parameters> <keyword_arguments>
+format: cld admin <function> <parameters> <optional_parameters>
 \teg. cld admin resources max_results=10 tags=sample
+\t      OR
+\t    cld admin resources -o max_results 10 -o tags sample
+\t      OR
+\t    cld admin resources max_results=10 -o tags=sample
 """)
-@click.argument("params", nargs=-1)
-@click.option("-o", "--option", multiple=True, nargs=2)
-@click.option("-ls", "--ls", is_flag=True, help="List all available functions")
-def admin(params, option, ls):
+@click.argument("params", nargs=-1, required=True)
+@click.option("-o", "--optional_param", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
+@click.option("-ls", "--ls", is_flag=True, help="List all available functions in the Admin API")
+def admin(params, optional_param, ls):
     if ls:
         print(get_help(api))
         exit(0)
@@ -100,23 +98,28 @@ def admin(params, option, ls):
         print(f"Function {params[0]} does not exist in the Admin API.")
         exit(1)
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
-    for i in option:
+    for i in optional_param:
         options[i[0]] = i[1]
     res = func(*parameters, **options) 
-    log(dumps(res, indent=2))
+    log(res)
 
-
-@click.command("uploader", help="""
+@click.command("uploader", 
+short_help="Upload API bindings",
+help="""
 \b
 Upload API bindings
-format: cld uploader <function> <parameters> <keyword_arguments>
+format: cld uploader <function> <parameters> <optional_parameters>
 \teg. cld uploader upload http://res.cloudinary.com/demo/image/upload/sample public_id=flowers
-\t    cld uploader rename flowers secret_flowers to_type=private
+
+\b
+\teg. cld uploader rename flowers secret_flowers to_type=private
+\t      OR
+\t    cld uploader rename flowers secret_flowers -o to_type private
 """)
-@click.argument("params", nargs=-1)
-@click.option("-o", "--option", multiple=True, nargs=2, help="Pass options as raw strings")
-@click.option("-ls", "--ls", is_flag=True, help="List all available functions")
-def uploader(params, option, ls):
+@click.argument("params", nargs=-1, required=True)
+@click.option("-o", "--optional_param", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
+@click.option("-ls", "--ls", is_flag=True, help="List all available functions in the Upload API")
+def uploader(params, optional_param, ls):
     if ls:
         print(get_help(_uploader))
         exit(0)
@@ -128,26 +131,23 @@ def uploader(params, option, ls):
     except:
         print(f"Function {params[0]} does not exist in the Upload API.")
         exit(1)
-    # if (callable(func) and params[0][0].islower()):
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
-    for i in option:
+    for i in optional_param:
         options[i[0]] = i[1]
     res = func(*parameters, **options)
-    log(dumps(res, indent=2))
+    log(res)
 
-@click.command("fetch", help="""
-\b
-Fetches an image
-""")
-@click.argument("url", nargs=1)
-@click.option("-t", "--transformation")
+@click.command("fetch", help="Fetches an image")
+@click.argument("url", nargs=1, required=True)
+@click.option("-t", "--transformation", help="Transformation string to apply to the fetch")
 def fetch(args, transformation):
     res = utils.cloudinary_url(url, type="fetch", raw_transformation=transformation)[0]
     open_url(res)
+    log(res)
 
-@click.command("upload_dir", help=
-"""
-\b
+@click.command("upload_dir", 
+short_help="Upload a local directory of assets",
+help="""\b
 Upload a directory of assets and persist the directory structure
 \tUsage: cld upload_dir <path_to_directory>
 """)
@@ -157,23 +157,19 @@ Upload a directory of assets and persist the directory structure
 @click.option("-p", "--preset", help="Upload preset to use")
 @click.option("-v", "--verbose", is_flag=True)
 @click.option("-vv", "--very_verbose", is_flag=True)
-@click.option("-nr", "--non_recursive", is_flag=True) # Not implemented yet :)
 def upload_dir(directory, transformation, folder, preset, verbose, very_verbose, non_recursive):
     items, skipped = [], []
     dir_to_upload = abspath(path_join(getcwd(), directory))
     print(f"Uploading directory {dir_to_upload}")
     parent = dirname(dir_to_upload)
     current_dir_abs_path = dir_to_upload[len(parent)+1:]
-    for root, _, files in os.walk(dir_to_upload):
+    for root, _, files in walk(dir_to_upload):
         for fi in files:
             file_path = abspath(path_join(dir_to_upload, root, fi))
             full_path = file_path[len(parent) + 1:] if folder == "" else folder + "/" + file_path[len(parent) + 1:]
             if verbose or very_verbose:
                 print(f"Uploading {file_path} as {full_path}... ", end="")
-            pid = splittext(file_path[len(parent) + 1:])[0]
-            # suffix = len(Path(pid).suffix)
-            # if suffix:
-            #     pid = pid[:-suffix]
+            pid = basename(file_path[len(parent) + 1:])
             try:
                 _r = _uploader.upload(file_path, public_id=f"{pid}", folder=folder, resource_type="auto", upload_preset=preset, raw_transformation=transformation)
                 if verbose or very_verbose:
@@ -194,12 +190,8 @@ def upload_dir(directory, transformation, folder, preset, verbose, very_verbose,
         print(f"\n{len(skipped)} items skipped:")
         print('\n'.join(skipped))
 
-@click.command("url", help=
-"""
-\b
-Generate a cloudinary url
-""")
-@click.argument("pid")
+@click.command("url", help="Generate a cloudinary url")
+@click.argument("pid", required=True)
 @click.argument("transformation", default="")
 @click.option("-rt", "--resource_type", default="image")
 @click.option("-t", "--type", default="upload")
@@ -210,18 +202,23 @@ def url(pid, transformation, resource_type, type, open):
     if open:
         open_url(res)
 
-@click.command("ls", help="""
-\b
+@click.command("whoami", help="Display current configuration")
+def whoami():
+    print(f"cloud_name: \t{cloudinary._config.cloud_name}\napi_key: \t{cloudinary._config.api_key}")
+
+@click.command("ls",
+short_help="Lists all resources based on resource search parameters in your cloud, and returns specific fields (all if none is specified)",
+help="""\b
 List all resources by calling the Admin API multiple times
-\tformat: cld ls <fields to return or resource search filters>
+\tformat: cld ls <FIELDS_TO_RETURN and/or RESOURCE_SEARCH_PARAMS>
 \teg. cld ls
 \teg. Find all private resources and return the public_id
 \t    cld ls type=private public_id
 """)
-@click.argument("fields_and_options", nargs=-1)
-def ls(fields_and_options):
+@click.argument("fields_and_search_parameters", nargs=-1)
+def ls(fields_and_search_parameters):
     fields, options = [], {}
-    for x in fields_and_options:
+    for x in fields_and_search_parameters:
         if "=" in x:
             tmp = x.split("=")
             options[tmp[0]] = tmp[1]
@@ -234,17 +231,17 @@ def ls(fields_and_options):
         res = api.resources(max_results=500, next_cursor=cursor, **options)
         resources += res['resources']
         count += 1
-        if 'cursor' in res.keys():
-            cursor = res['cursor']
+        if 'next_cursor' in res.keys():
+            cursor = res['next_cursor']
         else:
             break
     resources = list(map(lambda x: {key: x[key] for key in fields}, resources)) if len(fields) > 1 else list(map(lambda x: x[fields[0]], resources)) if len(fields) > 0 else resources
-    log("[" + ",\n".join([dumps(x, indent=2) for x in resources]) + "]")
-    print(f"API called {count} time(s).")
+    log(resources)
+    print(f"API called {count} time(s)."),
     print(f"{len(resources)} resources found.")
 
 
-@click.command("make", help="Scaffold cloudinary code templates") # scaffolding
+@click.command("make", help="Scaffold cloudinary code templates")
 @click.argument("template", nargs=-1)
 def make(template):
     language = "html"
@@ -257,43 +254,45 @@ def make(template):
     print(load_template(language, '_'.join(template)))
 
 
-@click.command("sample", help="Sample flowers image")
+@click.command("sample", help="Open sample flowers image")
 @click.argument("transformation", default="")
 def sample(transformation):
     cloudinary._config.cloud_name="demo"
     res = utils.cloudinary_url('sample', raw_transformation=transformation)[0]
     open_url(res)
 
-@click.command("couple", help="Sample couple image")
+@click.command("couple", help="Open sample couple image")
 @click.argument("transformation", default="")
 def couple(transformation):
     cloudinary._config.cloud_name="demo"
     res = utils.cloudinary_url('couple', raw_transformation=transformation)[0]
     open_url(res)
 
-@click.command("dog", help="Sample dog video")
+@click.command("dog", help="Open sample dog video")
 @click.argument("transformation", default="")
 def dog(transformation):
     cloudinary._config.cloud_name="demo"
     res = utils.cloudinary_url('dog', raw_transformation=transformation, resource_type="video")[0]
     open_url(res)
 
-@click.command("whoami", help="Current configuration")
-def whoami():
-    print(f"Cloud Name: \t{cloudinary._config.cloud_name}\nAPI Key: \t{cloudinary._config.api_key}")
+# Basic commands
 
-
+cli.add_command(whoami)
 cli.add_command(upload)
 cli.add_command(search)
-cli.add_command(make)
 cli.add_command(admin)
 cli.add_command(uploader)
 cli.add_command(fetch)
+cli.add_command(url)
+
+# Custom commands
+
 cli.add_command(upload_dir)
 cli.add_command(url)
 cli.add_command(ls)
-cli.add_command(whoami)
+cli.add_command(make)
 
+# Sample resources
 
 cli.add_command(sample)
 cli.add_command(couple)

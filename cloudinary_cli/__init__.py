@@ -1,5 +1,6 @@
-VERSION = "0.1.7"
+VERSION = "0.1.8"
 
-from cloudinary import USER_AGENT
+import cloudinary
+from sys import version_info
 
-USER_AGENT = f"CloudinaryCLI/{VERSION}"
+cloudinary.USER_AGENT = "CloudinaryCLI/{} (Python {})".format(VERSION, ".".join(map(str, version_info[0:3])))

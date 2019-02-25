@@ -1,168 +1,144 @@
 # Cloudinary CLI
 
 ## Features
-
-This command line interface is fully and seamlessly integrated with Cloudinary's Upload, Search, and Admin APIs via pycloudinary SDK bindings.
-
-Additional features include:
-
-- Code generation
-- Directory uploading
-- Listing files
+This command line interface is fully and seamlessly integrated with Cloudinary's APIs. 
 
 ## Requirements
-
 Python 3.x
 
-## Getting started
+## Setup
 
-1. Set your CLOUDINARY_URL environment variable by adding `export CLOUDINARY_URL=<YOUR_CLOUDINARY_URL>` to your terminal config file.
+1. Set your CLOUDINARY_URL environment variable by adding `export CLOUDINARY_URL=<YOUR_CLOUDINARY_URL>` to your terminal configuration file (using `~/.bash_profile` as an example here):
+    
+    ```
+    echo "export CLOUDINARY_URL=YOUR_CLOUDINARY_URL" >> ~/.bash_profile && source ~/.bash_profile
+    ```
 
-```
-echo "export CLOUDINARY_URL=YOUR_CLOUDINARY_URL" >> ~/.bash_profile && source ~/.bash_profile
-```
+2. To install this package, run: `pip3 install cloudinary-cli`
+3. Make sure your configuration is set up properly by running `cld whoami`. It should print:
 
-2. To install this package, run:
-
-```
-pip3 install cloudinary-cli
-```
+    ```
+    cloud_name:     <YOUR_CLOUD_NAME>
+    api_key:        <API_KEY>
+    ```
 
 ## Quickstart
 
-#### 5 commands to help you get started:
-
-- `cld --help` lists the available functions
-- `cld upload --help` lists options for uploading
-- `cld admin -ls` lists functions available in the Admin API
-- `cld uploader -ls` lists functions available in the Upload API
-- `cld search --help` Search API parameters
-
-## Docs
-
-Most of the functionality (functions to call, parameters, options) is dependent on [Cloudinary's official documentation](https://cloudinary.com/documentation/image_upload_api_reference).
-
-### Upload
-
-`cld upload <resource_type> <options>`
-
-Example:
-```
-cld upload https://res.cloudinary.com/demo/image/upload/sample -t w_500,e_vectorize,ar_1 -pid nice_flowers
-```
-
-![](http://res.cloudinary.com/brianl/image/upload/docs/docs_upload.gif)
+### Important commands
 
 ```
-Usage: cld upload [OPTIONS] IMGSTRING
+cld --help # lists available commands
+cld search --help 	# Search API usage
+cld admin --ls 		# Admin API functions
+cld uploader --ls 	# Upload API functions
+cld upload --help	# Custom upload function
+```
+
+Using temporary Cloudinary configurations requires the `-c` option:
+
+```
+cld -c <CLOUDINARY_URL> <COMMAND> <OPTIONS> <PARAMS>
+```
+
+## Upload API
+
+Bindings for the Upload API.
+
+The basic syntax using the Upload API is as follows:
+
+```
+Usage: cld uploader [OPTIONS] [PARAMS]...
+
+  Upload API bindings
+  format: cld uploader <function> <parameters> <optional_parameters>
+          eg. cld uploader upload http://res.cloudinary.com/demo/image/upload/sample public_id=flowers
+                OR
+              cld uploader upload http://res.cloudinary.com/demo/image/upload/sample -o public_id flowers
 
 Options:
-  -pid, --public_id
-  -type, --_type
-  -up, --upload_preset
-  -t, --transformation       A raw transformation
-                             (eg. f_auto,q_auto,w_500,e_vectorize)
-  -e, --eager                An eager transformation or an array of eager
-                             transformations
-  -o, --options              Options to use (eg. -o
-                             option1=value1&option2=value2)
-  -open, --open              Opens the image in a new window
+  -o, --optional_param TEXT...  Pass optional parameters as raw strings
+  -ls, --ls                     List all available functions in the Upload API
+  --help                        Show this message and exit.
+```
+
+Example: I want to change the asset with `public_id:"flowers"` from `type:upload` to `type:private` using the rename method, which takes two parameters - `from_public_id` and `to_public_id`.
+
+The following two commands will do the same thing:
+
+```
+cld uploader rename flowers secret_flowers to_type=private
+cld uploader rename flowers secret_flowers -o to_type private
+```
+
+## Admin API
+
+Bindings for the Admin API follows the same format as the Upload API:
+
+```
+Usage: cld admin [OPTIONS] [PARAMS]...
+
+  Admin API bindings
+  format: cld admin <function> <parameters> <optional_parameters>
+          eg. cld admin resources max_results=10 tags=sample
+				OR
+              cld admin resources -o max_results 10 -o tags sample
+				OR
+			  cld admin resources max_results=10 -o tags sample
+
+Options:
+  -o, --optional_param TEXT...  Pass optional parameters as raw strings
+  -ls, --ls                     List all available functions in the Admin API
+  --help                        Show this message and exit.
+```
+
+Example: I want to create a transformation and get information about that transformation:
+
+```
+cld admin create_transformation my_new_transformation w_500,h_500,c_crop,e_vectorize
+cld admin transformation my_new_transformation
+```
+
+## Search API
+
+Search API bindings allow you to enter in a Lucene query string as the expression.
+
+```
+Usage: cld search [OPTIONS] [QUERY]...
+
+  Search API bindings
+  Usage: cld search <Lucene query search string> <options>
+  (eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10)
+
+Options:
+  -f, --with_field TEXT      Field to include in the result
+  -s, --sort_by TEXT...      Sort search results by (field, <asc|desc>)
+  -a, --aggregate TEXT       Aggregation to apply to the query
+  -n, --max_results INTEGER  Maximum results to return. default: 10 max: 500
+  -c, --next_cursor TEXT     Continue a search using an existing cursor
   --help                     Show this message and exit.
 ```
 
-### Upload API bindings
+## Other basic commands
+- `url` - generates a Cloudinary URL for an asset
+- `fetch` - generates a Cloudinary fetch URL
+- `upload` - custom binding for the upload API's upload function
+- `whoami` - current Cloudinary CLI configuration
 
-`cld uploader <method> <args> <kwargs>`
+## Custom commands
+- `upload_dir` - Uploads a directory to Cloudinary and persists the folder structure.
+- `ls` - Lists all resources based on resource search parameters in your cloud and returns specific fields (all if none is specified). Note - this uses multiple Admin API calls.
+- `make` - Scaffolds a template. Currently limited to HTML templates for Upload Widget, Product Gallery, Video Player, and Media Library, and a few Python scripts.
 
-Example:
-```
-cld uploader upload http://res.cloudinary.com/demo/image/upload/sample public_id=flowers
-cld uploader rename flowers secret_flowers to_type=private
-```
+## Sample resources
 
-![](http://res.cloudinary.com/brianl/image/upload/docs/docs_uploader.gif)
+Opens a demo account URL for a sample resource
 
-### Search API bindings
-
-`cld search <lucene query string>`
-
-Example:
-```
-cld search cat AND tags:kitten -f context -f tags -n 10
-```
-
-![](http://res.cloudinary.com/brianl/image/upload/docs/docs_search.gif)
-
-### Admin API bindings
-
-`cld admin <method> <args> <kwargs>`
-
-Example:
-```
-cld admin resources max_results=10 prefix=sample
-```
-
-![](http://res.cloudinary.com/brianl/image/upload/docs/docs_admin.gif)
-
-### Additional features
-
-#### Listing all files
-
-`cld ls <field(s) to return and/or resource queries>`
-
-Basic usage:
-`cld ls`
-
-The following statements are equivalent:
+Usage:
 
 ```
-cld ls public_id url type=private resource_type=image
-cld ls type=private resource_type=image public_id url
-cld ls type=private public_id url resource_type=image
+cld <sample_resource> <transformation>
 ```
 
-![](http://res.cloudinary.com/brianl/image/upload/docs/docs_ls.gif)
-
-
-#### Uploading a local directory
-
-Upload a local directory and preserve the folder structure.
-
-`cld upload_dir <directory_name>`
-
-Example:
-
-```
-cld upload_dir ~/Desktop/my_directory -v -f my_local_folder
-```
-
-![](http://res.cloudinary.com/brianl/image/upload/docs/docs_upload_dir.gif)
-
-
-#### Code Sample Generation
-
-`cld make <language> <name of template>`
-
-eg. 
-The following statements are equivalent:
-```
-cld make html upload widget
-cld make upload_widget html
-cld make upload widget
-```
-
-For language-specific templates, include the language in the command
-
-eg.
-`cld make python upload` or `cld make upload python`
-
-The generated code will include your cloud details from your configuration.
-
-#### Scaffolding
-
-Scaffolding is done by writing the output of the `make` command to a file.
-
-```
-cld make python upload > myfile.py
-cld make product gallery > productgallery.html
-```
+- `sample` - http://res.cloudinary.com/demo/image/upload/sample
+- `couple` - http://res.cloudinary.com/demo/image/upload/couple
+- `dog` - http://res.cloudinary.com/demo/video/upload/dog

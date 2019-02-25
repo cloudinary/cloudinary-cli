@@ -2,7 +2,7 @@
 
 from jinja2 import Template, Environment, FileSystemLoader
 from pygments import highlight, lexers, formatters
-from pygments.lexers import JsonLexer
+from pygments.lexers import JsonLexer, JsonBareObjectLexer
 from pygments.formatters import TerminalFormatter
 from inspect import signature
 from json import loads, dumps
@@ -40,7 +40,7 @@ def get_help(api):
 
 def log(res):
     try:
-        res = dumps(dict(res), indent=2)
+        res = dumps(res, indent=2)
     except:
         pass
     colorful_json = highlight(res.encode('UTF-8'), JsonLexer(), TerminalFormatter())
@@ -75,17 +75,3 @@ def parse_args_kwargs(func, params):
 
 def open_url(url):
     Popen(["open", url])
-
-def create_custom_template(template_path, template_name=""):
-    if template_name == "":
-        template_name = basename(template_path)
-    if not isdir(CUSTOM_TEMPLATE_FOLDER):
-        mkdir(CUSTOM_TEMPLATE_FOLDER)
-    t_path = path_join(CUSTOM_TEMPLATE_FOLDER, template_name)
-    copy(template_path, t_path)
-
-def load_custom_template(name):
-    t_path = path_join(CUSTOM_TEMPLATE_FOLDER, name)
-    with open(t_path) as f:
-        template = f.read()
-    return template
