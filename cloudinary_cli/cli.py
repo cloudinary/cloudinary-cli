@@ -7,7 +7,6 @@ from cloudinary import api, utils
 from cloudinary import uploader as _uploader
 from os import getcwd, walk
 from os.path import abspath, dirname, basename, join as path_join
-from json import dumps
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
