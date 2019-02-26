@@ -139,7 +139,7 @@ def uploader(params, optional_param, ls):
 @click.command("fetch", help="Fetches an image")
 @click.argument("url", nargs=1, required=True)
 @click.option("-t", "--transformation", help="Transformation string to apply to the fetch")
-def fetch(args, transformation):
+def fetch(url, transformation):
     res = utils.cloudinary_url(url, type="fetch", raw_transformation=transformation)[0]
     open_url(res)
     log(res)
@@ -156,7 +156,7 @@ Upload a directory of assets and persist the directory structure
 @click.option("-p", "--preset", help="Upload preset to use")
 @click.option("-v", "--verbose", is_flag=True)
 @click.option("-vv", "--very_verbose", is_flag=True)
-def upload_dir(directory, transformation, folder, preset, verbose, very_verbose, non_recursive):
+def upload_dir(directory, transformation, folder, preset, verbose, very_verbose):
     items, skipped = [], []
     dir_to_upload = abspath(path_join(getcwd(), directory))
     print(f"Uploading directory {dir_to_upload}")
@@ -190,13 +190,13 @@ def upload_dir(directory, transformation, folder, preset, verbose, very_verbose,
         print('\n'.join(skipped))
 
 @click.command("url", help="Generate a cloudinary url")
-@click.argument("pid", required=True)
+@click.argument("public_id", required=True)
 @click.argument("transformation", default="")
 @click.option("-rt", "--resource_type", default="image")
 @click.option("-t", "--type", default="upload")
 @click.option("-o", "--open", is_flag=True)
-def url(pid, transformation, resource_type, type, open):
-    res = utils.cloudinary_url(pid, resource_type=resource_type, raw_transformation=transformation, type=type)[0]
+def url(public_id, transformation, resource_type, type, open):
+    res = utils.cloudinary_url(public_id, resource_type=resource_type, raw_transformation=transformation, type=type)[0]
     print(res)
     if open:
         open_url(res)

@@ -1,4 +1,4 @@
-VERSION = "0.1.8"
+VERSION = "0.1.9"
 
 import cloudinary
 from sys import version_info
