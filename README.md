@@ -120,9 +120,7 @@ Options:
 
 ## Other basic commands
 - `url` - generates a Cloudinary URL for an asset
-- `fetch` - generates a Cloudinary fetch URL
-- `upload` - custom binding for the upload API's upload function
-- `whoami` - current Cloudinary CLI configuration
+- `config` - current Cloudinary CLI configuration
 
 ## Custom commands
 - `upload_dir` - Uploads a directory to Cloudinary and persists the folder structure.

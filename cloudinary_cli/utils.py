@@ -28,6 +28,10 @@ TEMPLATE_EXTS = {
 
 CUSTOM_TEMPLATE_FOLDER = abspath(path_join(expanduser("~"), '.cld-cli-templates'))
 
+F_FAIL = lambda x: "\033[91m" + x + "\033[0m"
+F_WARN = lambda x: "\033[93m" + x + "\033[0m"
+F_OK = lambda x: "\033[92m" + x + "\033[0m"
+
 def get_sample(which, transformation):
     cloudinary._config.cloud_name="demo"
     res = utils.cloudinary_url(which, raw_transformation=transformation)[0]
