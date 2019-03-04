@@ -7,6 +7,7 @@ from cloudinary.utils import cloudinary_url as cld_url
 from cloudinary import uploader as _uploader
 from os import getcwd, walk
 from os.path import abspath, dirname, join as path_join
+from requests import get
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
@@ -23,7 +24,7 @@ def cli(config):
 short_help="Search API Bindings",
 help="""\b
 Search API bindings
-Usage: cld search <Lucene query search string> <options>
+format: cld search <Lucene query syntax string> <options>
 (eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10)
 """)
 @click.argument("query", nargs=-1)
@@ -150,7 +151,7 @@ def uploader(params, optional_parameter, optional_parameter_parsed, ls, doc):
             raise Exception(F_FAIL(f"{func} is not callable."))
             exit(1)
     except:
-        print(f"Function {params[0]} does not exist in the Upload API.")
+        print(F_FAIL(f"Function {params[0]} does not exist in the Upload API."))
         exit(1)
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
     res = func(*parameters, **{
@@ -161,10 +162,7 @@ def uploader(params, optional_parameter, optional_parameter_parsed, ls, doc):
     log(res)
 
 @click.command("upload_dir", 
-short_help="Upload a local directory of assets",
-help="""\b
-Upload a directory of assets and persist the directory structure
-""")
+help="""Upload a directory of assets and persist the directory structure""")
 @click.argument("directory", default=".")
 @click.option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
 @click.option("-O", "--optional_parameter_parsed", multiple=True, nargs=2, help="Pass optional parameters as interpreted strings")
@@ -216,12 +214,14 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
 @click.argument("public_id", required=True)
 @click.argument("transformation", default="")
 @click.option("-rt", "--resource_type", default="image", type=click.Choice(['image', 'video', 'raw']), help="Resource Type")
-@click.option("-t", "--type", default="upload", type=click.Choice(['upload', 'private', 'authenticated', 'fetch']), help="Type of the resource")
+@click.option("-t", "--type", default="upload", type=click.Choice(['upload', 'private', 'authenticated', 'fetch', 'list']), help="Type of the resource")
 @click.option("-o", "--open", is_flag=True, help="Open URL in your browser")
 @click.option("-s", "--sign", is_flag=True, help="Generates a signed URL", default=False)
 def url(public_id, transformation, resource_type, type, open, sign):
     if type == "authenticated":
         sign = True
+    elif type == "list":
+        public_id += ".json"
     res = cld_url(public_id, resource_type=resource_type, raw_transformation=transformation, type=type, sign_url=sign)[0]
     print(res)
     if open:
@@ -264,6 +264,7 @@ def couple(transformation, open):
     print(res)
     if open:
         open_url(res)
+
 @click.command("dog", help="Open sample dog video")
 @click.argument("transformation", default="")
 @click.option("-o", "--open", is_flag=True, help="Open URL in your browser")
@@ -273,6 +274,28 @@ def dog(transformation, open):
     print(res)
     if open:
         open_url(res)
+
+
+@click.command("migrate", 
+short_help="Migrate files using an existing auto-upload mapping and a file of URLs",
+help="Migrate files using an existing auto-upload mapping and a file of URLs")
+@click.argument("upload_mapping")
+@click.argument("file")
+@click.option("-d", "--delimiter", default="\n", help="Separator for the URLs. Default: New line")
+@click.option("-v", "--verbose", is_flag=True)
+def migrate(upload_mapping, file, delimiter, verbose):
+    with open(file) as f:
+        items = f.read().split(delimiter)
+    mapping = api.upload_mapping(upload_mapping)
+    _len = len(mapping['template'])
+    items = map(lambda x: cld_url(mapping['folder'] + '/' + x[_len:]), filter(lambda x: x != '', items))
+    for i in items:
+        res = get(i[0])
+        if res.status_code != 200:
+            print(F_FAIL("Failed uploading asset: " + res.__dict__['headers']['X-Cld-Error']))
+        elif verbose:
+            print(F_OK(f"Uploaded {i[0]}"))
+        
 
 # Basic commands
 
@@ -286,6 +309,8 @@ cli.add_command(url)
 
 cli.add_command(upload_dir)
 cli.add_command(make)
+cli.add_command(migrate)
+
 
 # Sample resources
 
