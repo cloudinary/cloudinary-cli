@@ -8,6 +8,7 @@ from cloudinary import uploader as _uploader
 from os import getcwd, walk
 from os.path import abspath, dirname, join as path_join
 from requests import get
+from json import loads, dumps
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
@@ -15,9 +16,12 @@ CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal
 @click.option("-c", "--config", help="""Temporary configuration to use. To use permanent config:
 echo \"export CLOUDINARY_URL=YOUR_CLOUDINARY_URL\" >> ~/.bash_profile && source ~/.bash_profile
 """)
-def cli(config):
+@click.option("-C", "--config_saved", help="""Saved configuration to use""")
+def cli(config, config_saved):
     if config:
         cloudinary._config._parse_cloudinary_url(config)
+    elif config_saved:
+        cloudinary._config._parse_cloudinary_url(loads(open(CLOUDINARY_CLI_CONFIG_FILE).read())[config_saved])
     pass
 
 @click.command("search", 
@@ -256,9 +260,40 @@ def url(public_id, transformation, resource_type, type, open, sign):
         open_url(res)
 
 @click.command("config", help="Display current configuration")
-def config():
-    print('\n'.join(["{}:\t{}".format(k, v if k != "api_secret" else f"***************{v[-4:]}") for k, v in cloudinary._config.__dict__.items()]))
+@click.option("-n", "--new", help="Set an additional configuration", nargs=2)
+@click.option("-ls", "--ls", help="List all configurations", is_flag=True)
+@click.option("-rm", "--rm", help="Delete an additional configuration", nargs=1)
+def config(new, ls, rm):
+    if not (new or ls or rm):
+        print('\n'.join(["{}:\t{}".format(k, v if k != "api_secret" else f"***************{v[-4:]}") for k, v in cloudinary._config.__dict__.items()]))
+        exit(0)
 
+    with open(CLOUDINARY_CLI_CONFIG_FILE, "r+") as f:
+        fi = f.read()
+        cfg = loads(fi) if fi != "" else {}
+        f.close()
+    if new:
+        try:
+            cloudinary._config._parse_cloudinary_url(new[1])
+            cfg[new[0]] = new[1]
+            with open(CLOUDINARY_CLI_CONFIG_FILE, "w") as f:
+                f.write(dumps(cfg))
+                f.close()
+            print("Config '{}' saved!".format(new[0]))
+        except:
+            print("Invalid Cloudinary URL: {}".format(new[1]))
+            exit(1)
+        exit(0)
+    if ls:
+        print("\n".join(cfg.keys()))
+        exit(0)
+    if rm:
+        if rm not in cfg.keys():
+            print(f"Configuration '{rm}' not found.")
+            exit(1)
+        del cfg[rm]
+        open(CLOUDINARY_CLI_CONFIG_FILE, "w").write(dumps(cfg))
+        print(f"Configuration '{rm}' deleted")
 
 @click.command("make", help="Scaffold Cloudinary templates")
 @click.argument("template", nargs=-1)
