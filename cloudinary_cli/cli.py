@@ -61,11 +61,11 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
     if auto_paginate and 'next_cursor' in res.keys():
         if not force:
             r = input(f"{res['total_count']} total results. {res.__dict__['rate_limit_remaining'] + 1} Admin API rate limit remaining.\nRunning this program will use {res['total_count']//500 + 1} Admin API calls. Continue? (Y/N) ")
-        if r.lower() != 'y':
-            print("Exiting. Please run again without -A.")
-            exit(0)
-        else:
-            print("Continuing. You may use the -F flag to force auto_pagination.")
+            if r.lower() != 'y':
+                print("Exiting. Please run again without -A.")
+                exit(0)
+            else:
+                print("Continuing. You may use the -F flag to force auto_pagination.")
 
         while True:
             if 'next_cursor' not in res.keys():
@@ -96,9 +96,12 @@ format: cld admin <function> <parameters> <optional_parameters>
 @click.argument("params", nargs=-1)
 @click.option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
 @click.option("-O", "--optional_parameter_parsed", multiple=True, nargs=2, help="Pass optional parameters as interpreted strings")
+@click.option("-A", "--auto_paginate", is_flag=True, help="Return all results. Will call Admin API multiple times.")
+@click.option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate")
+@click.option("-ff", "--filter_fields", multiple=True, help="Filter fields to return")
 @click.option("-ls", "--ls", is_flag=True, help="List all available functions in the Admin API")
 @click.option("-d", "--doc", is_flag=True, help="Opens Admin API documentation page")
-def admin(params, optional_parameter, optional_parameter_parsed, ls, doc):
+def admin(params, optional_parameter, optional_parameter_parsed, auto_paginate, force, filter_fields, ls, doc):
     if ls:
         print(get_help(api))
         exit(0)
@@ -114,12 +117,37 @@ def admin(params, optional_parameter, optional_parameter_parsed, ls, doc):
         print(F_FAIL(f"Function {params[0]} does not exist in the Admin API."))
         exit(1)
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
+    if auto_paginate:
+        options['max_results'] = 500
     res = func(*parameters, **{
         **options,
         **{k:v for k,v in optional_parameter},
         **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
     })
-    log(res)
+    all_results = res['resources']
+    if auto_paginate and 'next_cursor' in res.keys():
+        if not force:
+            r = input(f"{res.__dict__['rate_limit_remaining'] + 1} Admin API rate limit remaining. Continue? (Y/N) ")
+            if r.lower() != 'y':
+                print("Exiting. Please run again without -A.")
+                exit(0)
+            else:
+                print("Continuing. You may use the -F flag to force auto_pagination.")
+
+        while True:
+            if 'next_cursor' not in res.keys():
+                break
+            res = func(*parameters, **{
+                **options,
+                **{k:v for k,v in optional_parameter},
+                **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
+                "next_cursor": res['next_cursor']
+            })
+            all_results += res['resources']
+        
+    if filter_fields:
+        all_results = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in filter_fields}, all_results))
+    log(all_results)
 
 @click.command("uploader", 
 short_help="Upload API bindings",
