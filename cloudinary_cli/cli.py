@@ -5,10 +5,11 @@ import cloudinary
 from cloudinary import api
 from cloudinary.utils import cloudinary_url as cld_url
 from cloudinary import uploader as _uploader
-from os import getcwd, walk
-from os.path import abspath, dirname, join as path_join
+from os import getcwd, walk, sep
+from os.path import abspath, dirname, join as path_join, isfile, splitext
 from requests import get
 from json import loads, dumps
+from hashlib import md5
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
@@ -16,7 +17,7 @@ CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal
 @click.option("-c", "--config", help="""Temporary configuration to use. To use permanent config:
 echo \"export CLOUDINARY_URL=YOUR_CLOUDINARY_URL\" >> ~/.bash_profile && source ~/.bash_profile
 """)
-@click.option("-C", "--config_saved", help="""Saved configuration to use""")
+@click.option("-C", "--config_saved", help="""Saved configuration to use - see `config` command""")
 def cli(config, config_saved):
     if config:
         cloudinary._config._parse_cloudinary_url(config)
@@ -128,7 +129,7 @@ def admin(params, optional_parameter, optional_parameter_parsed, auto_paginate, 
         **{k:v for k,v in optional_parameter},
         **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
     })
-    all_results = res['resources']
+    all_results = res
     if auto_paginate and 'next_cursor' in res.keys():
         if not force:
             r = input(f"{res.__dict__['rate_limit_remaining'] + 1} Admin API rate limit remaining. Continue? (Y/N) ")
@@ -147,8 +148,8 @@ def admin(params, optional_parameter, optional_parameter_parsed, auto_paginate, 
                 **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
                 "next_cursor": res['next_cursor']
             })
-            all_results += res['resources']
-        
+            all_results['resources'] += res['resources']
+        all_results = all_results['resources']
     if filter_fields:
         all_results = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in filter_fields}, all_results))
     log(all_results)
@@ -213,8 +214,8 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
         **{k:v for k,v in optional_parameter},
         **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
         "resource_type": "auto",
-        "use_filename": True,
         "unqiue_filename": False,
+        "use_filename": True,
         "raw_transformation": transformation,
         "upload_preset": preset
     }
@@ -358,7 +359,9 @@ def migrate(upload_mapping, file, delimiter, verbose):
             print(F_FAIL("Failed uploading asset: " + res.__dict__['headers']['X-Cld-Error']))
         elif verbose:
             print(F_OK(f"Uploaded {i[0]}"))
-        
+
+    # else:
+
 
 # Basic commands
 
