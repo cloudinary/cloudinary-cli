@@ -5,11 +5,13 @@ import cloudinary
 from cloudinary import api
 from cloudinary.utils import cloudinary_url as cld_url
 from cloudinary import uploader as _uploader
-from os import getcwd, walk, sep
-from os.path import abspath, dirname, join as path_join, isfile, splitext
+from os import getcwd, walk, sep, remove, rmdir, listdir
+from os.path import abspath, dirname, join as path_join, isfile, splitext, split
 from requests import get
 from json import loads, dumps
 from hashlib import md5
+from itertools import product
+from functools import reduce
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
@@ -101,12 +103,9 @@ format: cld admin <function> <parameters> <optional_parameters>
 @click.argument("params", nargs=-1)
 @click.option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
 @click.option("-O", "--optional_parameter_parsed", multiple=True, nargs=2, help="Pass optional parameters as interpreted strings")
-@click.option("-A", "--auto_paginate", is_flag=True, help="Return all results. Will call Admin API multiple times.")
-@click.option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate")
-@click.option("-ff", "--filter_fields", multiple=True, help="Filter fields to return")
 @click.option("-ls", "--ls", is_flag=True, help="List all available functions in the Admin API")
 @click.option("-d", "--doc", is_flag=True, help="Opens Admin API documentation page")
-def admin(params, optional_parameter, optional_parameter_parsed, auto_paginate, force, filter_fields, ls, doc):
+def admin(params, optional_parameter, optional_parameter_parsed, ls, doc):
     if ls:
         print(get_help(api))
         exit(0)
@@ -122,37 +121,12 @@ def admin(params, optional_parameter, optional_parameter_parsed, auto_paginate, 
         print(F_FAIL(f"Function {params[0]} does not exist in the Admin API."))
         exit(1)
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
-    if auto_paginate:
-        options['max_results'] = 500
     res = func(*parameters, **{
         **options,
         **{k:v for k,v in optional_parameter},
         **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
     })
-    all_results = res
-    if auto_paginate and 'next_cursor' in res.keys():
-        if not force:
-            r = input(f"{res.__dict__['rate_limit_remaining'] + 1} Admin API rate limit remaining. Continue? (Y/N) ")
-            if r.lower() != 'y':
-                print("Exiting. Please run again without -A.")
-                exit(0)
-            else:
-                print("Continuing. You may use the -F flag to force auto_pagination.")
-
-        while True:
-            if 'next_cursor' not in res.keys():
-                break
-            res = func(*parameters, **{
-                **options,
-                **{k:v for k,v in optional_parameter},
-                **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
-                "next_cursor": res['next_cursor']
-            })
-            all_results['resources'] += res['resources']
-        all_results = all_results['resources']
-    if filter_fields:
-        all_results = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in filter_fields}, all_results))
-    log(all_results)
+    log(res)
 
 @click.command("uploader", 
 short_help="Upload API bindings",
@@ -207,7 +181,7 @@ help="""Upload a directory of assets and persist the directory structure""")
 def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose, very_verbose):
     items, skipped = [], []
     dir_to_upload = abspath(path_join(getcwd(), directory))
-    print(f"Uploading directory {dir_to_upload}")
+    print(f"Uploading directory '{dir_to_upload}'")
     parent = dirname(dir_to_upload)
     current_dir_abs_path = dir_to_upload[len(parent)+1:]
     options = {
@@ -260,8 +234,9 @@ def url(public_id, transformation, resource_type, type, open, sign):
     if open:
         open_url(res)
 
-@click.command("config", help="Display current configuration")
-@click.option("-n", "--new", help="Set an additional configuration", nargs=2)
+@click.command("config", help="Display current configuration, and manage additional configurations")
+@click.option("-n", "--new", help="""\b Set an additional configuration
+eg. cld config -n <NAME> <CLOUDINARY_URL>""", nargs=2)
 @click.option("-ls", "--ls", help="List all configurations", is_flag=True)
 @click.option("-rm", "--rm", help="Delete an additional configuration", nargs=1)
 def config(new, ls, rm):
@@ -360,8 +335,152 @@ def migrate(upload_mapping, file, delimiter, verbose):
         elif verbose:
             print(F_OK(f"Uploaded {i[0]}"))
 
-    # else:
+        
+@click.command("sync",
+short_help="Synchronize between a local directory between a Cloudinary folder",
+help="Synchronize between a local directory between a Cloudinary folder while preserving directory structure")
+@click.argument("local_folder")
+@click.argument("cloudinary_folder")
+@click.option("--push", help="Push will sync the local directory to the cloudinary directory", is_flag=True)
+@click.option("--pull", help="Pull will sync the cloudinary directory to the local directory", is_flag=True)
+@click.option("-v", "--verbose", is_flag=True, help="Logs information after each upload")
+def sync(local_folder, cloudinary_folder, push, pull, verbose):
+    if push == pull:
+        print("Please use either the '--push' OR '--pull' options")
+        exit(1)
+    etag = lambda f: md5(open(f, 'rb').read()).hexdigest()
+    abs_folder = abspath(local_folder)
+    def walk_dir(folder):
+        all_files = {}
+        for root, _, files in walk(folder):
+            for _file in files:
+                all_files[splitext(path_join(root, _file)[len(folder)+1:])[0]] = {"etag": etag(path_join(root, _file)), "path": path_join(root, _file)}
+        return all_files
 
+    def query_cld_folder(folder):
+        next_cursor = None
+        items = {}
+        while True:
+            res = cloudinary.Search().expression("{}/*".format(folder)).next_cursor(next_cursor).with_field("image_analysis").max_results(500).execute()
+            for item in res['resources']:
+                items[item['public_id'][len(folder)+1:]] = {"etag": item['image_analysis']['etag'], "resource_type": item['resource_type'], "public_id": item['public_id'], "type": item['type'], "format": item['format']}
+            if 'next_cursor' not in res.keys():
+                break
+            else:
+                next_cursor = res['next_cursor']
+        return items
+
+    def check_etag_diff(existing, local_file):
+        with open(local_file, 'rb').read() as f:
+            fi = f.read()
+        return existing['etag'] == md5(fi).hexdigest()
+
+    files = walk_dir(abspath(local_folder))    
+    print("Found {} items in local folder '{}'".format(len(files.keys()), local_folder))
+    cld_files = query_cld_folder(cloudinary_folder)
+    print("Found {} items in cloudinary folder '{}'".format(len(cld_files.keys()), local_folder))
+    files_ = set(files.keys())
+    cld_files_ = set(cld_files.keys())
+
+    files_in_cloudinary_nin_local = cld_files_ - files_
+    files_in_local_nin_cloudinary = files_ - cld_files_
+
+    if push:
+        files_to_delete_from_cloudinary = list(cld_files_ - files_)
+        files_to_push = files_ - cld_files_
+        files_to_check = files_ - files_to_push
+
+        print("\nCalculating differences...\n\n")
+        for f in files_to_check:
+            if files[f]['etag'] == cld_files[f]['etag']:
+                print(F_WARN("{} already exists in Cloudinary".format(f)))
+            else:
+                files_to_push.add(f)
+        if len(files_to_delete_from_cloudinary) > 0:
+            print("Deleting {} resources from Cloudinary folder '{}'".format(len(files_to_delete_from_cloudinary), cloudinary_folder))
+            files_to_delete_from_cloudinary = list(map(lambda x: cld_files[x], files_to_delete_from_cloudinary))
+            
+            for i in product({"upload", "private", "authenticated"}, {"image", "video", "raw"}):
+                batch = list(map(lambda x: x['public_id'], filter(lambda x: x["type"] == i[0] and x["resource_type"] == i[1], files_to_delete_from_cloudinary)))
+                if len(batch) > 0:
+                    print("Deleting {} resources with type '{}' and resource_type '{}'".format(len(batch), *i))
+                    counter = 0
+                    while counter*100 < len(batch) and len(batch) > 0:
+                        counter += 1
+                        res = api.delete_resources(batch[(counter-1)*100:counter*100], invalidate=True, resource_type=i[1], type=i[0])
+                        num_deleted = reduce(lambda x, y: x + 1 if y == "deleted" else x, res['deleted'].values(), 0)
+                        if verbose:
+                            log(res)
+                        if num_deleted != len(batch):
+                            print(F_FAIL("Failed deletes:\n{}".format("\n".join(list(map(lambda x: x[0], filter(lambda x: x[1] != 'deleted', res['deleted'].items())))))))
+                        else:
+                            print(F_OK("Deleted {} resources".format(num_deleted)))
+
+        to_upload = set(filter(lambda x: split(x)[1][0] != ".", files_to_push))
+        for i in to_upload:
+            modif_folder = path_join(cloudinary_folder, sep.join(i.split(sep)[:-1]))
+            options = {'use_filename': True, 'unique_filename': False, 'folder': modif_folder, 'invalidate': True, 'resource_type': 'auto'}
+            res = _uploader.upload(files[i]['path'], **options)
+            print(F_OK("Uploaded '{}'".format(res['public_id'])))
+
+        print("Done!")
+        
+    else:
+        files_to_delete_local = list(files_in_local_nin_cloudinary)
+        files_to_pull = files_in_cloudinary_nin_local
+        files_to_check = cld_files_ - files_to_pull
+        
+        print("\nCalculating differences...\n\n")
+        for f in files_to_check:
+            if files[f]['etag'] == cld_files[f]['etag']:
+                print(F_WARN("{} already exists locally".format(f)))
+            else:
+                files_to_pull.add(f)
+                files_to_delete_local.append(f)
+
+        def create_required_directories(root):
+            if isdir(root):
+                return
+            else:
+                create_required_directories(sep.join(root.split(sep)[:-1]))
+                print("Creating directory '{}'".format(root))
+                mkdir(root)     
+
+        print("Deleting {} local files...".format(len(files_to_delete_local)))
+        for i in files_to_delete_local:
+            remove(abspath(files[i]['path']))
+            print("Deleted {}".format(abspath(files[i]['path'])))
+
+        print("Deleting empty folders")
+        def delete_empty_folders(root, remove_root=False):
+            if not isdir(root):
+                return
+
+            files = listdir(root)
+            if len(files):
+                for f in files:
+                    fullpath = path_join(root, f)
+                    if isdir(fullpath):
+                        delete_empty_folders(fullpath, True)
+            
+            files = listdir(root)
+            if len(files) == 0 and remove_root:
+                print("Removing empty folder {}".format(root))
+                rmdir(root)
+        
+        delete_empty_folders(local_folder)
+
+        print("Downloading {} files from Cloudinary".format(len(files_to_pull)))
+        for i in files_to_pull:
+            local_path = abspath(path_join(local_folder, i + "." + cld_files[i]['format'] if cld_files[i]['resource_type'] != 'raw' else i))
+            create_required_directories(split(local_path)[0])
+            with open(local_path, "wb") as f:
+                to_download = cld_files[i]
+                r = get(cld_url(to_download['public_id'], resource_type=to_download['resource_type'], type=to_download['type'])[0])
+                f.write(r.content)
+                f.close()
+            print(F_OK("Downloaded {} to {}".format(i, local_path)))
+        pass
 
 # Basic commands
 
@@ -376,7 +495,7 @@ cli.add_command(url)
 cli.add_command(upload_dir)
 cli.add_command(make)
 cli.add_command(migrate)
-
+cli.add_command(sync)
 
 # Sample resources
 
