@@ -327,7 +327,7 @@ def migrate(upload_mapping, file, delimiter, verbose):
         items = f.read().split(delimiter)
     mapping = api.upload_mapping(upload_mapping)
     _len = len(mapping['template'])
-    items = map(lambda x: cld_url(mapping['folder'] + '/' + x[_len:]), filter(lambda x: x != '', items))
+    items = map(lambda x: path_join(cld_url(mapping['folder'] x[_len:])), filter(lambda x: x != '', items))
     for i in items:
         res = get(i[0])
         if res.status_code != 200:
@@ -348,8 +348,9 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
     if push == pull:
         print("Please use either the '--push' OR '--pull' options")
         exit(1)
+   
     etag = lambda f: md5(open(f, 'rb').read()).hexdigest()
-    abs_folder = abspath(local_folder)
+
     def walk_dir(folder):
         all_files = {}
         for root, _, files in walk(folder):
@@ -369,11 +370,6 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
             else:
                 next_cursor = res['next_cursor']
         return items
-
-    def check_etag_diff(existing, local_file):
-        with open(local_file, 'rb').read() as f:
-            fi = f.read()
-        return existing['etag'] == md5(fi).hexdigest()
 
     files = walk_dir(abspath(local_folder))    
     print("Found {} items in local folder '{}'".format(len(files.keys()), local_folder))
@@ -438,20 +434,6 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
                 files_to_pull.add(f)
                 files_to_delete_local.append(f)
 
-        def create_required_directories(root):
-            if isdir(root):
-                return
-            else:
-                create_required_directories(sep.join(root.split(sep)[:-1]))
-                print("Creating directory '{}'".format(root))
-                mkdir(root)     
-
-        print("Deleting {} local files...".format(len(files_to_delete_local)))
-        for i in files_to_delete_local:
-            remove(abspath(files[i]['path']))
-            print("Deleted {}".format(abspath(files[i]['path'])))
-
-        print("Deleting empty folders")
         def delete_empty_folders(root, remove_root=False):
             if not isdir(root):
                 return
@@ -467,10 +449,26 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
             if len(files) == 0 and remove_root:
                 print("Removing empty folder {}".format(root))
                 rmdir(root)
+
+        def create_required_directories(root):
+            if isdir(root):
+                return
+            else:
+                create_required_directories(sep.join(root.split(sep)[:-1]))
+                print("Creating directory '{}'".format(root))
+                mkdir(root)     
+
+        print("Deleting {} local files...".format(len(files_to_delete_local)))
+        for i in files_to_delete_local:
+            remove(abspath(files[i]['path']))
+            print("Deleted {}".format(abspath(files[i]['path'])))
+
+        print("Deleting empty folders...")
         
         delete_empty_folders(local_folder)
 
         print("Downloading {} files from Cloudinary".format(len(files_to_pull)))
+        
         for i in files_to_pull:
             local_path = abspath(path_join(local_folder, i + "." + cld_files[i]['format'] if cld_files[i]['resource_type'] != 'raw' else i))
             create_required_directories(split(local_path)[0])
