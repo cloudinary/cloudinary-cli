@@ -14,7 +14,6 @@ import re
 from pkg_resources import resource_filename
 from shutil import copy
 
-
 TEMPLATE_FOLDER = "templates"
 
 TEMPLATE_EXTS = {
@@ -84,6 +83,3 @@ def parse_args_kwargs(func, params):
     args = [parse_option_value(x) for x in params[:l]]
     kwargs = {k: parse_option_value(v) for k, v in [x.split('=') for x in params[l:]]} if params[l:] else {}
     return args, kwargs
-
-def open_url(url):
-    Popen(["open", url])

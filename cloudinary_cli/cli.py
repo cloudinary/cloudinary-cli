@@ -12,6 +12,7 @@ from json import loads, dumps
 from hashlib import md5
 from itertools import product
 from functools import reduce
+from webbrowser import open as open_url
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
@@ -327,7 +328,7 @@ def migrate(upload_mapping, file, delimiter, verbose):
         items = f.read().split(delimiter)
     mapping = api.upload_mapping(upload_mapping)
     _len = len(mapping['template'])
-    items = map(lambda x: path_join(cld_url(mapping['folder'] x[_len:])), filter(lambda x: x != '', items))
+    items = map(lambda x: cld_url(path_join(mapping['folder'], x[_len:])), filter(lambda x: x != '', items))
     for i in items:
         res = get(i[0])
         if res.status_code != 200:
