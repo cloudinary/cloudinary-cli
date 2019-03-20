@@ -39,13 +39,18 @@ F_FAIL = lambda x: "\033[91m" + x + "\033[0m"
 F_WARN = lambda x: "\033[93m" + x + "\033[0m"
 F_OK = lambda x: "\033[92m" + x + "\033[0m"
 
+write_out = lambda contents, filename: open(filename, "w+").write(dumps(contents, indent=2))
+
 def get_sample(which, transformation):
     cloudinary._config.cloud_name="demo"
     res = utils.cloudinary_url(which, raw_transformation=transformation)[0]
     return res
 
+
+not_callable = ['is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api', 'text']
+
 def get_help(api):
-    funcs = list(filter(lambda x: callable(api.__dict__[x]) and x[0].islower(), api.__dict__.keys()))
+    funcs = list(filter(lambda x: callable(api.__dict__[x]) and x[0].islower() and x not in not_callable, api.__dict__.keys()))
     sigs = '\n'.join(["{0:25}({1})".format(x, ", ".join(list(signature(api.__dict__[x]).parameters))) for x in funcs])
     return sigs
 

@@ -33,7 +33,7 @@ short_help="Search API Bindings",
 help="""\b
 Search API bindings
 format: cld search <Lucene query syntax string> <options>
-(eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10)
+eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 """)
 @click.argument("query", nargs=-1)
 @click.option("-f", "--with_field", multiple=True, help="Field to include in result")
@@ -44,8 +44,9 @@ format: cld search <Lucene query syntax string> <options>
 @click.option("-A", "--auto_paginate", is_flag=True, help="Return all results. Will call Admin API multiple times.")
 @click.option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate")
 @click.option("-ff", "--filter_fields", multiple=True, help="Filter fields to return")
+@click.option("--save", nargs=1, help="Save output to a file")
 @click.option("-d", "--doc", is_flag=True, help="Opens Search API documentation page")
-def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto_paginate, force, filter_fields, doc):
+def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto_paginate, force, filter_fields, save, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/search_api")
         exit(0)
@@ -86,8 +87,20 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
         del all_results['time']
 
     if filter_fields:
+        ff = []
+        print(filter_fields)
+        for f in list(filter_fields):
+            if "," in f:
+                ff += f.split(",")
+            else:
+                ff.append(f)
+            print(f)
+        filter_fields = tuple(ff)
         all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in filter_fields + with_field}, all_results['resources']))
     log(all_results)
+
+    if save:
+        write_out(all_results, save)
 
 
 @click.command("admin",
@@ -105,13 +118,14 @@ format: cld admin <function> <parameters> <optional_parameters>
 @click.option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
 @click.option("-O", "--optional_parameter_parsed", multiple=True, nargs=2, help="Pass optional parameters as interpreted strings")
 @click.option("-ls", "--ls", is_flag=True, help="List all available functions in the Admin API")
+@click.option("--save", nargs=1, help="Save output to a file")
 @click.option("-d", "--doc", is_flag=True, help="Opens Admin API documentation page")
-def admin(params, optional_parameter, optional_parameter_parsed, ls, doc):
-    if ls:
-        print(get_help(api))
-        exit(0)
+def admin(params, optional_parameter, optional_parameter_parsed, ls, save, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/admin_api")
+        exit(0)
+    if ls or len(params) < 1:
+        print(get_help(api))
         exit(0)
     try:
         func = api.__dict__[params[0]]
@@ -128,6 +142,8 @@ def admin(params, optional_parameter, optional_parameter_parsed, ls, doc):
         **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
     })
     log(res)
+    if save:
+        write_out(all_results, save)
 
 @click.command("uploader", 
 short_help="Upload API bindings",
@@ -145,13 +161,14 @@ format: cld uploader <function> <parameters> <optional_parameters>
 @click.option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
 @click.option("-O", "--optional_parameter_parsed", multiple=True, nargs=2, help="Pass optional parameters as interpreted strings")
 @click.option("-ls", "--ls", is_flag=True, help="List all available functions in the Upload API")
+@click.option("--save", nargs=1, help="Save output to a file")
 @click.option("-d", "--doc", is_flag=True, help="Opens Upload API documentation page")
-def uploader(params, optional_parameter, optional_parameter_parsed, ls, doc):
-    if ls:
-        print(get_help(_uploader))
-        exit(0)
+def uploader(params, optional_parameter, optional_parameter_parsed, ls, save, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/image_upload_api_reference")
+        exit(0)
+    if ls or len(params) < 1:
+        print(get_help(_uploader))
         exit(0)
     try:
         func = _uploader.__dict__[params[0]]
@@ -168,6 +185,8 @@ def uploader(params, optional_parameter, optional_parameter_parsed, ls, doc):
         **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
     })
     log(res)
+    if save:
+        write_out(all_results, save)
 
 @click.command("upload_dir", 
 help="""Upload a directory of assets and persist the directory structure""")
@@ -189,7 +208,7 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
         **{k:v for k,v in optional_parameter},
         **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
         "resource_type": "auto",
-        "unqiue_filename": False,
+        "unique_filename": False,
         "use_filename": True,
         "raw_transformation": transformation,
         "upload_preset": preset
@@ -198,6 +217,8 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
         for fi in files:
             file_path = abspath(path_join(dir_to_upload, root, fi))
             mod_folder = path_join(folder, dirname(file_path[len(parent) + 1:]))
+            if split(file_path)[1][0] == ".":
+                continue
             try:
                 _r = _uploader.upload(file_path, **options, folder=mod_folder)
                 if verbose or very_verbose:
@@ -253,6 +274,7 @@ def config(new, ls, rm):
         try:
             cloudinary._config._parse_cloudinary_url(new[1])
             cfg[new[0]] = new[1]
+            api.ping()
             with open(CLOUDINARY_CLI_CONFIG_FILE, "w") as f:
                 f.write(dumps(cfg))
                 f.close()
@@ -272,7 +294,11 @@ def config(new, ls, rm):
         open(CLOUDINARY_CLI_CONFIG_FILE, "w").write(dumps(cfg))
         print(f"Configuration '{rm}' deleted")
 
-@click.command("make", help="Scaffold Cloudinary templates")
+@click.command("make", short_help="Scaffold Cloudinary templates.",
+help="""\b
+Scaffold Cloudinary templates.
+eg. cld make product gallery
+""")
 @click.argument("template", nargs=-1)
 def make(template):
     language = "html"
@@ -315,27 +341,6 @@ def dog(transformation, open):
     if open:
         open_url(res)
 
-
-@click.command("migrate", 
-short_help="Migrate files using an existing auto-upload mapping and a file of URLs",
-help="Migrate files using an existing auto-upload mapping and a file of URLs")
-@click.argument("upload_mapping")
-@click.argument("file")
-@click.option("-d", "--delimiter", default="\n", help="Separator for the URLs. Default: New line")
-@click.option("-v", "--verbose", is_flag=True)
-def migrate(upload_mapping, file, delimiter, verbose):
-    with open(file) as f:
-        items = f.read().split(delimiter)
-    mapping = api.upload_mapping(upload_mapping)
-    _len = len(mapping['template'])
-    items = map(lambda x: cld_url(path_join(mapping['folder'], x[_len:])), filter(lambda x: x != '', items))
-    for i in items:
-        res = get(i[0])
-        if res.status_code != 200:
-            print(F_FAIL("Failed uploading asset: " + res.__dict__['headers']['X-Cld-Error']))
-        elif verbose:
-            print(F_OK(f"Uploaded {i[0]}"))
-
         
 @click.command("sync",
 short_help="Synchronize between a local directory between a Cloudinary folder",
@@ -375,24 +380,27 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
     files = walk_dir(abspath(local_folder))    
     print("Found {} items in local folder '{}'".format(len(files.keys()), local_folder))
     cld_files = query_cld_folder(cloudinary_folder)
-    print("Found {} items in cloudinary folder '{}'".format(len(cld_files.keys()), local_folder))
+    print("Found {} items in Cloudinary folder '{}'".format(len(cld_files.keys()), cloudinary_folder))
     files_ = set(files.keys())
     cld_files_ = set(cld_files.keys())
 
     files_in_cloudinary_nin_local = cld_files_ - files_
     files_in_local_nin_cloudinary = files_ - cld_files_
+    skipping = 0
 
     if push:
         files_to_delete_from_cloudinary = list(cld_files_ - files_)
         files_to_push = files_ - cld_files_
         files_to_check = files_ - files_to_push
-
-        print("\nCalculating differences...\n\n")
+        print("\nCalculating differences...\n")
         for f in files_to_check:
             if files[f]['etag'] == cld_files[f]['etag']:
-                print(F_WARN("{} already exists in Cloudinary".format(f)))
+                if verbose:
+                    print(F_WARN("{} already exists in Cloudinary".format(f)))
+                skipping += 1
             else:
                 files_to_push.add(f)
+        print("Skipping upload for {} items".format(skipping))
         if len(files_to_delete_from_cloudinary) > 0:
             print("Deleting {} resources from Cloudinary folder '{}'".format(len(files_to_delete_from_cloudinary), cloudinary_folder))
             files_to_delete_from_cloudinary = list(map(lambda x: cld_files[x], files_to_delete_from_cloudinary))
@@ -413,12 +421,14 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
                         else:
                             print(F_OK("Deleted {} resources".format(num_deleted)))
 
-        to_upload = set(filter(lambda x: split(x)[1][0] != ".", files_to_push))
+        to_upload = list(filter(lambda x: split(x)[1][0] != ".", files_to_push))
+        print("Uploading {} items to Cloudinary folder '{}'".format(len(to_upload), cloudinary_folder))
         for i in to_upload:
             modif_folder = path_join(cloudinary_folder, sep.join(i.split(sep)[:-1]))
             options = {'use_filename': True, 'unique_filename': False, 'folder': modif_folder, 'invalidate': True, 'resource_type': 'auto'}
             res = _uploader.upload(files[i]['path'], **options)
-            print(F_OK("Uploaded '{}'".format(res['public_id'])))
+            if verbose:
+                print(F_OK("Uploaded '{}'".format(res['public_id'])))
 
         print("Done!")
         
@@ -427,15 +437,17 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
         files_to_pull = files_in_cloudinary_nin_local
         files_to_check = cld_files_ - files_to_pull
         
-        print("\nCalculating differences...\n\n")
+        print("\nCalculating differences...\n")
         for f in files_to_check:
             if files[f]['etag'] == cld_files[f]['etag']:
-                print(F_WARN("{} already exists locally".format(f)))
+                if verbose:
+                    print(F_WARN("{} already exists locally".format(f)))
+                skipping += 1
             else:
                 files_to_pull.add(f)
-                files_to_delete_local.append(f)
+        print("Skipping download for {} items".format(skipping))
 
-        def delete_empty_folders(root, remove_root=False):
+        def delete_empty_folders(root, verbose, remove_root=False):
             if not isdir(root):
                 return
 
@@ -444,42 +456,66 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
                 for f in files:
                     fullpath = path_join(root, f)
                     if isdir(fullpath):
-                        delete_empty_folders(fullpath, True)
+                        delete_empty_folders(fullpath, verbose, True)
             
             files = listdir(root)
             if len(files) == 0 and remove_root:
-                print("Removing empty folder {}".format(root))
+                if verbose:
+                    print("Removing empty folder '{}'".format(root))
                 rmdir(root)
 
-        def create_required_directories(root):
+        def create_required_directories(root, verbose):
             if isdir(root):
                 return
             else:
-                create_required_directories(sep.join(root.split(sep)[:-1]))
-                print("Creating directory '{}'".format(root))
+                create_required_directories(sep.join(root.split(sep)[:-1]), verbose)
+                if verbose:
+                    print("Creating directory '{}'".format(root))
                 mkdir(root)     
 
         print("Deleting {} local files...".format(len(files_to_delete_local)))
         for i in files_to_delete_local:
             remove(abspath(files[i]['path']))
-            print("Deleted {}".format(abspath(files[i]['path'])))
+            if verbose:
+                print("Deleted '{}'".format(abspath(files[i]['path'])))
 
         print("Deleting empty folders...")
         
-        delete_empty_folders(local_folder)
+        delete_empty_folders(local_folder, verbose)
 
         print("Downloading {} files from Cloudinary".format(len(files_to_pull)))
         
         for i in files_to_pull:
             local_path = abspath(path_join(local_folder, i + "." + cld_files[i]['format'] if cld_files[i]['resource_type'] != 'raw' else i))
-            create_required_directories(split(local_path)[0])
+            create_required_directories(split(local_path)[0], verbose)
             with open(local_path, "wb") as f:
                 to_download = cld_files[i]
                 r = get(cld_url(to_download['public_id'], resource_type=to_download['resource_type'], type=to_download['type'])[0])
                 f.write(r.content)
                 f.close()
-            print(F_OK("Downloaded {} to {}".format(i, local_path)))
-        pass
+            if verbose:
+                print(F_OK("Downloaded '{}' to '{}'".format(i, local_path)))
+        
+        print("Done!")
+
+@click.command("migrate", 
+short_help="Migrate files using an existing auto-upload mapping and a file of URLs",
+help="Migrate files using an existing auto-upload mapping and a file of URLs")
+@click.argument("upload_mapping")
+@click.argument("file")
+@click.option("-d", "--delimiter", default="\n", help="Separator for the URLs. Default: New line")
+@click.option("-v", "--verbose", is_flag=True)
+def migrate(upload_mapping, file, delimiter, verbose):
+    with open(file) as f:
+        items = f.read().split(delimiter)
+    mapping = api.upload_mapping(upload_mapping)
+    items = map(lambda x: cld_url(path_join(mapping['folder'], x[len(mapping['template']):])), filter(lambda x: x != '', items))
+    for i in items:
+        res = get(i[0])
+        if res.status_code != 200:
+            print(F_FAIL("Failed uploading asset: " + res.__dict__['headers']['X-Cld-Error']))
+        elif verbose:
+            print(F_OK(f"Uploaded {i[0]}"))
 
 # Basic commands
 
