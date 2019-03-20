@@ -6,7 +6,6 @@ from pygments.lexers import JsonLexer, JsonBareObjectLexer
 from pygments.formatters import TerminalFormatter
 from inspect import signature
 from json import loads, dumps
-from subprocess import Popen
 from os.path import join as path_join, expanduser, abspath, isdir, basename, exists
 from os import mkdir, rename
 import cloudinary
