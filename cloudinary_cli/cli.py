@@ -13,6 +13,9 @@ from hashlib import md5
 from itertools import product
 from functools import reduce
 from webbrowser import open as open_url
+from threading import Thread
+from time import sleep
+
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
@@ -213,25 +216,38 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
         "raw_transformation": transformation,
         "upload_preset": preset
     }
+
+    threads = []
+
+    def upload_multithreaded(file_path, items, skipped, v, **kwargs):
+        try:
+            _r = _uploader.upload(file_path, **kwargs)
+            if v:
+                print(F_OK(f"Successfully uploaded {file_path} as {_r['public_id']}"))
+            if v > 1:
+                log(_r)
+            items.append(_r['public_id'])
+        except Exception as e:
+            if v:
+                print(F_FAIL(f"Failed uploading {file_path}"))
+            print(e)
+            skipped.append(file_path)
+            pass
+
     for root, _, files in walk(dir_to_upload):
         for fi in files:
             file_path = abspath(path_join(dir_to_upload, root, fi))
             mod_folder = path_join(folder, dirname(file_path[len(parent) + 1:]))
             if split(file_path)[1][0] == ".":
                 continue
-            try:
-                _r = _uploader.upload(file_path, **options, folder=mod_folder)
-                if verbose or very_verbose:
-                    print(F_OK(f"Successfully uploaded {file_path} as {_r['public_id']}"))
-                if very_verbose:
-                    log(_r)
-                items.append(_r['public_id'])
-            except Exception as e:
-                if verbose or very_verbose:
-                    print(F_FAIL(f"Failed uploading {file_path}"))
-                print(e)
-                skipped.append(file_path)
-                pass
+            options = {**options, "folder": mod_folder}
+            threads.append(Thread(target=upload_multithreaded, args=(file_path, items, skipped, bool(verbose) + bool(very_verbose)), kwargs=options))
+
+    for t in threads:
+        t.start()
+        sleep(1/10)
+
+    for t in threads: t.join()
 
     print(F_OK(f"\n{len(items)} resources uploaded:"))
     print(F_OK('\n'.join(items)))
@@ -389,6 +405,7 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
     skipping = 0
 
     if push:
+            
         files_to_delete_from_cloudinary = list(cld_files_ - files_)
         files_to_push = files_ - cld_files_
         files_to_check = files_ - files_to_push
@@ -423,12 +440,24 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
 
         to_upload = list(filter(lambda x: split(x)[1][0] != ".", files_to_push))
         print("Uploading {} items to Cloudinary folder '{}'".format(len(to_upload), cloudinary_folder))
+
+        threads = []
+
+        def threaded_upload(options, path, verbose):
+            res = _uploader.upload(path, **options)
+            if verbose:
+                print(F_OK("Uploaded '{}'".format(res['public_id'])))
+
         for i in to_upload:
             modif_folder = path_join(cloudinary_folder, sep.join(i.split(sep)[:-1]))
             options = {'use_filename': True, 'unique_filename': False, 'folder': modif_folder, 'invalidate': True, 'resource_type': 'auto'}
-            res = _uploader.upload(files[i]['path'], **options)
-            if verbose:
-                print(F_OK("Uploaded '{}'".format(res['public_id'])))
+            threads.append(Thread(target=threaded_upload, args=(options, files[i]['path'], verbose)))
+        
+        for t in threads:
+            t.start()
+            sleep(1/10)
+
+        [t.join() for t in threads]
 
         print("Done!")
         
@@ -485,9 +514,9 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
 
         print("Downloading {} files from Cloudinary".format(len(files_to_pull)))
         
-        for i in files_to_pull:
-            local_path = abspath(path_join(local_folder, i + "." + cld_files[i]['format'] if cld_files[i]['resource_type'] != 'raw' else i))
-            create_required_directories(split(local_path)[0], verbose)
+        threads = []
+        
+        def threaded_pull(local_path, verbose, cld_files):
             with open(local_path, "wb") as f:
                 to_download = cld_files[i]
                 r = get(cld_url(to_download['public_id'], resource_type=to_download['resource_type'], type=to_download['type'])[0])
@@ -495,6 +524,18 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
                 f.close()
             if verbose:
                 print(F_OK("Downloaded '{}' to '{}'".format(i, local_path)))
+
+        for i in files_to_pull:
+            local_path = abspath(path_join(local_folder, i + "." + cld_files[i]['format'] if cld_files[i]['resource_type'] != 'raw' else i))
+            create_required_directories(split(local_path)[0], verbose)
+
+            threads.append(Thread(target=threaded_pull, args=(local_path, verbose, cld_files)))
+
+        for t in threads:
+            t.start()
+            sleep(1/10)
+
+        [t.join() for t in threads]
         
         print("Done!")
 
