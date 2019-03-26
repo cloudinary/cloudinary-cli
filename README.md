@@ -4,7 +4,7 @@
 This command line interface is fully and seamlessly integrated with Cloudinary's APIs.
 
 ## Requirements
-Python 3.6^
+Python 3.6
 
 ## Setup
 
