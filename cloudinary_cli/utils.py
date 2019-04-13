@@ -82,7 +82,7 @@ def parse_args_kwargs(func, params):
     p = signature(func)
     l = len(p.parameters) - 1
     if len(params) < l:
-        print(f"Function '{func.__name__}' requires {l} arguments")
+        print("Function '{}' requires {} arguments".format(func.__name__, l))
         exit(1)
     args = [parse_option_value(x) for x in params[:l]]
     kwargs = {k: parse_option_value(v) for k, v in [x.split('=') for x in params[l:]]} if params[l:] else {}

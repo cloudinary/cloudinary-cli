@@ -73,7 +73,7 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
     all_results = res
     if auto_paginate and 'next_cursor' in res.keys():
         if not force:
-            r = input(f"{res['total_count']} total results. {res.__dict__['rate_limit_remaining'] + 1} Admin API rate limit remaining.\nRunning this program will use {res['total_count']//500 + 1} Admin API calls. Continue? (Y/N) ")
+            r = input("{} total results. {} Admin API rate limit remaining.\nRunning this program will use {} Admin API calls. Continue? (Y/N) ".format(res['total_count'], res.__dict__['rate_limit_remaining'] + 1, res['total_count']//500 + 1))
             if r.lower() != 'y':
                 print("Exiting. Please run again without -A.")
                 exit(0)
@@ -137,10 +137,10 @@ def admin(params, optional_parameter, optional_parameter_parsed, ls, save, doc):
     try:
         func = api.__dict__[params[0]]
         if not callable(func):
-            raise Exception(F_FAIL(f"{func} is not callable."))
+            raise Exception(F_FAIL("{} is not callable.".format(func)))
             exit(1)
     except:
-        print(F_FAIL(f"Function {params[0]} does not exist in the Admin API."))
+        print(F_FAIL("Function {} does not exist in the Admin API.".format(params[0])))
         exit(1)
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
     res = func(*parameters, **{
@@ -180,10 +180,10 @@ def uploader(params, optional_parameter, optional_parameter_parsed, ls, save, do
     try:
         func = _uploader.__dict__[params[0]]
         if not callable(func):
-            raise Exception(F_FAIL(f"{func} is not callable."))
+            raise Exception(F_FAIL("{} is not callable.".format(func)))
             exit(1)
     except:
-        print(F_FAIL(f"Function {params[0]} does not exist in the Upload API."))
+        print(F_FAIL("Function {} does not exist in the Upload API.".format(params[0])))
         exit(1)
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
     res = func(*parameters, **{
@@ -207,7 +207,7 @@ help="""Upload a directory of assets and persist the directory structure""")
 def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose):
     items, skipped = [], []
     dir_to_upload = abspath(path_join(getcwd(), directory))
-    print(f"Uploading directory '{dir_to_upload}'")
+    print("Uploading directory '{}'".format(dir_to_upload))
     parent = dirname(dir_to_upload)
     current_dir_abs_path = dir_to_upload[len(parent)+1:]
     options = {
@@ -226,12 +226,12 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
     def upload_multithreaded(file_path, items, skipped, v, **kwargs):
         try:
             _r = _uploader.upload(file_path, **kwargs)
-            print(F_OK(f"Successfully uploaded {file_path} as {_r['public_id']}"))
+            print(F_OK("Successfully uploaded {} as {}".format(file_path, _r['public_id'])))
             if v:
                 log(_r)
             items.append(_r['public_id'])
         except Exception as e:
-            print(F_FAIL(f"Failed uploading {file_path}"))
+            print(F_FAIL("Failed uploading {}".format(file_path)))
             print(e)
             skipped.append(file_path)
             pass
@@ -254,10 +254,10 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
 
     for t in threads: t.join()
 
-    print(F_OK(f"\n{len(items)} resources uploaded:"))
+    print(F_OK("\n{} resources uploaded:".format(len(items))))
     print(F_OK('\n'.join(items)))
     if len(skipped):
-        print(F_FAIL(f"\n{len(skipped)} items skipped:"))
+        print(F_FAIL("\n{} items skipped:".format(len(skipped))))
         print(F_FAIL('\n'.join(skipped)))
 
 @click.command("url", help="Generate a cloudinary url")
@@ -284,7 +284,7 @@ eg. cld config -n <NAME> <CLOUDINARY_URL>""", nargs=2)
 @click.option("-rm", "--rm", help="Delete an additional configuration", nargs=1)
 def config(new, ls, rm):
     if not (new or ls or rm):
-        print('\n'.join(["{}:\t{}".format(k, v if k != "api_secret" else f"***************{v[-4:]}") for k, v in cloudinary._config.__dict__.items()]))
+        print('\n'.join(["{}:\t{}".format(k, v if k != "api_secret" else "***************{}".format(v[-4:])) for k, v in cloudinary._config.__dict__.items()]))
         exit(0)
 
     with open(CLOUDINARY_CLI_CONFIG_FILE, "r+") as f:
@@ -309,11 +309,11 @@ def config(new, ls, rm):
         exit(0)
     if rm:
         if rm not in cfg.keys():
-            print(f"Configuration '{rm}' not found.")
+            print("Configuration '{}' not found.".format(rm))
             exit(1)
         del cfg[rm]
         open(CLOUDINARY_CLI_CONFIG_FILE, "w").write(dumps(cfg))
-        print(f"Configuration '{rm}' deleted")
+        print("Configuration '{}' deleted".format(rm))
 
 @click.command("make", short_help="Scaffold Cloudinary templates.",
 help="""\b
@@ -567,7 +567,7 @@ def migrate(upload_mapping, file, delimiter, verbose):
         if res.status_code != 200:
             print(F_FAIL("Failed uploading asset: " + res.__dict__['headers']['X-Cld-Error']))
         elif verbose:
-            print(F_OK(f"Uploaded {i[0]}"))
+            print(F_OK("Uploaded {}".format(i[0])))
 
 # Basic commands
 
