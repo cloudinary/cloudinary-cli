@@ -13,7 +13,7 @@ from hashlib import md5
 from itertools import product
 from functools import reduce
 from webbrowser import open as open_url
-from threading import Thread
+from threading import Thread, active_count
 from time import sleep
 
 
@@ -47,9 +47,10 @@ eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 @click.option("-A", "--auto_paginate", is_flag=True, help="Return all results. Will call Admin API multiple times.")
 @click.option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate")
 @click.option("-ff", "--filter_fields", multiple=True, help="Filter fields to return")
-@click.option("--save", nargs=1, help="Save output to a file")
+@click.option("--json", nargs=1, help="Save output as a JSON")
+@click.option("--csv", nargs=1, help="Save output as a CSV")
 @click.option("-d", "--doc", is_flag=True, help="Opens Search API documentation page")
-def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto_paginate, force, filter_fields, save, doc):
+def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto_paginate, force, filter_fields, json, csv, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/search_api")
         exit(0)
@@ -91,19 +92,22 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
 
     if filter_fields:
         ff = []
-        print(filter_fields)
         for f in list(filter_fields):
             if "," in f:
                 ff += f.split(",")
             else:
                 ff.append(f)
-            print(f)
         filter_fields = tuple(ff)
         all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in filter_fields + with_field}, all_results['resources']))
     log(all_results)
 
-    if save:
-        write_out(all_results, save)
+    if json:
+        write_out(all_results['resources'], json)
+    
+    if csv:
+        all_results = all_results['resources']
+        #write to csv
+
 
 
 @click.command("admin",
@@ -200,8 +204,7 @@ help="""Upload a directory of assets and persist the directory structure""")
 @click.option("-f", "--folder", default="", help="Specify the folder you would like to upload resources to in Cloudinary")
 @click.option("-p", "--preset", help="Upload preset to use")
 @click.option("-v", "--verbose", is_flag=True, help="Logs information after each upload")
-@click.option("-vv", "--very_verbose", is_flag=True, help="Logs full details of each upload")
-def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose, very_verbose):
+def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose):
     items, skipped = [], []
     dir_to_upload = abspath(path_join(getcwd(), directory))
     print(f"Uploading directory '{dir_to_upload}'")
@@ -211,6 +214,7 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
         **{k:v for k,v in optional_parameter},
         **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
         "resource_type": "auto",
+        "invalidate": True,
         "unique_filename": False,
         "use_filename": True,
         "raw_transformation": transformation,
@@ -222,14 +226,12 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
     def upload_multithreaded(file_path, items, skipped, v, **kwargs):
         try:
             _r = _uploader.upload(file_path, **kwargs)
+            print(F_OK(f"Successfully uploaded {file_path} as {_r['public_id']}"))
             if v:
-                print(F_OK(f"Successfully uploaded {file_path} as {_r['public_id']}"))
-            if v > 1:
                 log(_r)
             items.append(_r['public_id'])
         except Exception as e:
-            if v:
-                print(F_FAIL(f"Failed uploading {file_path}"))
+            print(F_FAIL(f"Failed uploading {file_path}"))
             print(e)
             skipped.append(file_path)
             pass
@@ -241,9 +243,12 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
             if split(file_path)[1][0] == ".":
                 continue
             options = {**options, "folder": mod_folder}
-            threads.append(Thread(target=upload_multithreaded, args=(file_path, items, skipped, bool(verbose) + bool(very_verbose)), kwargs=options))
+            threads.append(Thread(target=upload_multithreaded, args=(file_path, items, skipped, verbose), kwargs=options))
 
     for t in threads:
+        while active_count() >= 30:
+            # prevent concurrency overload
+            sleep(1)
         t.start()
         sleep(1/10)
 
@@ -454,6 +459,9 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
             threads.append(Thread(target=threaded_upload, args=(options, files[i]['path'], verbose)))
         
         for t in threads:
+            while active_count() >= 30:
+                # prevent concurrency overload
+                sleep(1)
             t.start()
             sleep(1/10)
 
@@ -532,6 +540,9 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
             threads.append(Thread(target=threaded_pull, args=(local_path, verbose, cld_files)))
 
         for t in threads:
+            while active_count() >= 30:
+                # prevent concurrency overload
+                sleep(1)
             t.start()
             sleep(1/10)
 

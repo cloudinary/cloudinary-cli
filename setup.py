@@ -7,9 +7,9 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="cloudinary-cli",
-    version="0.2.2",
+    version="0.2.3",
     author="Brian Luk",
-    author_email="brian@cloudinary.com",
+    author_email="lukitsbrian@gmail.com",
     classifiers=[
         "Programming Language :: Python :: 3 :: Only",
         "License :: OSI Approved :: MIT License",
@@ -32,6 +32,7 @@ setuptools.setup(
         "pygments",
         "jinja2",
         "click",
+        "requests"
     ],
     include_package_data=True,
     zip_safe=False
