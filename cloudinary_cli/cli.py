@@ -15,7 +15,7 @@ from functools import reduce
 from webbrowser import open as open_url
 from threading import Thread, active_count
 from time import sleep
-
+import csv as _csv
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
@@ -47,8 +47,8 @@ eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 @click.option("-A", "--auto_paginate", is_flag=True, help="Return all results. Will call Admin API multiple times.")
 @click.option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate")
 @click.option("-ff", "--filter_fields", multiple=True, help="Filter fields to return")
-@click.option("--json", nargs=1, help="Save output as a JSON")
-@click.option("--csv", nargs=1, help="Save output as a CSV")
+@click.option("--json", nargs=1, help="Save output as a JSON. Usage: --json <filename>")
+@click.option("--csv", nargs=1, help="Save output as a CSV. Usage: --csv <filename>")
 @click.option("-d", "--doc", is_flag=True, help="Opens Search API documentation page")
 def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto_paginate, force, filter_fields, json, csv, doc):
     if doc:
@@ -89,7 +89,7 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
             all_results['resources'] += res['resources']
         
         del all_results['time']
-
+    ff = []
     if filter_fields:
         ff = []
         for f in list(filter_fields):
@@ -97,8 +97,8 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
                 ff += f.split(",")
             else:
                 ff.append(f)
-        filter_fields = tuple(ff)
-        all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in filter_fields + with_field}, all_results['resources']))
+        filter_fields = tuple(ff) + with_field
+        all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in filter_fields}, all_results['resources']))
     log(all_results)
 
     if json:
@@ -106,6 +106,17 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
     
     if csv:
         all_results = all_results['resources']
+        f = open('{}.csv'.format(csv), 'w')
+        if ff == []:
+            ff = all_results[0].keys()
+        writer = _csv.DictWriter(f, fieldnames=list(ff))
+
+        writer.writeheader()
+        writer.writerows(all_results)
+
+        f.close()
+
+        print('Saved search to \'{}.csv\''.format(csv))
         #write to csv
 
 
