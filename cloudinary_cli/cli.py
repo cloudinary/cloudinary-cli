@@ -97,8 +97,8 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
                 ff += f.split(",")
             else:
                 ff.append(f)
-        filter_fields = tuple(ff) + with_field
-        all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in filter_fields}, all_results['resources']))
+        ff = tuple(ff) + with_field
+        all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in ff}, all_results['resources']))
     log(all_results)
 
     if json:
@@ -108,7 +108,7 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
         all_results = all_results['resources']
         f = open('{}.csv'.format(csv), 'w')
         if ff == []:
-            ff = all_results[0].keys()
+            ff = list(all_results[0].keys())
         writer = _csv.DictWriter(f, fieldnames=list(ff))
 
         writer.writeheader()

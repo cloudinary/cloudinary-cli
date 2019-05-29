@@ -141,7 +141,7 @@ Usage: cld search [OPTIONS] [QUERY]...
 
   Search API bindings
   format: cld search <Lucene query syntax string> <options>
-  (eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10)
+  eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 
 Options:
   -f, --with_field TEXT      Field to include in result
@@ -152,7 +152,8 @@ Options:
   -A, --auto_paginate        Return all results. Will call Admin API multiple times.
   -F, --force                Skip confirmation when running --auto-paginate
   -ff, --filter_fields TEXT  Filter fields to return
-  --save TEXT                Save output to a file
+  --json TEXT                Save output as a JSON. Usage: --json <filename>
+  --csv TEXT                 Save output as a CSV. Usage: --csv <filename>
   -d, --doc                  Opens Search API documentation page
   --help                     Show this message and exit.
 ```
@@ -274,3 +275,8 @@ cld <sample_resource> <transformation>
 - `sample` - http://res.cloudinary.com/demo/image/upload/sample
 - `couple` - http://res.cloudinary.com/demo/image/upload/couple
 - `dog` - http://res.cloudinary.com/demo/video/upload/dog
+
+# TODOs
+
+- Simple commands (`cld upload` instead of `cld uploader upload`)
+- Add more code examples
