@@ -31,8 +31,8 @@ Python 3.6
 ```
 cld --help # lists available commands
 cld search --help 	# Search API usage
-cld admin --ls 		# Admin API functions
-cld uploader --ls 	# Upload API functions
+cld admin     # Admin API functions
+cld uploader    # Upload API functions
 ```
 
 Using temporary Cloudinary configurations requires the `-c` option or `--config`:
@@ -189,7 +189,7 @@ Options:
   -n, --new TEXT...  Set an additional configuration
                      eg. cld config -n <NAME> <CLOUDINARY_URL>
   -ls, --ls          List all configurations
-  -rm, --rm TEXT     Delete an additional configuration
+  -rm, --rm TEXT     Delete a saved configuration
   --help             Show this message and exit.
 ```
 

@@ -6,3 +6,4 @@ dist
 .eggs
 env
 .vscode
+.idea
