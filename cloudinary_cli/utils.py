@@ -6,33 +6,10 @@ from pygments.lexers import JsonLexer, JsonBareObjectLexer
 from pygments.formatters import TerminalFormatter
 from inspect import signature
 from json import loads, dumps
-from os.path import join as path_join, expanduser, abspath, isdir, basename, exists
-from os import mkdir, rename
+from cloudinary import utils
 import cloudinary
-import re
 from pkg_resources import resource_filename
-from shutil import copy
-
-TEMPLATE_FOLDER = "templates"
-
-TEMPLATE_EXTS = {
-    "python": "py",
-    "html": "html",
-    "ruby": "rb",
-    "node": "js",
-    "php": "php",
-    "java": "java",
-}
-
-CLOUDINARY_CLI_CONFIG_FILE = abspath(path_join(expanduser("~"), '.cloudinary-cli-config'))
-
-if not exists(CLOUDINARY_CLI_CONFIG_FILE):
-    open(CLOUDINARY_CLI_CONFIG_FILE, "a").close()
-
-CUSTOM_TEMPLATE_FOLDER = abspath(path_join(expanduser("~"), '.cld-cli-templates'))
-
-if not isdir(CUSTOM_TEMPLATE_FOLDER):
-    mkdir(CUSTOM_TEMPLATE_FOLDER)
+from .defaults import *
 
 F_FAIL = lambda x: "\033[91m" + x + "\033[0m"
 F_WARN = lambda x: "\033[93m" + x + "\033[0m"
