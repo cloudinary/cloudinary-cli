@@ -9,8 +9,6 @@ from .modules.make import make
 from .modules.migrate import migrate
 from .modules.sync import sync
 from .modules.upload_dir import upload_dir
-from .extensions import upload_dir, make, sync, migrate
-# import csv as _csv
 from .defaults import CLOUDINARY_CLI_CONFIG_FILE
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
