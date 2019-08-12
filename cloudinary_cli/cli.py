@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 import click
-from .utils import *
+# from .utils import *
 import cloudinary
 from json import loads, dumps
-from .core import config, search, uploader, admin, url
+
+# from .core.overrides import MultiCommandOverride
+# from .core import config, search, uploader, admin, url
+from .core import *
 from .samples import sample, couple, dog
-from .modules.make import make
-from .modules.migrate import migrate
-from .modules.sync import sync
-from .modules.upload_dir import upload_dir
+from .modules import *
 from .defaults import CLOUDINARY_CLI_CONFIG_FILE
 
+# click.Command.__dict__["resolve_command"] = resolve_command
+# click.MultiCommand = MultiCommandOverride
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -24,6 +26,7 @@ def cli(config, config_saved):
     elif config_saved:
         cloudinary._config._parse_cloudinary_url(loads(open(CLOUDINARY_CLI_CONFIG_FILE).read())[config_saved])
     pass
+
 
 # Basic commands
 
