@@ -31,3 +31,12 @@ def resolve_command(self, ctx, args):
             ctx.fail('No such command "%s".' % original_cmd_name)
 
     return cmd_name, cmd, args[1:]
+
+
+from cloudinary.utils import build_upload_params
+from cloudinary.uploader import call_cacheable_api
+def upload(file, **options):
+    params = build_upload_params(**options)
+    if "resource_type" not in options.keys():
+        options["resource_type"] = "auto"
+    return call_cacheable_api("upload", params, file=file, **options)
