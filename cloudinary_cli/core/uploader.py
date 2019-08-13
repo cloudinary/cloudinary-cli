@@ -47,5 +47,5 @@ def uploader(params, optional_parameter, optional_parameter_parsed, ls, save, do
     })
     log(res)
     if save:
-        write_out(all_results, save)
+        write_out(res, save)
 
