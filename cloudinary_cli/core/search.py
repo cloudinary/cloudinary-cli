@@ -4,6 +4,7 @@ from csv import DictWriter
 from cloudinary.utils import cloudinary_url as cld_url
 from cloudinary import api, uploader as _uploader
 from click import command, argument, option, Choice
+from functools import reduce
 
 @command("search",
          short_help="Search API Bindings",
@@ -65,7 +66,7 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
         del all_results['time']
     ff = []
     if filter_fields:
-        ff = []
+        print("filtering")
         for f in list(filter_fields):
             if "," in f:
                 ff += f.split(",")
@@ -82,7 +83,8 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
         all_results = all_results['resources']
         f = open('{}.csv'.format(csv), 'w')
         if ff == []:
-            ff = list(all_results[0].keys())
+            possible_keys = reduce(lambda x, y: set(y.keys()) | x, all_results, set())
+            ff = list(possible_keys)
         writer = DictWriter(f, fieldnames=list(ff))
 
         writer.writeheader()
