@@ -15,7 +15,7 @@ Python 3.6
     ```
 
 2. To install this package, run: `pip3 install cloudinary-cli`
-3. Make sure your configuration is set up properly by running `cld whoami`. It should print:
+3. Make sure your configuration is set up properly by running `cld config`. It should print:
 
     ```
     cloud_name:     <CLOUD_NAME>
@@ -59,6 +59,7 @@ Options:
                      eg. cld config -n <NAME> <CLOUDINARY_URL>
   -ls, --ls          List all configurations
   -rm, --rm TEXT     Delete an additional configuration
+  -url, --from_url TEXT  Create a configuration from a Cloudinary URL
   --help             Show this message and exit.
 ```
 
@@ -277,6 +278,6 @@ cld <sample_resource> <transformation>
 - `dog` - http://res.cloudinary.com/demo/video/upload/dog
 
 # TODOs
-
-- Simple commands (`cld upload` instead of `cld uploader upload`)
-- Add more code examples
+- Globbing support
+- Local GUI support
+- More code samples

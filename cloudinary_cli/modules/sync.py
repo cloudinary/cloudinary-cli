@@ -10,7 +10,6 @@ from functools import reduce
 from threading import Thread, active_count
 from time import sleep
 from ..utils import parse_option_value, log, F_OK, F_WARN, F_FAIL, load_template
-from ..defaults import TEMPLATE_EXTS
 
 @command("sync",
          short_help="Synchronize between a local directory between a Cloudinary folder",

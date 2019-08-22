@@ -55,7 +55,8 @@ def config(new, ls, rm, from_url):
             with open(CLOUDINARY_CLI_CONFIG_FILE, "w") as f:
                 f.write(dumps(cfg))
                 f.close()
-            print("Config '{}' saved!".format(from_url))
+            print("Config '{}' saved!".format(cloudinary._config.cloud_name))
+            print("Example usage: cld -C {} <command>".format(cloudinary._config.cloud_name))
         except Exception as e:
             print(e)
             print("Invalid Cloudinary URL: {}".format(from_url))
