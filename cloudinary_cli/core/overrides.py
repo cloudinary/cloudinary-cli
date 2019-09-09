@@ -1,12 +1,10 @@
-# from ..utils import *
 from cloudinary import api, uploader
-
-import click
 from click.utils import make_str
 from click.parser import split_opt
+from cloudinary.utils import build_upload_params
+from cloudinary.uploader import call_cacheable_api
 
 
-# overrides click.MultiCommand.resolve_command
 def resolve_command(self, ctx, args):
     cmd_name = make_str(args[0])
     original_cmd_name = cmd_name
@@ -33,8 +31,6 @@ def resolve_command(self, ctx, args):
     return cmd_name, cmd, args[1:]
 
 
-from cloudinary.utils import build_upload_params
-from cloudinary.uploader import call_cacheable_api
 def upload(file, **options):
     params = build_upload_params(**options)
     if "resource_type" not in options.keys():

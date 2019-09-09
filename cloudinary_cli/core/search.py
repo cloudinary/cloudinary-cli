@@ -1,10 +1,9 @@
 from ..utils import *
 from webbrowser import open as open_url
 from csv import DictWriter
-from cloudinary.utils import cloudinary_url as cld_url
-from cloudinary import api, uploader as _uploader
-from click import command, argument, option, Choice
+from click import command, argument, option
 from functools import reduce
+
 
 @command("search",
          short_help="Search API Bindings",
@@ -25,7 +24,8 @@ eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 @option("--json", nargs=1, help="Save output as a JSON. Usage: --json <filename>")
 @option("--csv", nargs=1, help="Save output as a CSV. Usage: --csv <filename>")
 @option("-d", "--doc", is_flag=True, help="Opens Search API documentation page")
-def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto_paginate, force, filter_fields, json, csv, doc):
+def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
+           auto_paginate, force, filter_fields, json, csv, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/search_api")
         exit(0)
@@ -48,7 +48,11 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
     all_results = res
     if auto_paginate and 'next_cursor' in res.keys():
         if not force:
-            r = input("{} total results. {} Admin API rate limit remaining.\nRunning this program will use {} Admin API calls. Continue? (Y/N) ".format(res['total_count'], res.__dict__['rate_limit_remaining'] + 1, res['total_count']//500 + 1))
+            r = input("{} total results. {} Admin API rate limit remaining.\n \
+            Running this program will use {} Admin API calls. Continue? (Y/N) ".format(
+                res['total_count'],
+                res.__dict__['rate_limit_remaining'] + 1,
+                res['total_count']//500 + 1))
             if r.lower() != 'y':
                 print("Exiting. Please run again without -A.")
                 exit(0)
@@ -64,16 +68,17 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
             all_results['resources'] += res['resources']
         
         del all_results['time']
-    ff = []
+    return_fields = []
     if filter_fields:
         print("filtering")
         for f in list(filter_fields):
             if "," in f:
-                ff += f.split(",")
+                return_fields += f.split(",")
             else:
-                ff.append(f)
-        ff = tuple(ff) + with_field
-        all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys() else None for k in ff}, all_results['resources']))
+                return_fields.append(f)
+        return_fields = tuple(return_fields) + with_field
+        all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys()
+                                            else None for k in return_fields}, all_results['resources']))
     log(all_results)
 
     if json:
@@ -82,10 +87,10 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
     if csv:
         all_results = all_results['resources']
         f = open('{}.csv'.format(csv), 'w')
-        if ff == []:
+        if return_fields == []:
             possible_keys = reduce(lambda x, y: set(y.keys()) | x, all_results, set())
-            ff = list(possible_keys)
-        writer = DictWriter(f, fieldnames=list(ff))
+            return_fields = list(possible_keys)
+        writer = DictWriter(f, fieldnames=list(return_fields))
 
         writer.writeheader()
         writer.writerows(all_results)
@@ -93,4 +98,3 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
         f.close()
 
         print('Saved search to \'{}.csv\''.format(csv))
-        #write to csv

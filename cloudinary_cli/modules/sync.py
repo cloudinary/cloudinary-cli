@@ -1,15 +1,15 @@
 from click import command, argument, option
 from cloudinary import uploader as _uploader, api, Search
 from cloudinary.utils import cloudinary_url as cld_url
-from os import getcwd, walk, sep, remove, rmdir, listdir, mkdir
-from os.path import dirname, splitext, split, join as path_join, abspath, isdir
-from requests import get, head
+from os import walk, sep, remove, rmdir, listdir, mkdir
+from os.path import splitext, split, join as path_join, abspath, isdir
+from requests import get
 from hashlib import md5
 from itertools import product
 from functools import reduce
 from threading import Thread, active_count
 from time import sleep
-from ..utils import parse_option_value, log, F_OK, F_WARN, F_FAIL, load_template
+from ..utils import log, F_OK, F_WARN, F_FAIL
 
 @command("sync",
          short_help="Synchronize between a local directory between a Cloudinary folder",
@@ -194,8 +194,9 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
                 print(F_OK("Downloaded '{}' to '{}'".format(i, local_path)))
 
         for i in files_to_pull:
-            local_path = abspath(path_join(local_folder, i + "." + cld_files[i]['format'] if cld_files[i][
-                                                                                                 'resource_type'] != 'raw' else i))
+            local_path = abspath(path_join(local_folder,
+                                           i + "." + cld_files[i]['format']
+                                           if cld_files[i]['resource_type'] != 'raw' else i))
             create_required_directories(split(local_path)[0], verbose)
 
             threads.append(Thread(target=threaded_pull, args=(local_path, verbose, cld_files)))

@@ -1,16 +1,19 @@
 from click import command, argument, option
 from cloudinary import uploader as _uploader
-from os import getcwd, walk, sep, remove, rmdir, listdir, mkdir
-from os.path import dirname, splitext, split, join as path_join, abspath, isdir
+from os import getcwd, walk
+from os.path import dirname, split, join as path_join, abspath
 from threading import Thread, active_count
 from time import sleep
-from ..utils import parse_option_value, log, F_OK, F_WARN, F_FAIL, load_template
+from ..utils import parse_option_value, log, F_OK, F_FAIL
 
 @command("upload_dir",
          help="""Upload a directory of assets and persist the directory structure""")
 @argument("directory", default=".")
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
-@option("-O", "--optional_parameter_parsed", multiple=True, nargs=2, help="Pass optional parameters as interpreted strings")
+@option("-O", "--optional_parameter_parsed",
+        multiple=True,
+        nargs=2,
+        help="Pass optional parameters as interpreted strings")
 @option("-t", "--transformation", help="Transformation to apply on all uploads")
 @option("-f", "--folder", default="", help="Specify the folder you would like to upload resources to in Cloudinary")
 @option("-p", "--preset", help="Upload preset to use")
@@ -21,8 +24,8 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
     print("Uploading directory '{}'".format(dir_to_upload))
     parent = dirname(dir_to_upload)
     options = {
-        **{k:v for k,v in optional_parameter},
-        **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
+        **{k: v for k, v in optional_parameter},
+        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
         "resource_type": "auto",
         "invalidate": True,
         "unique_filename": False,
@@ -53,7 +56,9 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
             if split(file_path)[1][0] == ".":
                 continue
             options = {**options, "folder": mod_folder}
-            threads.append(Thread(target=upload_multithreaded, args=(file_path, items, skipped, verbose), kwargs=options))
+            threads.append(Thread(target=upload_multithreaded,
+                                  args=(file_path, items, skipped, verbose),
+                                  kwargs=options))
 
     for t in threads:
         while active_count() >= 30:
@@ -62,7 +67,8 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
         t.start()
         sleep(1/10)
 
-    for t in threads: t.join()
+    for t in threads:
+        t.join()
 
     print(F_OK("\n{} resources uploaded:".format(len(items))))
     print(F_OK('\n'.join(items)))

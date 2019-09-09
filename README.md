@@ -93,11 +93,13 @@ Options:
 
 Example: I want to change the asset with `public_id:"flowers"` from `type:upload` to `type:private` and rename it using the rename method, which takes two parameters - `from_public_id` and `to_public_id`.
 
-The following two commands will do the same thing:
+The following commands will do the same thing:
 
 ```
 cld uploader rename flowers secret_flowers to_type=private
 cld uploader rename flowers secret_flowers -o to_type private
+cld rename flowers secret_flowers to_type=private
+
 ```
 
 ## Admin API

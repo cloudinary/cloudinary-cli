@@ -1,9 +1,7 @@
 from ..utils import *
 from webbrowser import open as open_url
-from csv import DictWriter
-from cloudinary.utils import cloudinary_url as cld_url
-from cloudinary import api, uploader as _uploader
-from click import command, argument, option, Choice
+from cloudinary import uploader as _uploader
+from click import command, argument, option
 
 
 @command("uploader",
@@ -20,7 +18,8 @@ format: cld uploader <function> <parameters> <optional_parameters>
 """)
 @argument("params", nargs=-1)
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
-@option("-O", "--optional_parameter_parsed", multiple=True, nargs=2, help="Pass optional parameters as interpreted strings")
+@option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
+        help="Pass optional parameters as interpreted strings")
 @option("-ls", "--ls", is_flag=True, help="List all available functions in the Upload API")
 @option("--save", nargs=1, help="Save output to a file")
 @option("-d", "--doc", is_flag=True, help="Opens Upload API documentation page")
@@ -42,10 +41,9 @@ def uploader(params, optional_parameter, optional_parameter_parsed, ls, save, do
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
     res = func(*parameters, **{
         **options,
-        **{k:v for k,v in optional_parameter},
-        **{k:parse_option_value(v) for k,v in optional_parameter_parsed},
+        **{k: v for k, v in optional_parameter},
+        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
     })
     log(res)
     if save:
         write_out(res, save)
-

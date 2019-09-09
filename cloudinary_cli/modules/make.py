@@ -1,15 +1,5 @@
-from click import command, argument, option
-from cloudinary import uploader as _uploader, api, Search
-from cloudinary.utils import cloudinary_url as cld_url
-from os import getcwd, walk, sep, remove, rmdir, listdir, mkdir
-from os.path import dirname, splitext, split, join as path_join, abspath, isdir
-from requests import get, head
-from hashlib import md5
-from itertools import product
-from functools import reduce
-from threading import Thread, active_count
-from time import sleep
-from ..utils import parse_option_value, log, F_OK, F_WARN, F_FAIL, load_template
+from click import command, argument
+from ..utils import load_template
 from ..defaults import TEMPLATE_EXTS
 
 @command("make", short_help="Scaffold Cloudinary templates.",

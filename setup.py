@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="cloudinary-cli",
-    version="0.2.4.1-dev",
+    version="0.3.0",
     author="Brian Luk",
     author_email="lukitsbrian@gmail.com",
     classifiers=[
@@ -17,7 +17,10 @@ setuptools.setup(
     ],
     description="A command line interface for Cloudinary with full API support",
     entry_points={
-        'console_scripts': ['cld=cloudinary_cli.cli:main'],
+        'console_scripts': [
+            'cld=cloudinary_cli.cli:main',
+            'cloudinary=cloudinary_cli.cli:main',
+            ],
     },
     long_description=long_description,
     long_description_content_type="text/markdown",

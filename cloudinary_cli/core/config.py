@@ -1,9 +1,7 @@
 from ..utils import *
-from webbrowser import open as open_url
-from csv import DictWriter
-from cloudinary.utils import cloudinary_url as cld_url
-from cloudinary import api, uploader as _uploader
-from click import command, argument, option, Choice
+from cloudinary import api
+from click import command, option
+
 
 @command("config", help="Display current configuration, and manage additional configurations")
 @option("-n", "--new", help="""\b Set an additional configuration
@@ -13,7 +11,9 @@ eg. cld config -n <NAME> <CLOUDINARY_URL>""", nargs=2)
 @option("-url", "--from_url", help="Create a configuration from a Cloudinary URL", nargs=1)
 def config(new, ls, rm, from_url):
     if not (new or ls or rm or from_url):
-        print('\n'.join(["{}:\t{}".format(k, v if k != "api_secret" else "***************{}".format(v[-4:])) for k, v in cloudinary._config.__dict__.items()]))
+        print('\n'.join(["{}:\t{}".format(k, v if k != "api_secret"
+                        else "***************{}".format(v[-4:]))
+                         for k, v in cloudinary._config.__dict__.items()]))
         exit(0)
 
     with open(CLOUDINARY_CLI_CONFIG_FILE, "r+") as f:
