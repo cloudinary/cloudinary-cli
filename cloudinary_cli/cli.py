@@ -28,6 +28,7 @@ cli.add_command(config)
 cli.add_command(search)
 cli.add_command(admin)
 cli.add_command(uploader)
+cli.add_command(provisioning)
 cli.add_command(url)
 
 # Custom commands
