@@ -70,7 +70,6 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
         del all_results['time']
     return_fields = []
     if filter_fields:
-        print("filtering")
         for f in list(filter_fields):
             if "," in f:
                 return_fields += f.split(",")
