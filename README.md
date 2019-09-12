@@ -4,7 +4,9 @@
 This command line interface is fully and seamlessly integrated with Cloudinary's APIs.
 
 ## Requirements
-Python 3.6
+Your own Cloudinary account.  If you don't already have one, sign up at [https://cloudinary.com/users/register/free](https://cloudinary.com/users/register/free)
+
+Python 3.6 or later
 
 ## Setup
 
@@ -13,6 +15,8 @@ Python 3.6
     ```
     echo "export CLOUDINARY_URL=YOUR_CLOUDINARY_URL" >> ~/.bash_profile && source ~/.bash_profile
     ```
+
+_**Note:** you can copy and paste your Cloudinary URL from your console._
 
 2. To install this package, run: `pip3 install cloudinary-cli`
 3. Make sure your configuration is set up properly by running `cld config`. It should print:
@@ -26,46 +30,24 @@ Python 3.6
 
 ## Quickstart
 
+```
+Usage: cld [OPTIONS] COMMAND [ARGS]...
+```
+
 ### Important commands
 
 ```
-cld --help # lists available commands
-cld search --help 	# Search API usage
-cld admin     # Admin API functions
-cld uploader    # Upload API functions
-```
-
-Using temporary Cloudinary configurations requires the `-c` option or `--config`:
-
-```
-cld -c <CLOUDINARY_URL> <COMMAND> <OPTIONS> <PARAMS>
-```
-
-Additional configurations can be used by using the `-C` option.
-
-```
-cld -C my_subaccount admin resources
-```
-
-## Additional configurations
-
-```
-Usage: cld config [OPTIONS]
-
-  Display current configuration
-
-Options:
-  -n, --new TEXT...  Set an additional configuration
-                     eg. cld config -n <NAME> <CLOUDINARY_URL>
-  -ls, --ls          List all configurations
-  -rm, --rm TEXT     Delete an additional configuration
-  -url, --from_url TEXT  Create a configuration from a Cloudinary URL
-  --help             Show this message and exit.
+cld --help         # Lists available commands
+cld search --help  # Shows usage for the Search API
+cld admin          # Lists Admin API methods
+cld uploader       # Lists Upload API methods
 ```
 
 ## Upload API
 
 Bindings for the Upload API.
+
+You can find documentation for each of the Upload API methods at [https://cloudinary.com/documentation/image_upload_api_reference](https://cloudinary.com/documentation/image_upload_api_reference) 
 
 The basic syntax using the Upload API is as follows:
 
@@ -73,10 +55,10 @@ The basic syntax using the Upload API is as follows:
 Usage: cld uploader [OPTIONS] [PARAMS]...
 
   Upload API bindings
-  format: cld uploader <function> <parameters> <optional_parameters>
-          eg. cld uploader upload http://res.cloudinary.com/demo/image/upload/sample public_id=flowers invalidate=True
+  format: cld uploader <method> <parameters> <optional_parameters>
+          e.g. cld uploader upload http://res.cloudinary.com/demo/image/upload/sample public_id=flowers invalidate=True
   
-          eg. cld uploader rename flowers secret_flowers to_type=private
+          e.g. cld uploader rename flowers secret_flowers to_type=private
                 OR
               cld uploader rename flowers secret_flowers -o to_type private
 
@@ -85,13 +67,13 @@ Options:
                                   Pass optional parameters as raw strings
   -O, --optional_parameter_parsed TEXT...
                                   Pass optional parameters as interpreted strings
-  -ls, --ls                       List all available functions in the Upload API
+  -ls, --ls                       List all available methods in the Upload API
   --save TEXT                     Save output to a file
   -d, --doc                       Opens Upload API documentation page
   --help                          Show this message and exit.
 ```
 
-Example: I want to change the asset with `public_id:"flowers"` from `type:upload` to `type:private` and rename it using the rename method, which takes two parameters - `from_public_id` and `to_public_id`.
+Example: change the asset with `public_id:"flowers"` from `type:upload` to `type:private` and rename it using the rename method, which takes two parameters - `from_public_id` and `to_public_id`.
 
 The following commands will do the same thing:
 
@@ -102,49 +84,57 @@ cld rename flowers secret_flowers to_type=private
 
 ```
 
+_**Note:** you can omit 'uploader' from the command when calling an Upload API method._
+
 ## Admin API
 
-Bindings for the Admin API follows the same format as the Upload API:
+Bindings for the Admin API.
+
+You can find documentation for each of the Admin API methods at [https://cloudinary.com/documentation/admin_api](https://cloudinary.com/documentation/admin_api)
 
 ```
 Usage: cld admin [OPTIONS] [PARAMS]...
 
   Admin API bindings
-  format: cld admin <function> <parameters> <optional_parameters>
-          eg. cld admin resources max_results=10 tags=sample
+  format: cld admin <method> <parameters> <optional_parameters>
+          e.g. cld admin resources max_results=10 tags=sample
                 OR
               cld admin resources -o max_results 10 -o tags sample
                 OR
-              cld admin resources max_results=10 -o tags=sample
+              cld admin resources max_results=10 -o tags sample
 
 Options:
   -o, --optional_parameter TEXT...
                                   Pass optional parameters as raw strings
   -O, --optional_parameter_parsed TEXT...
                                   Pass optional parameters as interpreted strings
-  -ls, --ls                       List all available functions in the Admin API
+  -ls, --ls                       List all available methods in the Admin API
   --save TEXT                     Save output to a file
   -d, --doc                       Opens Admin API documentation page
   --help                          Show this message and exit.
 ```
 
-Example: I want to create a transformation and get information about that transformation:
+Example: create a transformation and get information about that transformation:
 
 ```
 cld admin create_transformation my_new_transformation w_500,h_500,c_crop,e_vectorize
 cld admin transformation my_new_transformation
 ```
 
+_**Note:** you can omit 'admin' from the command when calling an Admin API method._
+
 ## Search API
 
 Search API bindings allow you to enter in a Lucene query string as the expression.
+
+You can find documentation for the Search API at [https://cloudinary.com/documentation/search_api](https://cloudinary.com/documentation/search_api)
 
 ```
 Usage: cld search [OPTIONS] [QUERY]...
 
   Search API bindings
   format: cld search <Lucene query syntax string> <options>
-  eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
+  e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 
 Options:
   -f, --with_field TEXT      Field to include in result
@@ -161,7 +151,7 @@ Options:
   --help                     Show this message and exit.
 ```
 
-## Other basic commands
+## Other commands
 
 ### `url`
 
@@ -180,27 +170,46 @@ Options:
   --help                          Show this message and exit.
 ```
 
-### `config`
+Example: generate a URL that displays the image in your media library that has the public ID of 'sample', with a width of 500 pixels and transformed using the cartoonify effect, then open this URL in a browser. 
 
 ```
+cld url -rt image -t upload -o sample w_500,e_cartoonify
+```
+The URL that is returned is:
 
-Usage: cld config [OPTIONS]
+```
+http://res.cloudinary.com/<YOUR CLOUD NAME>/image/upload/w_500,e_cartoonify/sample
+```
 
-  Display current configuration, and manage additional configurations
+### `make`
+
+Scaffolds a template. Currently limited to HTML templates for Upload Widget, Product Gallery, Video Player, and Media Library, and a few Python scripts.
+
+```
+Usage: cld make [OPTIONS] [TEMPLATE]...
+
+  Scaffold Cloudinary templates.
+  e.g. cld make product gallery
 
 Options:
-  -n, --new TEXT...  Set an additional configuration
-                     eg. cld config -n <NAME> <CLOUDINARY_URL>
-  -ls, --ls          List all configurations
-  -rm, --rm TEXT     Delete a saved configuration
-  --help             Show this message and exit.
+  --help  Show this message and exit.
+
+Template:
+   media_library_widget
+   product_gallery
+   upload_widget
+   video_player  
 ```
 
-## Custom commands
+Example: output the HTML required to embed the Upload Widget on your website.
+
+```
+cld make upload_widget
+```
 
 ### `upload_dir`
 
-Uploads a directory to Cloudinary and persists the folder structure.
+Uploads a directory to Cloudinary maintaining the folder structure.
 
 ```
 Usage: cld upload_dir [OPTIONS] [DIRECTORY]
@@ -213,25 +222,17 @@ Options:
   -O, --optional_parameter_parsed TEXT...
                                   Pass optional parameters as interpreted strings
   -t, --transformation TEXT       Transformation to apply on all uploads
-  -f, --folder TEXT               Specify the folder you would like to upload resources to in Cloudinary
+  -f, --folder TEXT               Specify the folder you would like to upload resources to in Cloudinary.  If it does not exist, create it.
   -p, --preset TEXT               Upload preset to use
   -v, --verbose                   Logs information after each upload
   -vv, --very_verbose             Logs full details of each upload
   --help                          Show this message and exit.
   ```
-
-### `make`
-
-Scaffolds a template. Currently limited to HTML templates for Upload Widget, Product Gallery, Video Player, and Media Library, and a few Python scripts.
+  
+Example: upload the local folder, my_images, and all its contents and sub-folders to your Cloudinary folder my_images_on_cloudinary.  
 
 ```
-Usage: cld make [OPTIONS] [TEMPLATE]...
-
-  Scaffold Cloudinary templates.
-  eg. cld make product gallery
-
-Options:
-  --help  Show this message and exit.
+cld upload_dir -f my_images_on_cloudinary my_images
 ```
 
 ### `sync`
@@ -241,13 +242,19 @@ Synchronize between a local folder and a Cloudinary folder.
 ```
 Usage: cld sync [OPTIONS] LOCAL_FOLDER CLOUDINARY_FOLDER
 
-  Synchronize between a local directory between a Cloudinary folder while preserving directory structure
+  Synchronize between a local directory and a Cloudinary folder while preserving directory structure
 
 Options:
-  --push         Push will sync the local directory to the cloudinary directory
-  --pull         Pull will sync the cloudinary directory to the local directory
+  --push         Push will sync the local directory to the Cloudinary directory
+  --pull         Pull will sync the Cloudinary directory to the local directory
   -v, --verbose  Logs information after each upload
   --help         Show this message and exit.
+```
+
+Example: push up changes from the local folder, my_images, to your Cloudinary folder, my_images_on_cloudinary/my_images.
+
+```
+cld sync --push my_images my_images_on_cloudinary/my_images
 ```
 
 ### `migrate`
@@ -265,9 +272,48 @@ Options:
   --help                Show this message and exit.
 ```
 
+## Additional configurations
+
+If you have access to more than one Cloudinary account, you can specify the Cloudinary URL of other accounts inline with your command either as a temporary configuration or a saved configuration.  
+
+Using temporary Cloudinary configurations requires the `-c` option or `--config`:
+
+```
+cld -c <CLOUDINARY_URL> COMMAND [ARGS]...
+```
+
+Saved configurations can be used by using the `-C` option.
+
+```
+cld -C <SAVED_CONFIGURATION> COMMAND [ARGS]...
+```
+
+Example: run the resources method from the Admin API using the configuration saved to my_subaccount.
+
+```
+cld -C my_subaccount admin resources
+```
+
+You can create a saved configuration using `cld config`.
+
+```
+Usage: cld config [OPTIONS]
+
+  Display current configuration
+
+Options:
+  -n, --new TEXT...      Save an additional configuration
+                         e.g. cld config -n <NAME>   <CLOUDINARY_URL>
+  -ls, --ls              List all configurations
+  -rm, --rm TEXT         Delete an additional configuration
+  -url, --from_url TEXT  Create a configuration from a Cloudinary URL
+  --help             Show this message and exit.
+```
+
+
 ## Sample resources
 
-Opens a demo account URL for a sample resource
+Creates a URL based on a sample resource from the demo account.
 
 Usage:
 
@@ -278,6 +324,12 @@ cld <sample_resource> <transformation>
 - `sample` - http://res.cloudinary.com/demo/image/upload/sample
 - `couple` - http://res.cloudinary.com/demo/image/upload/couple
 - `dog` - http://res.cloudinary.com/demo/video/upload/dog
+
+Example: create the URL for the dog video with optimized quality.
+
+```
+cld dog q_auto
+```
 
 # TODOs
 - Globbing support
