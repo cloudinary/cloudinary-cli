@@ -1,4 +1,4 @@
-from cloudinary import api, uploader, provisioning
+from cloudinary import api, uploader, account
 from click.utils import make_str
 from click.parser import split_opt
 from cloudinary.utils import build_upload_params
@@ -25,8 +25,8 @@ def resolve_command(self, ctx, args):
         elif original_cmd_name in uploader.__dict__:
             cmd = self.get_command(ctx, "uploader")
             return cmd_name, cmd, args
-        elif original_cmd_name in provisioning.__dict__:
-            cmd = self.get_command(ctx, "provisioning")
+        elif original_cmd_name in account.__dict__:
+            cmd = self.get_command(ctx, "account")
             return cmd_name, cmd, args
         else:
             ctx.fail('No such command "%s".' % original_cmd_name)
