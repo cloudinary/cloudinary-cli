@@ -4,11 +4,11 @@
 This command line interface is fully and seamlessly integrated with Cloudinary's APIs.
 
 ## Requirements
-Your own Cloudinary account.  If you don't already have one, sign up at [https://cloudinary.com/users/register/free](https://cloudinary.com/users/register/free)
+Your own Cloudinary account.  If you don't already have one, sign up at [https://cloudinary.com/users/register/free](https://cloudinary.com/users/register/free).
 
-Python 3.6 or later
+Python 3.6 or later.  You can install Python from [https://www.python.org/](https://www.python.org/). Note that the Python Package Installer (pip) is installed with it.
 
-## Setup
+## Setup and Installation
 
 1. Set your CLOUDINARY_URL environment variable by adding `export CLOUDINARY_URL=<YOUR_CLOUDINARY_URL>` to your terminal configuration file (using `~/.bash_profile` as an example here):
     
