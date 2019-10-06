@@ -1,4 +1,5 @@
-from cloudinary import api, uploader, account
+from cloudinary import api, uploader
+from cloudinary.provisioning import account
 from click.utils import make_str
 from click.parser import split_opt
 from cloudinary.utils import build_upload_params
