@@ -1,9 +1,6 @@
 from ..utils import *
-from webbrowser import open as open_url
-from csv import DictWriter
-from cloudinary.utils import cloudinary_url as cld_url
-from cloudinary import api, uploader as _uploader
-from click import command, argument, option, Choice
+from cloudinary import api
+from click import command, option
 
 @command("config", help="Display current configuration, and manage additional configurations")
 @option("-n", "--new", help="""\b Set an additional configuration

@@ -1,6 +1,9 @@
 from click import command, argument, option
-from cloudinary import uploader as _uploader, api, Search
+from cloudinary import uploader as _uploader, api
+
 from cloudinary.utils import cloudinary_url as cld_url
+from cloudinary.search import Search
+
 from os import getcwd, walk, sep, remove, rmdir, listdir, mkdir
 from os.path import dirname, splitext, split, join as path_join, abspath, isdir
 from requests import get, head

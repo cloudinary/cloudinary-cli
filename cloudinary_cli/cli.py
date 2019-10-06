@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-import click
 # from .utils import *
+from json import loads
+
 import cloudinary
-from json import loads, dumps
 
 # from .core.overrides import MultiCommandOverride
 # from .core import config, search, uploader, admin, url
 from .core import *
-from .samples import sample, couple, dog
-from .modules import *
 from .defaults import CLOUDINARY_CLI_CONFIG_FILE
+from .modules import *
+from .samples import sample, couple, dog
 
 # click.Command.__dict__["resolve_command"] = resolve_command
 # click.MultiCommand = MultiCommandOverride
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
+
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option("-c", "--config", help="""Temporary configuration to use. To use permanent config:
@@ -48,6 +49,7 @@ cli.add_command(sync)
 cli.add_command(sample)
 cli.add_command(couple)
 cli.add_command(dog)
+
 
 def main():
     cli()

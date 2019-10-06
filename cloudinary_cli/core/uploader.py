@@ -1,9 +1,7 @@
 from ..utils import *
 from webbrowser import open as open_url
-from csv import DictWriter
-from cloudinary.utils import cloudinary_url as cld_url
-from cloudinary import api, uploader as _uploader
-from click import command, argument, option, Choice
+from cloudinary import uploader as _uploader
+from click import command, argument, option
 
 
 @command("uploader",

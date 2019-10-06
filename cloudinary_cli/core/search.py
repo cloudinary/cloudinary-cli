@@ -1,9 +1,7 @@
 from ..utils import *
 from webbrowser import open as open_url
 from csv import DictWriter
-from cloudinary.utils import cloudinary_url as cld_url
-from cloudinary import api, uploader as _uploader
-from click import command, argument, option, Choice
+from click import command, argument, option
 from functools import reduce
 
 @command("search",
@@ -29,7 +27,7 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor, auto
     if doc:
         open_url("https://cloudinary.com/documentation/search_api")
         exit(0)
-    base_exp = cloudinary.Search().expression(" ".join(query))
+    base_exp = cloudinary.search.Search().expression(" ".join(query))
     if auto_paginate:
         max_results = 500
     if with_field:
