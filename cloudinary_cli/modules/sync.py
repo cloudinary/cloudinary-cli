@@ -41,7 +41,7 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
         next_cursor = None
         items = {}
         while True:
-            res = Search().expression("{}/*".format(folder)).next_cursor(next_cursor).with_field(
+            res = Search().expression("folder:{}/*".format(folder)).next_cursor(next_cursor).with_field(
                 "image_analysis").max_results(500).execute()
             for item in res['resources']:
                 items[item['public_id'][len(folder) + 1:]] = {"etag": item['etag'] if 'etag' in item.keys() else '0',
