@@ -4,15 +4,15 @@ from cloudinary import uploader as _uploader, api
 from cloudinary.utils import cloudinary_url as cld_url
 from cloudinary.search import Search
 
-from os import getcwd, walk, sep, remove, rmdir, listdir, mkdir
-from os.path import dirname, splitext, split, join as path_join, abspath, isdir
-from requests import get, head
+from os import walk, sep, remove, rmdir, listdir, mkdir
+from os.path import splitext, split, join as path_join, abspath, isdir
+from requests import get
 from hashlib import md5
 from itertools import product
 from functools import reduce
 from threading import Thread, active_count
 from time import sleep
-from ..utils import parse_option_value, log, F_OK, F_WARN, F_FAIL, load_template
+from ..utils import log, F_OK, F_WARN, F_FAIL
 
 @command("sync",
          short_help="Synchronize between a local directory between a Cloudinary folder",
@@ -44,7 +44,7 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
             res = Search().expression("{}/*".format(folder)).next_cursor(next_cursor).with_field(
                 "image_analysis").max_results(500).execute()
             for item in res['resources']:
-                items[item['public_id'][len(folder) + 1:]] = {"etag": item['image_analysis']['etag'],
+                items[item['public_id'][len(folder) + 1:]] = {"etag": item['etag'] if 'etag' in item.keys() else '0',
                                                               "resource_type": item['resource_type'],
                                                               "public_id": item['public_id'], "type": item['type'],
                                                               "format": item['format']}
@@ -186,7 +186,7 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
 
         threads = []
 
-        def threaded_pull(local_path, verbose, cld_files):
+        def threaded_pull(local_path, verbose, cld_files, i):
             with open(local_path, "wb") as f:
                 to_download = cld_files[i]
                 r = get(cld_url(to_download['public_id'], resource_type=to_download['resource_type'],
@@ -196,12 +196,15 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
             if verbose:
                 print(F_OK("Downloaded '{}' to '{}'".format(i, local_path)))
 
+        print(files_to_pull)
+
         for i in files_to_pull:
-            local_path = abspath(path_join(local_folder, i + "." + cld_files[i]['format'] if cld_files[i][
-                                                                                                 'resource_type'] != 'raw' else i))
+            local_path = abspath(path_join(local_folder,
+                                           i + "." + cld_files[i]['format']
+                                           if cld_files[i]['resource_type'] != 'raw' else i))
             create_required_directories(split(local_path)[0], verbose)
 
-            threads.append(Thread(target=threaded_pull, args=(local_path, verbose, cld_files)))
+            threads.append(Thread(target=threaded_pull, args=(local_path, verbose, cld_files, i)))
 
         for t in threads:
             while active_count() >= 30:
