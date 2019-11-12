@@ -53,6 +53,8 @@ def parse_option_value(value):
         value = loads(value)
     except:
         pass
+    if isinstance(value, int):
+        value = str(value)
     return value
 
 def parse_args_kwargs(func, params):

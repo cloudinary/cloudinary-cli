@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="cloudinary-cli",
-    version="0.3.3",
+    version="0.3.4",
     author="Brian Luk",
     author_email="lukitsbrian@gmail.com",
     classifiers=[
