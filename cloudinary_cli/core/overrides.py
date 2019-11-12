@@ -6,6 +6,7 @@ from cloudinary.utils import build_upload_params
 from cloudinary.uploader import call_cacheable_api
 
 
+# overrides click.MultiCommand.resolve_command
 def resolve_command(self, ctx, args):
     cmd_name = make_str(args[0])
     original_cmd_name = cmd_name

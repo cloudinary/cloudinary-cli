@@ -29,7 +29,7 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
     if doc:
         open_url("https://cloudinary.com/documentation/search_api")
         exit(0)
-    base_exp = cloudinary.Search().expression(" ".join(query))
+    base_exp = cloudinary.search.Search().expression(" ".join(query))
     if auto_paginate:
         max_results = 500
     if with_field:
