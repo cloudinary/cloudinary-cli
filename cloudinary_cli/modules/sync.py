@@ -15,12 +15,12 @@ from time import sleep
 from ..utils import log, F_OK, F_WARN, F_FAIL
 
 @command("sync",
-         short_help="Synchronize between a local directory between a Cloudinary folder",
-         help="Synchronize between a local directory between a Cloudinary folder while preserving directory structure")
+         short_help="Synchronize between a local directory and a Cloudinary folder",
+         help="Synchronize between a local directory and a Cloudinary folder while preserving directory structure")
 @argument("local_folder")
 @argument("cloudinary_folder")
-@option("--push", help="Push will sync the local directory to the cloudinary directory", is_flag=True)
-@option("--pull", help="Pull will sync the cloudinary directory to the local directory", is_flag=True)
+@option("--push", help="Push will sync the local directory to the Cloudinary directory", is_flag=True)
+@option("--pull", help="Pull will sync the Cloudinary directory to the local directory", is_flag=True)
 @option("-v", "--verbose", is_flag=True, help="Logs information after each upload")
 def sync(local_folder, cloudinary_folder, push, pull, verbose):
     if push == pull:

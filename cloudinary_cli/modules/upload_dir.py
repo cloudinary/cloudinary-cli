@@ -15,7 +15,7 @@ from ..utils import parse_option_value, log, F_OK, F_FAIL
         nargs=2,
         help="Pass optional parameters as interpreted strings")
 @option("-t", "--transformation", help="Transformation to apply on all uploads")
-@option("-f", "--folder", default="", help="Specify the folder you would like to upload resources to in Cloudinary")
+@option("-f", "--folder", default="", help="Specify the folder you would like to upload resources to in Cloudinary.  If it does not exist, create it.")
 @option("-p", "--preset", help="Upload preset to use")
 @option("-v", "--verbose", is_flag=True, help="Logs information after each upload")
 def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose):
