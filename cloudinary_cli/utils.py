@@ -4,7 +4,7 @@ from jinja2 import Environment, FileSystemLoader
 from pygments import highlight
 from pygments.lexers import JsonLexer, JsonBareObjectLexer
 from pygments.formatters import TerminalFormatter
-from inspect import signature
+from inspect import signature, getfullargspec
 from json import loads, dumps
 from cloudinary import utils
 import cloudinary
@@ -66,10 +66,14 @@ def parse_option_value(value):
 
 
 def parse_args_kwargs(func, params):
-    p = signature(func)
-    l = len(p.parameters) - 1
+    spec = getfullargspec(func)
+    n_args = len(spec.args) if spec.args else 0
+    n_defaults = len(spec.defaults) if spec.defaults else 0
+
+    l = n_args - n_defaults
     if len(params) < l:
         print("Function '{}' requires {} arguments".format(func.__name__, l))
+        print(func.__doc__)
         exit(1)
     args = [parse_option_value(x) for x in params[:l]]
     kwargs = {k: parse_option_value(v) for k, v in [x.split('=') for x in params[l:]]} if params[l:] else {}
