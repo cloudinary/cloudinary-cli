@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
 import setuptools
+from cloudinary_cli import __version__
+
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="cloudinary-cli",
-    version="0.4.0b",
+    version= __version__,
     author="Brian Luk",
     author_email="lukitsbrian@gmail.com",
     classifiers=[

@@ -1,8 +1,10 @@
-from ..utils import *
-from webbrowser import open as open_url
 from csv import DictWriter
-from click import command, argument, option
 from functools import reduce
+from webbrowser import open as open_url
+
+from click import command, argument, option
+
+from ..utils import *
 
 
 @command("search",
@@ -48,11 +50,11 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
     all_results = res
     if auto_paginate and 'next_cursor' in res.keys():
         if not force:
-            r = input("{} total results. {} Admin API rate limit remaining.\n \
-            Running this program will use {} Admin API calls. Continue? (Y/N) ".format(
+            r = input("{} total results. {} Admin API rate limit remaining.\n"
+                      "Running this program will use {} Admin API calls. Continue? (Y/N) ".format(
                 res['total_count'],
                 res.__dict__['rate_limit_remaining'] + 1,
-                res['total_count']//500 + 1))
+                res['total_count'] // 500 + 1))
             if r.lower() != 'y':
                 print("Exiting. Please run again without -A.")
                 exit(0)
@@ -62,11 +64,11 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
         while True:
             if 'next_cursor' not in res.keys():
                 break
-            
+
             exp = base_exp.next_cursor(res['next_cursor'])
             res = exp.execute()
             all_results['resources'] += res['resources']
-        
+
         del all_results['time']
     return_fields = []
     if filter_fields:
@@ -77,12 +79,12 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
                 return_fields.append(f)
         return_fields = tuple(return_fields) + with_field
         all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys()
-                                            else None for k in return_fields}, all_results['resources']))
+        else None for k in return_fields}, all_results['resources']))
     log(all_results)
 
     if json:
         write_out(all_results['resources'], json)
-    
+
     if csv:
         all_results = all_results['resources']
         f = open('{}.csv'.format(csv), 'w')
