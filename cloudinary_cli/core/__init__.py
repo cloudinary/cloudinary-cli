@@ -2,7 +2,6 @@ from .admin import admin
 from .config import config
 from .search import search
 from .uploader import uploader
-from .account import account
 from .utils import url
 import cloudinary.uploader
 from .overrides import resolve_command, upload
