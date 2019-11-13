@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import cloudinary
 from json import loads
-from .core import admin, config, search, uploader, account, url, click
+from .core import admin, config, search, uploader, url, click
 from .samples import sample, couple, dog
 from .modules import *
 from .defaults import CLOUDINARY_CLI_CONFIG_FILE
@@ -28,7 +28,6 @@ cli.add_command(config)
 cli.add_command(search)
 cli.add_command(admin)
 cli.add_command(uploader)
-cli.add_command(account)
 cli.add_command(url)
 
 # Custom commands

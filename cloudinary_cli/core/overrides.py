@@ -27,9 +27,6 @@ def resolve_command(self, ctx, args):
         elif original_cmd_name in uploader.__dict__:
             cmd = self.get_command(ctx, "uploader")
             return cmd_name, cmd, args
-        elif original_cmd_name in account.__dict__:
-            cmd = self.get_command(ctx, "account")
-            return cmd_name, cmd, args
         else:
             ctx.fail('No such command "%s".' % original_cmd_name)
 
