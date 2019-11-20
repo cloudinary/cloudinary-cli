@@ -6,7 +6,6 @@ from pygments.lexers import JsonLexer, JsonBareObjectLexer
 from pygments.formatters import TerminalFormatter
 from inspect import signature, getfullargspec
 from json import loads, dumps
-from cloudinary import utils
 import cloudinary
 from pkg_resources import resource_filename
 from .defaults import *
@@ -16,12 +15,6 @@ F_WARN = lambda x: "\033[93m" + x + "\033[0m"
 F_OK = lambda x: "\033[92m" + x + "\033[0m"
 
 write_out = lambda contents, filename: open(filename, "w+").write(dumps(contents, indent=2))
-
-
-def get_sample(which, transformation):
-    cloudinary._config.cloud_name="demo"
-    res = utils.cloudinary_url(which, raw_transformation=transformation)[0]
-    return res
 
 
 not_callable = ['is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api', 'text']
@@ -48,7 +41,7 @@ def load_template(language, _template):
     with open(filepath) as f:
         template = Environment(
             loader=FileSystemLoader(resource_filename(__name__, TEMPLATE_FOLDER))).from_string(f.read())
-    return template.render(**cloudinary._config.__dict__)
+    return template.render(**cloudinary.config())
 
 
 def parse_option_value(value):
