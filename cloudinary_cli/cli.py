@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-import cloudinary
 from json import loads
-from .core import admin, config, search, uploader, url, click
-from .samples import sample, couple, dog
-from .modules import *
+
+import click
+import cloudinary
+import cloudinary_cli.core
+import cloudinary_cli.modules
+import cloudinary_cli.samples
+
 from .defaults import CLOUDINARY_CLI_CONFIG_FILE
 
 CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
@@ -22,26 +25,9 @@ def cli(config, config_saved):
     pass
 
 
-# Basic commands
-
-cli.add_command(config)
-cli.add_command(search)
-cli.add_command(admin)
-cli.add_command(uploader)
-cli.add_command(url)
-
-# Custom commands
-
-cli.add_command(upload_dir)
-cli.add_command(make)
-cli.add_command(migrate)
-cli.add_command(sync)
-
-# Sample resources
-
-cli.add_command(sample)
-cli.add_command(couple)
-cli.add_command(dog)
+cloudinary_cli.core.import_commands(cli)
+cloudinary_cli.modules.import_commands(cli)
+cloudinary_cli.samples.import_commands(cli)
 
 
 def main():

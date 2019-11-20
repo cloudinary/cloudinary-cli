@@ -4,7 +4,6 @@ from click import command, argument, option
 from cloudinary.utils import cloudinary_url
 from webbrowser import open as open_url
 
-
 @command("sample", help="Open sample flowers image")
 @argument("transformation", default="")
 @option("-o", "--open", is_flag=True, help="Open URL in your browser")
@@ -36,3 +35,10 @@ def dog(transformation, open):
     print(res)
     if open:
         open_url(res)
+
+
+def import_commands(cli):
+
+    cli.add_command(sample)
+    cli.add_command(couple)
+    cli.add_command(dog)
