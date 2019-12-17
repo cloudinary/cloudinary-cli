@@ -41,7 +41,7 @@ def load_template(language, _template):
     with open(filepath) as f:
         template = Environment(
             loader=FileSystemLoader(resource_filename(__name__, TEMPLATE_FOLDER))).from_string(f.read())
-    return template.render(**cloudinary.config())
+    return template.render(**cloudinary.config().__dict__)
 
 
 def parse_option_value(value):
