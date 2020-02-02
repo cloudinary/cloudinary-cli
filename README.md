@@ -1,7 +1,7 @@
 # Cloudinary CLI
 
 ## Features
-This command line interface is fully and seamlessly integrated with Cloudinary's APIs.
+The Cloudinary CLI (Command Line Interface) enables you to interact with Cloudinary through the command line. For example, you can perform Admin and Upload API operations by typing commands into a terminal without having to spend time setting up a formal coding environment. Additional helper commands are provided to help you to try out transformations, optimizations, and other common actions with minimal effort. You can also combine CLI commands in a batch file to automate laborious tasks.
 
 It is fully documented at [https://cloudinary.com/documentation/cloudinary_cli](https://cloudinary.com/documentation/cloudinary_cli).
 
@@ -42,15 +42,15 @@ Usage: cld [cli options] [command] [command options] [method] [method parameters
 ### Important commands
 
 ```
-cld --help         # Lists available commands
-cld search --help  # Shows usage for the Search API
-cld admin          # Lists Admin API methods
-cld uploader       # Lists Upload API methods
+cld --help         # Lists available commands.
+cld search --help  # Shows usage for the Search API.
+cld admin          # Lists Admin API methods.
+cld uploader       # Lists Upload API methods.
 ```
 
 ## Upload API
 
-Bindings for the Upload API.
+Enables you to run any methods that can be called through the upload API.
 
 You can find documentation for each of the Upload API methods at [https://cloudinary.com/documentation/image_upload_api_reference](https://cloudinary.com/documentation/image_upload_api_reference). 
 
@@ -77,7 +77,7 @@ _**Note:** you can omit 'uploader' from the command when calling an Upload API m
 
 ## Admin API
 
-Bindings for the Admin API.
+Enables you to run any methods that can be called through the admin API.
 
 You can find documentation for each of the Admin API methods at [https://cloudinary.com/documentation/admin_api](https://cloudinary.com/documentation/admin_api).
 
@@ -100,7 +100,7 @@ _**Note:** you can omit 'admin' from the command when calling an Admin API metho
 
 ## Search API
 
-Search API bindings allow you to enter in a Lucene query string as the expression.
+Runs the admin API search method, allowing you to use a Lucene query string as the expression.
 
 You can find documentation for the Search API at [https://cloudinary.com/documentation/search_api](https://cloudinary.com/documentation/search_api).
 
