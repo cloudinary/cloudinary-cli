@@ -3,12 +3,12 @@ from cloudinary import api
 from click import command, option
 
 
-@command("config", help="Display current configuration, and manage additional configurations")
-@option("-n", "--new", help="""\b Set an additional configuration
-eg. cld config -n <NAME> <CLOUDINARY_URL>""", nargs=2)
-@option("-ls", "--ls", help="List all configurations", is_flag=True)
-@option("-rm", "--rm", help="Delete an additional configuration", nargs=1)
-@option("-url", "--from_url", help="Create a configuration from a Cloudinary URL", nargs=1)
+@command("config", help="Display the current configuration, and manage additional configurations.")
+@option("-n", "--new", help="""\b Create and name a configuration from a Cloudinary account environment variable.
+e.g. cld config -n <NAME> <CLOUDINARY_URL>""", nargs=2)
+@option("-ls", "--ls", help="List all saved configurations.", is_flag=True)
+@option("-rm", "--rm", help="Delete a specified configuration.", nargs=1)
+@option("-url", "--from_url", help="Create a configuration from a Cloudinary account environment variable. The configuration name is the cloud name.", nargs=1)
 def config(new, ls, rm, from_url):
     if not (new or ls or rm or from_url):
         print('\n'.join(["{}:\t{}".format(k, v if k != "api_secret"

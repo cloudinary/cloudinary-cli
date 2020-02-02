@@ -7,17 +7,17 @@ from time import sleep
 from ..utils import parse_option_value, log, F_OK, F_FAIL
 
 @command("upload_dir",
-         help="""Upload a directory of assets and persist the directory structure""")
+         help="""Uploads a folder of assets, maintaining the folder structure.""")
 @argument("directory", default=".")
-@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
+@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed",
         multiple=True,
         nargs=2,
-        help="Pass optional parameters as interpreted strings")
-@option("-t", "--transformation", help="Transformation to apply on all uploads")
-@option("-f", "--folder", default="", help="Specify the folder you would like to upload resources to in Cloudinary.  If it does not exist, create it.")
-@option("-p", "--preset", help="Upload preset to use")
-@option("-v", "--verbose", is_flag=True, help="Logs information after each upload")
+        help="Pass optional parameters as interpreted strings.")
+@option("-t", "--transformation", help="The transformation to apply on all uploads.")
+@option("-f", "--folder", default="", help="The Cloudinary folder where you want to upload the assets. You can specify a whole path, for example folder1/folder2/folder3. Any folders that do not exist are automatically created.")
+@option("-p", "--preset", help="The upload preset to use.")
+@option("-v", "--verbose", is_flag=True, help="Output information for each uploaded file.")
 def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose):
     items, skipped = [], []
     dir_to_upload = abspath(path_join(getcwd(), directory))

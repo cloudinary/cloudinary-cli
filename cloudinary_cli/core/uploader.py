@@ -5,11 +5,11 @@ from click import command, argument, option
 
 
 @command("uploader",
-         short_help="Upload API bindings",
+         short_help="Run any methods that can be called through the upload API.",
          help="""
 \b
-Upload API bindings
-format: cld uploader <method> <parameters> <optional_parameters>
+Enables you to run any methods that can be called through the upload API.
+Format: cld <cli options> uploader <command options> <method> <method parameters>
 \te.g. cld uploader upload http://res.cloudinary.com/demo/image/upload/sample public_id=flowers invalidate=True
 \b
 \te.g. cld uploader rename flowers secret_flowers to_type=private
@@ -17,12 +17,12 @@ format: cld uploader <method> <parameters> <optional_parameters>
 \t    cld uploader rename flowers secret_flowers -o to_type private
 """)
 @argument("params", nargs=-1)
-@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
+@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
-        help="Pass optional parameters as interpreted strings")
-@option("-ls", "--ls", is_flag=True, help="List all available methods in the Upload API")
-@option("--save", nargs=1, help="Save output to a file")
-@option("-d", "--doc", is_flag=True, help="Opens Upload API documentation page")
+        help="Pass optional parameters as interpreted strings.")
+@option("-ls", "--ls", is_flag=True, help="List all available methods in the Upload API.")
+@option("--save", nargs=1, help="Save output to a file.")
+@option("-d", "--doc", is_flag=True, help="Open the Upload API reference in a browser.")
 def uploader(params, optional_parameter, optional_parameter_parsed, ls, save, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/image_upload_api_reference")

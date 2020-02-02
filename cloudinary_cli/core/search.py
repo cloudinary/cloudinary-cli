@@ -8,24 +8,24 @@ from ..utils import *
 
 
 @command("search",
-         short_help="Search API Bindings",
+         short_help="Runs the admin API search method.",
          help="""\b
-Search API bindings
-format: cld search <Lucene query syntax string> <options>
-eg. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
+Runs the admin API search method.
+Format: cld <cli options> search <command options> <Lucene query syntax string>
+e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 """)
 @argument("query", nargs=-1)
-@option("-f", "--with_field", multiple=True, help="Field to include in result")
-@option("-s", "--sort_by", nargs=2, help="Sort search results by (field, <asc|desc>)")
-@option("-a", "--aggregate", nargs=1, help="Aggregation to apply to the query")
-@option("-n", "--max_results", nargs=1, default=10, help="Maximum results to return. default: 10 max: 500")
-@option("-c", "--next_cursor", nargs=1, help="Continue a search using an existing cursor")
+@option("-f", "--with_field", multiple=True, help="Specify which asset attribute to include in the result.")
+@option("-s", "--sort_by", nargs=2, help="Sort search results by (field, <asc|desc>).")
+@option("-a", "--aggregate", nargs=1, help="Specify the attribute for which an aggregation count should be calculated and returned.")
+@option("-n", "--max_results", nargs=1, default=10, help="The maximum number of results to return. Default: 10, maximum: 500.")
+@option("-c", "--next_cursor", nargs=1, help="Continue a search using an existing cursor.")
 @option("-A", "--auto_paginate", is_flag=True, help="Return all results. Will call Admin API multiple times.")
-@option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate")
-@option("-ff", "--filter_fields", multiple=True, help="Filter fields to return")
-@option("--json", nargs=1, help="Save output as a JSON. Usage: --json <filename>")
-@option("--csv", nargs=1, help="Save output as a CSV. Usage: --csv <filename>")
-@option("-d", "--doc", is_flag=True, help="Opens Search API documentation page")
+@option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate.")
+@option("-ff", "--filter_fields", multiple=True, help="Filter fields to return.")
+@option("--json", nargs=1, help="Save JSON output to a file. Usage: --json <filename>")
+@option("--csv", nargs=1, help="Save CSV output to a file. Usage: --csv <filename>")
+@option("-d", "--doc", is_flag=True, help="Open Search API documentation page.")
 def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
            auto_paginate, force, filter_fields, json, csv, doc):
     if doc:
