@@ -1,0 +1,7 @@
+cloudinary==1.19.1
+pygments==2.3.1
+jinja2==2.10.1
+click==7.0
+click_log==0.3.2
+requests==2.22.0
+click-log_json
