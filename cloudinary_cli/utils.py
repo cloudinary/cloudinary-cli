@@ -1,23 +1,51 @@
 #!/usr/bin/env python3
 
-from jinja2 import Environment, FileSystemLoader
-from pygments import highlight
-from pygments.lexers import JsonLexer, JsonBareObjectLexer
-from pygments.formatters import TerminalFormatter
+import os
+from hashlib import md5
 from inspect import signature, getfullargspec
-from json import loads, dumps
+from json import loads, load, dumps, dump
+
 import cloudinary
+from jinja2 import Environment, FileSystemLoader
 from pkg_resources import resource_filename
+from pygments import highlight
+from pygments.formatters import TerminalFormatter
+from pygments.lexers import JsonLexer
 from .defaults import *
 
-F_FAIL = lambda x: "\033[91m" + x + "\033[0m"
-F_WARN = lambda x: "\033[93m" + x + "\033[0m"
-F_OK = lambda x: "\033[92m" + x + "\033[0m"
-
-write_out = lambda contents, filename: open(filename, "w+").write(dumps(contents, indent=2))
-
-
 not_callable = ['is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api', 'text']
+
+
+def write_out(contents, filename):
+    open(filename, "w+").write(dumps(contents, indent=2))
+
+
+# def enable_file_logging():
+    # fileHandler = logging.FileHandler(abspath(path_join(CLOUDINARY_HOME, "{}.log_json".format(datetime.datetime.now()))))
+    # logger.addHandler(fileHandler)
+
+
+def etag(fi):
+    return md5(open(fi, 'rb').read()).hexdigest()
+
+
+def refresh_config(config):
+    os.environ.update(dict(CLOUDINARY_URL=config))
+    cloudinary.reset_config()
+
+
+def initialize():
+    # migrate old config file to new location
+    if os.path.exists(OLD_CLOUDINARY_CLI_CONFIG_FILE):
+        old_config = loads(open(OLD_CLOUDINARY_CLI_CONFIG_FILE).read())
+        new_config = loads(open(CLOUDINARY_CLI_CONFIG_FILE).read())
+        new_config.update(old_config)
+        with open(CLOUDINARY_CLI_CONFIG_FILE, 'w') as cfg:
+            dump(new_config, cfg)
+        os.remove(OLD_CLOUDINARY_CLI_CONFIG_FILE)
+    if 'CLOUDINARY_URL' != os.environ.get("CLOUDINARY_URL"):
+        logger.warn("CLOUDINARY_URL not set.\n")
+        pass
 
 
 def get_help(api):
@@ -27,13 +55,13 @@ def get_help(api):
     return sigs
 
 
-def log(res):
+def log_json(res):
     try:
         res = dumps(res, indent=2)
     finally:
         pass
     colorful_json = highlight(res.encode('UTF-8'), JsonLexer(), TerminalFormatter())
-    print(colorful_json)
+    logger.info(colorful_json)
 
 
 def load_template(language, _template):
@@ -65,9 +93,8 @@ def parse_args_kwargs(func, params):
 
     l = n_args - n_defaults
     if len(params) < l:
-        print("Function '{}' requires {} arguments".format(func.__name__, l))
-        print(func.__doc__)
-        exit(1)
+        raise Exception("Function '{}' requires {} arguments".format(func.__name__, l))
     args = [parse_option_value(x) for x in params[:l]]
+
     kwargs = {k: parse_option_value(v) for k, v in [x.split('=') for x in params[l:]]} if params[l:] else {}
     return args, kwargs

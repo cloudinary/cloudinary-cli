@@ -1,7 +1,8 @@
-from ..utils import *
+from ..utils import logger, get_help, parse_args_kwargs, parse_option_value, write_out, log_json
 from webbrowser import open as open_url
 from cloudinary import uploader as _uploader
 from click import command, argument, option
+from click.exceptions import UsageError
 
 
 @command("uploader",
@@ -26,24 +27,22 @@ format: cld uploader <method> <parameters> <optional_parameters>
 def uploader(params, optional_parameter, optional_parameter_parsed, ls, save, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/image_upload_api_reference")
-        exit(0)
+        return
     if ls or len(params) < 1:
-        print(get_help(_uploader))
-        exit(0)
+        logger.info(get_help(_uploader))
+        return
     try:
         func = _uploader.__dict__[params[0]]
         if not callable(func):
-            raise Exception(F_FAIL("{} is not callable.".format(func)))
-            exit(1)
-    except:
-        print(F_FAIL("Method {} does not exist in the Upload API.".format(params[0])))
-        exit(1)
+            raise UsageError("{} is not callable.".format(func))
+    except Exception as e:
+        raise e
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
     res = func(*parameters, **{
         **options,
         **{k: v for k, v in optional_parameter},
         **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
     })
-    log(res)
+    log_json(res)
     if save:
         write_out(res, save)

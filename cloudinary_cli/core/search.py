@@ -30,7 +30,7 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
            auto_paginate, force, filter_fields, json, csv, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/search_api")
-        exit(0)
+        return
     base_exp = cloudinary.search.Search().expression(" ".join(query))
     if auto_paginate:
         max_results = 500
@@ -56,10 +56,10 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
                 res.__dict__['rate_limit_remaining'] + 1,
                 res['total_count'] // 500 + 1))
             if r.lower() != 'y':
-                print("Exiting. Please run again without -A.")
-                exit(0)
+                logger.info("Exiting. Please run again without -A.")
+                return
             else:
-                print("Continuing. You may use the -F flag to force auto_pagination.")
+                logger.info("Continuing. You may use the -F flag to force auto_pagination.")
 
         while True:
             if 'next_cursor' not in res.keys():
@@ -80,7 +80,8 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
         return_fields = tuple(return_fields) + with_field
         all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys()
         else None for k in return_fields}, all_results['resources']))
-    log(all_results)
+
+    log_json(all_results)
 
     if json:
         write_out(all_results['resources'], json)
@@ -88,7 +89,7 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
     if csv:
         all_results = all_results['resources']
         f = open('{}.csv'.format(csv), 'w')
-        if return_fields == []:
+        if not return_fields:
             possible_keys = reduce(lambda x, y: set(y.keys()) | x, all_results, set())
             return_fields = list(possible_keys)
         writer = DictWriter(f, fieldnames=list(return_fields))
@@ -98,4 +99,4 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
 
         f.close()
 
-        print('Saved search to \'{}.csv\''.format(csv))
+        logger.info('Saved search to \'{}.csv\''.format(csv))

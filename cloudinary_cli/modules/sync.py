@@ -1,18 +1,18 @@
-from click import command, argument, option
-from cloudinary import uploader as _uploader, api
-
-from cloudinary.utils import cloudinary_url as cld_url
-from cloudinary.search import Search
-
+from functools import reduce
+from itertools import product
 from os import walk, sep, remove, rmdir, listdir, mkdir
 from os.path import splitext, split, join as path_join, abspath, isdir
-from requests import get
-from hashlib import md5
-from itertools import product
-from functools import reduce
 from threading import Thread, active_count
 from time import sleep
-from ..utils import log, F_OK, F_WARN, F_FAIL
+
+from click import command, argument, option, style
+from cloudinary import uploader as _uploader, api
+from cloudinary.search import Search
+from cloudinary.utils import cloudinary_url as cld_url
+from requests import get
+
+from ..utils import log_json, etag, logger
+
 
 @command("sync",
          short_help="Synchronize between a local directory and a Cloudinary folder",
@@ -24,10 +24,7 @@ from ..utils import log, F_OK, F_WARN, F_FAIL
 @option("-v", "--verbose", is_flag=True, help="Logs information after each upload")
 def sync(local_folder, cloudinary_folder, push, pull, verbose):
     if push == pull:
-        print("Please use either the '--push' OR '--pull' options")
-        exit(1)
-
-    etag = lambda f: md5(open(f, 'rb').read()).hexdigest()
+        raise Exception("Please use either the '--push' OR '--pull' options")
 
     def walk_dir(folder):
         all_files = {}
@@ -55,9 +52,9 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
         return items
 
     files = walk_dir(abspath(local_folder))
-    print("Found {} items in local folder '{}'".format(len(files.keys()), local_folder))
+    logger.info("Found {} items in local folder '{}'".format(len(files.keys()), local_folder))
     cld_files = query_cld_folder(cloudinary_folder)
-    print("Found {} items in Cloudinary folder '{}'".format(len(cld_files.keys()), cloudinary_folder))
+    logger.info("Found {} items in Cloudinary folder '{}'".format(len(cld_files.keys()), cloudinary_folder))
     files_ = set(files.keys())
     cld_files_ = set(cld_files.keys())
 
@@ -70,17 +67,17 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
         files_to_delete_from_cloudinary = list(cld_files_ - files_)
         files_to_push = files_ - cld_files_
         files_to_check = files_ - files_to_push
-        print("\nCalculating differences...\n")
+        logger.info("\nCalculating differences...\n")
         for f in files_to_check:
             if files[f]['etag'] == cld_files[f]['etag']:
                 if verbose:
-                    print(F_WARN("{} already exists in Cloudinary".format(f)))
+                    logger.warning("{} already exists in Cloudinary".format(f))
                 skipping += 1
             else:
                 files_to_push.add(f)
-        print("Skipping upload for {} items".format(skipping))
+        logger.info("Skipping upload for {} items".format(skipping))
         if len(files_to_delete_from_cloudinary) > 0:
-            print("Deleting {} resources from Cloudinary folder '{}'".format(len(files_to_delete_from_cloudinary),
+            logger.info("Deleting {} resources from Cloudinary folder '{}'".format(len(files_to_delete_from_cloudinary),
                                                                              cloudinary_folder))
             files_to_delete_from_cloudinary = list(map(lambda x: cld_files[x], files_to_delete_from_cloudinary))
 
@@ -89,7 +86,7 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
                                  filter(lambda x: x["type"] == i[0] and x["resource_type"] == i[1],
                                         files_to_delete_from_cloudinary)))
                 if len(batch) > 0:
-                    print("Deleting {} resources with type '{}' and resource_type '{}'".format(len(batch), *i))
+                    logger.info("Deleting {} resources with type '{}' and resource_type '{}'".format(len(batch), *i))
                     counter = 0
                     while counter * 100 < len(batch) and len(batch) > 0:
                         counter += 1
@@ -97,22 +94,22 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
                                                    resource_type=i[1], type=i[0])
                         num_deleted = reduce(lambda x, y: x + 1 if y == "deleted" else x, res['deleted'].values(), 0)
                         if verbose:
-                            log(res)
+                            log_json(res)
                         if num_deleted != len(batch):
-                            print(F_FAIL("Failed deletes:\n{}".format("\n".join(list(
-                                map(lambda x: x[0], filter(lambda x: x[1] != 'deleted', res['deleted'].items())))))))
+                            logger.error("Failed deletes:\n{}".format("\n".join(list(
+                                map(lambda x: x[0], filter(lambda x: x[1] != 'deleted', res['deleted'].items()))))))
                         else:
-                            print(F_OK("Deleted {} resources".format(num_deleted)))
+                            logger.info(style("Deleted {} resources".format(num_deleted), fg="green"))
 
         to_upload = list(filter(lambda x: split(x)[1][0] != ".", files_to_push))
-        print("Uploading {} items to Cloudinary folder '{}'".format(len(to_upload), cloudinary_folder))
+        logger.info("Uploading {} items to Cloudinary folder '{}'".format(len(to_upload), cloudinary_folder))
 
         threads = []
 
         def threaded_upload(options, path, verbose):
             res = _uploader.upload(path, **options)
             if verbose:
-                print(F_OK("Uploaded '{}'".format(res['public_id'])))
+                logger.info(style("Uploaded '{}'".format(res['public_id']), fg="green"))
 
         for i in to_upload:
             modif_folder = path_join(cloudinary_folder, sep.join(i.split(sep)[:-1]))
@@ -129,22 +126,22 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
 
         [t.join() for t in threads]
 
-        print("Done!")
+        logger.info("Done!")
 
     else:
         files_to_delete_local = list(files_in_local_nin_cloudinary)
         files_to_pull = files_in_cloudinary_nin_local
         files_to_check = cld_files_ - files_to_pull
 
-        print("\nCalculating differences...\n")
+        logger.info("\nCalculating differences...\n")
         for f in files_to_check:
             if files[f]['etag'] == cld_files[f]['etag']:
                 if verbose:
-                    print(F_WARN("{} already exists locally".format(f)))
+                    logger.info("{} already exists locally".format(f))
                 skipping += 1
             else:
                 files_to_pull.add(f)
-        print("Skipping download for {} items".format(skipping))
+        logger.warn("Skipping download for {} items".format(skipping))
 
         def delete_empty_folders(root, verbose, remove_root=False):
             if not isdir(root):
@@ -160,7 +157,7 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
             files = listdir(root)
             if len(files) == 0 and remove_root:
                 if verbose:
-                    print("Removing empty folder '{}'".format(root))
+                    logger.info("Removing empty folder '{}'".format(root))
                 rmdir(root)
 
         def create_required_directories(root, verbose):
@@ -169,20 +166,20 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
             else:
                 create_required_directories(sep.join(root.split(sep)[:-1]), verbose)
                 if verbose:
-                    print("Creating directory '{}'".format(root))
+                    logger.info("Creating directory '{}'".format(root))
                 mkdir(root)
 
-        print("Deleting {} local files...".format(len(files_to_delete_local)))
+        logger.info("Deleting {} local files...".format(len(files_to_delete_local)))
         for i in files_to_delete_local:
             remove(abspath(files[i]['path']))
             if verbose:
-                print("Deleted '{}'".format(abspath(files[i]['path'])))
+                logger.info("Deleted '{}'".format(abspath(files[i]['path'])))
 
-        print("Deleting empty folders...")
+        logger.info("Deleting empty folders...")
 
         delete_empty_folders(local_folder, verbose)
 
-        print("Downloading {} files from Cloudinary".format(len(files_to_pull)))
+        logger.info("Downloading {} files from Cloudinary".format(len(files_to_pull)))
 
         threads = []
 
@@ -194,7 +191,7 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
                 f.write(r.content)
                 f.close()
             if verbose:
-                print(F_OK("Downloaded '{}' to '{}'".format(i, local_path)))
+                logger.info(style("Downloaded '{}' to '{}'".format(i, local_path), fg="green"))
 
         for i in files_to_pull:
             local_path = abspath(path_join(local_folder,
@@ -213,4 +210,4 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
 
         [t.join() for t in threads]
 
-        print("Done!")
+        logger.info("Done!")

@@ -1,10 +1,10 @@
-from click import command, argument, option
+from click import command, argument, option, echo, style
 from cloudinary import uploader as _uploader
 from os import getcwd, walk
 from os.path import dirname, split, join as path_join, abspath
 from threading import Thread, active_count
 from time import sleep
-from ..utils import parse_option_value, log, F_OK, F_FAIL
+from ..utils import parse_option_value, log_json, logger
 
 @command("upload_dir",
          help="""Upload a directory of assets and persist the directory structure""")
@@ -21,7 +21,7 @@ from ..utils import parse_option_value, log, F_OK, F_FAIL
 def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose):
     items, skipped = [], []
     dir_to_upload = abspath(path_join(getcwd(), directory))
-    print("Uploading directory '{}'".format(dir_to_upload))
+    echo("Uploading directory '{}'".format(dir_to_upload))
     parent = dirname(dir_to_upload)
     options = {
         **{k: v for k, v in optional_parameter},
@@ -39,13 +39,12 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
     def upload_multithreaded(file_path, items, skipped, v, **kwargs):
         try:
             _r = _uploader.upload(file_path, **kwargs)
-            print(F_OK("Successfully uploaded {} as {}".format(file_path, _r['public_id'])))
+            echo("Successfully uploaded {} as {}".format(file_path, _r['public_id']))
             if v:
-                log(_r)
+                log_json(_r)
             items.append(_r['public_id'])
-        except Exception as e:
-            print(F_FAIL("Failed uploading {}".format(file_path)))
-            print(e)
+        except Exception:
+            logger.error("Failed uploading {}".format(file_path))
             skipped.append(file_path)
             pass
 
@@ -69,9 +68,6 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
 
     for t in threads:
         t.join()
-
-    print(F_OK("\n{} resources uploaded:".format(len(items))))
-    print(F_OK('\n'.join(items)))
+    logger.info(style("{} resources uploaded".format(len(items)), fg="green"))
     if len(skipped):
-        print(F_FAIL("\n{} items skipped:".format(len(skipped))))
-        print(F_FAIL('\n'.join(skipped)))
+        logger.warn("{} items skipped".format(len(skipped)))

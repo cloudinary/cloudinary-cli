@@ -11,10 +11,10 @@ eg. cld config -n <NAME> <CLOUDINARY_URL>""", nargs=2)
 @option("-url", "--from_url", help="Create a configuration from a Cloudinary URL", nargs=1)
 def config(new, ls, rm, from_url):
     if not (new or ls or rm or from_url):
-        print('\n'.join(["{}:\t{}".format(k, v if k != "api_secret"
+        logger.info('\n'.join(["{}:\t{}".format(k, v if k != "api_secret"
                         else "***************{}".format(v[-4:]))
-                         for k, v in cloudinary._config.__dict__.items()]))
-        exit(0)
+                        for k, v in cloudinary.config().__dict__.items()]))
+        return
 
     with open(CLOUDINARY_CLI_CONFIG_FILE, "r+") as f:
         fi = f.read()
@@ -22,43 +22,39 @@ def config(new, ls, rm, from_url):
         f.close()
     if new:
         try:
-            cloudinary._config._parse_cloudinary_url(new[1])
+            refresh_config(new[1])
             cfg[new[0]] = new[1]
             api.ping()
             with open(CLOUDINARY_CLI_CONFIG_FILE, "w") as f:
                 f.write(dumps(cfg))
                 f.close()
-            print("Config '{}' saved!".format(new[0]))
+            logger.info("Config '{}' saved!".format(new[0]))
         except Exception as e:
-            print(e)
-            print("Invalid Cloudinary URL: {}".format(new[1]))
-            exit(1)
-        exit(0)
+            logger.error("Invalid Cloudinary URL: {}".format(new[1]))
+            raise e
+        return
     if ls:
-        print("\n".join(cfg.keys()))
-        exit(0)
+        logger.info("\n".join(cfg.keys()))
     if rm:
         if rm not in cfg.keys():
-            print("Configuration '{}' not found.".format(rm))
-            exit(1)
+            logger.warn("Configuration '{}' not found.".format(rm))
+            return
         del cfg[rm]
         open(CLOUDINARY_CLI_CONFIG_FILE, "w").write(dumps(cfg))
-        print("Configuration '{}' deleted".format(rm))
-        exit(0)
+        logger.info("Configuration '{}' deleted".format(rm))
+        return
     if from_url:
         if "CLOUDINARY_URL=" in from_url:
             from_url = from_url[15:]
         try:
-            cloudinary._config._parse_cloudinary_url(from_url)
-            cfg[cloudinary._config.cloud_name] = from_url
+            refresh_config(from_url)
+            cfg[cloudinary.config().cloud_name] = from_url
             api.ping()
             with open(CLOUDINARY_CLI_CONFIG_FILE, "w") as f:
                 f.write(dumps(cfg))
                 f.close()
-            print("Config '{}' saved!".format(cloudinary._config.cloud_name))
-            print("Example usage: cld -C {} <command>".format(cloudinary._config.cloud_name))
+            logger.info("Config '{}' saved!".format(cloudinary.config().cloud_name))
+            logger.info("Example usage: cld -C {} <command>".format(cloudinary.config().cloud_name))
         except Exception as e:
-            print(e)
-            print("Invalid Cloudinary URL: {}".format(from_url))
-            exit(1)
-        exit(0)
+            logger.error("Invalid Cloudinary URL: {}".format(from_url))
+            raise e

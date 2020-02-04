@@ -37,6 +37,7 @@ setuptools.setup(
         "pygments",
         "jinja2",
         "click",
+        "click-log",
         "requests"
     ],
     include_package_data=True,

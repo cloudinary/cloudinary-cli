@@ -3,7 +3,7 @@ from cloudinary import api
 from cloudinary.utils import cloudinary_url as cld_url
 from os.path import join as path_join
 from requests import head
-from ..utils import F_OK, F_FAIL
+from ..utils import logger
 
 
 @command("migrate",
@@ -22,6 +22,6 @@ def migrate(upload_mapping, file, delimiter, verbose):
     for i in items:
         res = head(i[0])
         if res.status_code != 200:
-            print(F_FAIL("Failed uploading asset: " + res.__dict__['headers']['X-Cld-Error']))
+            logger.error("Failed uploading asset: " + res.__dict__['headers']['X-Cld-Error'])
         elif verbose:
-            print(F_OK("Uploaded {}".format(i[0])))
+            logger.info("Uploaded {}".format(i[0]))

@@ -7,6 +7,8 @@ from cloudinary.uploader import call_cacheable_api
 
 # overrides click.MultiCommand.resolve_command
 def resolve_command(self, ctx, args):
+    # Patch the `resolve_command` function to enable simple commands (eg. cld resource)
+    # Only core commands from API and modules are registered (eg. cld admin)
     cmd_name = make_str(args[0])
     original_cmd_name = cmd_name
 
@@ -32,6 +34,7 @@ def resolve_command(self, ctx, args):
     return cmd_name, cmd, args[1:]
 
 
+# Patch to set `auto` resource type
 def upload(file, **options):
     params = build_upload_params(**options)
     if "resource_type" not in options.keys():

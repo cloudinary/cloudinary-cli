@@ -1,5 +1,5 @@
-from click import command, argument
-from ..utils import load_template
+from click import command, argument, echo
+from ..utils import load_template, logger
 from ..defaults import TEMPLATE_EXTS
 
 @command("make", short_help="Scaffold Cloudinary templates.",
@@ -16,4 +16,4 @@ def make(template):
     elif template[0] in TEMPLATE_EXTS.keys():
         language = template[0]
         template = template[1:]
-    print(load_template(language, '_'.join(template)))
+    logger.info(load_template(language, '_'.join(template)))

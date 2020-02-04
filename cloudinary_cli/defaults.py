@@ -1,5 +1,8 @@
-from os.path import join as path_join, expanduser, abspath, isdir, exists
+import logging
 from os import mkdir
+from os.path import join as path_join, expanduser, abspath, isdir, exists
+
+import click_log
 
 TEMPLATE_FOLDER = "templates"
 
@@ -12,12 +15,19 @@ TEMPLATE_EXTS = {
     "java": "java",
 }
 
-CLOUDINARY_CLI_CONFIG_FILE = abspath(path_join(expanduser("~"), '.cloudinary-cli-config'))
+CLOUDINARY_HOME = abspath(path_join(expanduser("~"), ".cloudinary-cli"))
+CLOUDINARY_CLI_CONFIG_FILE = abspath(path_join(CLOUDINARY_HOME, 'config.json'))
+CUSTOM_TEMPLATE_FOLDER = abspath(path_join(CLOUDINARY_HOME, 'templates'))
 
 if not exists(CLOUDINARY_CLI_CONFIG_FILE):
     open(CLOUDINARY_CLI_CONFIG_FILE, "a").close()
 
-CUSTOM_TEMPLATE_FOLDER = abspath(path_join(expanduser("~"), '.cld-cli-templates'))
-
 if not isdir(CUSTOM_TEMPLATE_FOLDER):
     mkdir(CUSTOM_TEMPLATE_FOLDER)
+
+OLD_CLOUDINARY_CLI_CONFIG_FILE = abspath(path_join(expanduser("~"), '.cloudinary-cli-config'))
+
+logger = logging.getLogger(__name__)
+
+click_log.basic_config(logger)
+

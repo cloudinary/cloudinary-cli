@@ -8,7 +8,7 @@
         cloudName: '{{cloud_name}}',
         upload_preset: 'preset1',
         }, (error, result) => { if (result.event == "success") {
-            console.log(result.info) // result.info contains data from upload
+            console.log_json(result.info) // result.info contains data from upload
         } })
 
         document.getElementById("upload_widget").addEventListener("click", function(){
