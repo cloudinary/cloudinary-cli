@@ -27,7 +27,7 @@ def cli(config, config_saved):
         os.environ.update(dict(CLOUDINARY_URL=loads(open(CLOUDINARY_CLI_CONFIG_FILE).read())[config_saved]))
     cloudinary.reset_config()
     if cloudinary.config().cloud_name is None:
-        logger.warning("CLOUDINARY_URL is not configured in your environment.")
+        logger.warning("No Cloudinary configuration found.")
     pass
 
 

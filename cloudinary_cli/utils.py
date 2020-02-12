@@ -3,7 +3,7 @@
 import os
 from hashlib import md5
 from inspect import signature, getfullargspec
-from json import loads, load, dumps, dump
+from json import loads, dumps, dump
 
 import cloudinary
 from jinja2 import Environment, FileSystemLoader
@@ -11,7 +11,7 @@ from pkg_resources import resource_filename
 from pygments import highlight
 from pygments.formatters import TerminalFormatter
 from pygments.lexers import JsonLexer
-from .defaults import *
+from .defaults import CLOUDINARY_HOME, OLD_CLOUDINARY_CLI_CONFIG_FILE, CLOUDINARY_CLI_CONFIG_FILE, logger
 
 not_callable = ['is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api', 'text']
 
@@ -43,8 +43,8 @@ def initialize():
         with open(CLOUDINARY_CLI_CONFIG_FILE, 'w') as cfg:
             dump(new_config, cfg)
         os.remove(OLD_CLOUDINARY_CLI_CONFIG_FILE)
-    if 'CLOUDINARY_URL' != os.environ.get("CLOUDINARY_URL"):
-        logger.warn("CLOUDINARY_URL not set.\n")
+    if os.environ.get("CLOUDINARY_URL") == '':
+        logger.warn("CLOUDINARY_URL is not set in your environment. Please set it up in your \n")
         pass
 
 
