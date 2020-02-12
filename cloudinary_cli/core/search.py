@@ -1,10 +1,14 @@
+import datetime
+import os
+import sys
 from csv import DictWriter
 from functools import reduce
 from webbrowser import open as open_url
 
+import cloudinary
 from click import command, argument, option
 
-from ..utils import *
+from ..utils import logger, dumps, loads, log_json, write_out
 
 
 @command("search",
@@ -61,15 +65,31 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
             else:
                 logger.info("Continuing. You may use the -F flag to force auto_pagination.")
 
-        while True:
-            if 'next_cursor' not in res.keys():
-                break
+        tmp_file = os.path.join(os.getcwd(), ".cloudinary-cli-search-temp-{}".format(
+            round(datetime.datetime.timestamp(datetime.datetime.now()))))
 
+        tmp_stdout = sys.stdout
+        sys.stdout = open(tmp_file, 'w+')
+        sys.stdout.write(dumps(res['resources']) + "\n")
+
+        while 'next_cursor' in res.keys():
+            # stream output to file
             exp = base_exp.next_cursor(res['next_cursor'])
             res = exp.execute()
-            all_results['resources'] += res['resources']
+            sys.stdout.write(dumps(res['resources']) + "\n")
 
-        del all_results['time']
+        sys.stdout.close()
+        sys.stdout = tmp_stdout
+
+        all_results['resources'] = []
+        with open(tmp_file, "r") as f:
+            for line in f:
+                l = line.rstrip("\n")
+                if l:
+                    all_results['resources'] += loads(l)
+
+        os.remove(tmp_file)
+
     return_fields = []
     if filter_fields:
         for f in list(filter_fields):
