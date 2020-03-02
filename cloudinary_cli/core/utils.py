@@ -1,8 +1,9 @@
 from webbrowser import open as open_url
-from cloudinary.utils import cloudinary_url as cld_url
-from click import command, argument, option, Choice
-from ..utils import logger
 
+from click import command, argument, option, Choice
+from cloudinary.utils import cloudinary_url
+
+from cloudinary_cli.utils import logger
 
 
 @command("url", help="Generate a cloudinary url")
@@ -19,8 +20,8 @@ def url(public_id, transformation, resource_type, type, open, sign):
         sign = True
     elif type == "list":
         public_id += ".json"
-    res = cld_url(public_id, resource_type=resource_type,
-                  raw_transformation=transformation, type=type, sign_url=sign)[0]
+    res = cloudinary_url(public_id, resource_type=resource_type,
+                         raw_transformation=transformation, type=type, sign_url=sign)[0]
     logger.info(res)
     if open:
         open_url(res)

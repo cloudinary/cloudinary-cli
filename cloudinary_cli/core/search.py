@@ -3,12 +3,13 @@ import os
 import sys
 from csv import DictWriter
 from functools import reduce
+from json import loads, dumps
 from webbrowser import open as open_url
 
 import cloudinary
 from click import command, argument, option
 
-from ..utils import logger, dumps, loads, log_json, write_out
+from cloudinary_cli.utils import logger, log_json, write_out
 
 
 @command("search",

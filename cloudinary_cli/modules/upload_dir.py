@@ -1,10 +1,13 @@
-from click import command, argument, option, echo, style
-from cloudinary import uploader as _uploader
 from os import getcwd, walk
 from os.path import dirname, split, join as path_join, abspath
 from threading import Thread, active_count
 from time import sleep
-from ..utils import parse_option_value, log_json, logger
+
+from click import command, argument, option, echo, style
+from cloudinary import uploader as _uploader
+
+from cloudinary_cli.utils import parse_option_value, log_json, logger
+
 
 @command("upload_dir",
          help="""Upload a directory of assets and persist the directory structure""")
@@ -15,7 +18,8 @@ from ..utils import parse_option_value, log_json, logger
         nargs=2,
         help="Pass optional parameters as interpreted strings")
 @option("-t", "--transformation", help="Transformation to apply on all uploads")
-@option("-f", "--folder", default="", help="Specify the folder you would like to upload resources to in Cloudinary.  If it does not exist, create it.")
+@option("-f", "--folder", default="",
+        help="Specify the folder you would like to upload resources to in Cloudinary.  If it does not exist, create it.")
 @option("-p", "--preset", help="Upload preset to use")
 @option("-v", "--verbose", is_flag=True, help="Logs information after each upload")
 def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose):
@@ -64,7 +68,7 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
             # prevent concurrency overload
             sleep(1)
         t.start()
-        sleep(1/10)
+        sleep(1 / 10)
 
     for t in threads:
         t.join()

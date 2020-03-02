@@ -1,6 +1,8 @@
-from click import command, argument, echo
-from ..utils import load_template, logger
-from ..defaults import TEMPLATE_EXTS
+from click import command, argument
+
+from cloudinary_cli.defaults import TEMPLATE_EXTS
+from cloudinary_cli.utils import load_template, logger
+
 
 @command("make", short_help="Scaffold Cloudinary templates.",
          help="""\b

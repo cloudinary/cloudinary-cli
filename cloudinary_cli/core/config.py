@@ -1,6 +1,10 @@
-from ..utils import *
-from cloudinary import api
+import json
+
+import cloudinary
 from click import command, option
+from cloudinary import api
+
+from cloudinary_cli.utils import CLOUDINARY_CLI_CONFIG_FILE, refresh_config, logger
 
 
 @command("config", help="Display current configuration, and manage additional configurations")
@@ -12,13 +16,13 @@ eg. cld config -n <NAME> <CLOUDINARY_URL>""", nargs=2)
 def config(new, ls, rm, from_url):
     if not (new or ls or rm or from_url):
         logger.info('\n'.join(["{}:\t{}".format(k, v if k != "api_secret"
-                        else "***************{}".format(v[-4:]))
-                        for k, v in cloudinary.config().__dict__.items()]))
+        else "***************{}".format(v[-4:]))
+                               for k, v in cloudinary.config().__dict__.items()]))
         return
 
     with open(CLOUDINARY_CLI_CONFIG_FILE, "r+") as f:
         fi = f.read()
-        cfg = loads(fi) if fi != "" else {}
+        cfg = json.loads(fi) if fi != "" else {}
         f.close()
     if new:
         try:
@@ -26,7 +30,7 @@ def config(new, ls, rm, from_url):
             cfg[new[0]] = new[1]
             api.ping()
             with open(CLOUDINARY_CLI_CONFIG_FILE, "w") as f:
-                f.write(dumps(cfg))
+                f.write(json.dumps(cfg))
                 f.close()
             logger.info("Config '{}' saved!".format(new[0]))
         except Exception as e:
@@ -40,7 +44,7 @@ def config(new, ls, rm, from_url):
             logger.warn("Configuration '{}' not found.".format(rm))
             return
         del cfg[rm]
-        open(CLOUDINARY_CLI_CONFIG_FILE, "w").write(dumps(cfg))
+        open(CLOUDINARY_CLI_CONFIG_FILE, "w").write(json.dumps(cfg))
         logger.info("Configuration '{}' deleted".format(rm))
         return
     if from_url:
@@ -51,7 +55,7 @@ def config(new, ls, rm, from_url):
             cfg[cloudinary.config().cloud_name] = from_url
             api.ping()
             with open(CLOUDINARY_CLI_CONFIG_FILE, "w") as f:
-                f.write(dumps(cfg))
+                f.write(json.dumps(cfg))
                 f.close()
             logger.info("Config '{}' saved!".format(cloudinary.config().cloud_name))
             logger.info("Example usage: cld -C {} <command>".format(cloudinary.config().cloud_name))

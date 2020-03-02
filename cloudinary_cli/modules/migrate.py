@@ -1,9 +1,11 @@
+from os.path import join
+
 from click import command, argument, option
 from cloudinary import api
-from cloudinary.utils import cloudinary_url as cld_url
-from os.path import join as path_join
+from cloudinary.utils import cloudinary_url
 from requests import head
-from ..utils import logger
+
+from cloudinary_cli.utils import logger
 
 
 @command("migrate",
@@ -17,7 +19,7 @@ def migrate(upload_mapping, file, delimiter, verbose):
     with open(file) as f:
         items = f.read().split(delimiter)
     mapping = api.upload_mapping(upload_mapping)
-    items = map(lambda x: cld_url(path_join(mapping['folder'], x[len(mapping['template']):])),
+    items = map(lambda x: cloudinary_url(join(mapping['folder'], x[len(mapping['template']):])),
                 filter(lambda x: x != '', items))
     for i in items:
         res = head(i[0])

@@ -1,8 +1,10 @@
-from ..utils import logger, get_help, parse_args_kwargs, parse_option_value, write_out, log_json
 from webbrowser import open as open_url
-from cloudinary import uploader as _uploader
+
 from click import command, argument, option
 from click.exceptions import UsageError
+from cloudinary import uploader as _uploader
+
+from cloudinary_cli.utils import logger, get_help, parse_args_kwargs, parse_option_value, write_out, log_json
 
 
 @command("uploader",

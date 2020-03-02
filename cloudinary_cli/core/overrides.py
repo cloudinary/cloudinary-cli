@@ -1,8 +1,7 @@
-from cloudinary import api, uploader
-from click.utils import make_str
 from click.parser import split_opt
-from cloudinary.utils import build_upload_params
-from cloudinary.uploader import call_cacheable_api
+from click.utils import make_str
+from cloudinary import api, uploader
+from cloudinary.uploader import upload as original_upload
 
 
 # overrides click.MultiCommand.resolve_command
@@ -13,7 +12,6 @@ def resolve_command(self, ctx, args):
     original_cmd_name = cmd_name
 
     cmd = self.get_command(ctx, cmd_name)
-
     if cmd is None and ctx.token_normalize_func is not None:
         cmd_name = ctx.token_normalize_func(cmd_name)
         cmd = self.get_command(ctx, cmd_name)
@@ -36,7 +34,6 @@ def resolve_command(self, ctx, args):
 
 # Patch to set `auto` resource type
 def upload(file, **options):
-    params = build_upload_params(**options)
     if "resource_type" not in options.keys():
         options["resource_type"] = "auto"
-    return call_cacheable_api("upload", params, file=file, **options)
+    return original_upload(file, **options)

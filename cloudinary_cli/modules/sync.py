@@ -11,7 +11,7 @@ from cloudinary.search import Search
 from cloudinary.utils import cloudinary_url as cld_url
 from requests import get
 
-from ..utils import log_json, etag, logger
+from cloudinary_cli.utils import log_json, etag, logger
 
 
 @command("sync",
@@ -78,7 +78,7 @@ def sync(local_folder, cloudinary_folder, push, pull, verbose):
         logger.info("Skipping upload for {} items".format(skipping))
         if len(files_to_delete_from_cloudinary) > 0:
             logger.info("Deleting {} resources from Cloudinary folder '{}'".format(len(files_to_delete_from_cloudinary),
-                                                                             cloudinary_folder))
+                                                                                   cloudinary_folder))
             files_to_delete_from_cloudinary = list(map(lambda x: cld_files[x], files_to_delete_from_cloudinary))
 
             for i in product({"upload", "private", "authenticated"}, {"image", "video", "raw"}):

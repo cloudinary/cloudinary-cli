@@ -1,7 +1,10 @@
 from webbrowser import open as open_url
+
+from click import command, argument, option
 from cloudinary import api
-from click import command, argument, option, echo
-from ..utils import get_help, parse_args_kwargs, parse_option_value, log_json, write_out, logger
+
+from cloudinary_cli.utils import get_help, parse_args_kwargs, parse_option_value, log_json, write_out, logger
+
 
 @command("admin",
          short_help="Admin API bindings",
