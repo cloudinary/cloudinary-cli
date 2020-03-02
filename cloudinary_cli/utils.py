@@ -11,22 +11,33 @@ from pkg_resources import resource_filename
 from pygments import highlight
 from pygments.formatters import TerminalFormatter
 from pygments.lexers import JsonLexer
-from .defaults import CLOUDINARY_HOME, OLD_CLOUDINARY_CLI_CONFIG_FILE, CLOUDINARY_CLI_CONFIG_FILE, logger
+
+from .defaults import OLD_CLOUDINARY_CLI_CONFIG_FILE, CLOUDINARY_CLI_CONFIG_FILE, logger, TEMPLATE_FOLDER, \
+    CLOUDINARY_HOME, CUSTOM_TEMPLATE_FOLDER
 
 not_callable = ['is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api', 'text']
 
 
 def write_out(contents, filename):
-    open(filename, "w+").write(dumps(contents, indent=2))
+    with open(filename, 'w+') as f:
+        f.write(json.dumps(contents, indent=2))
 
 
 # def enable_file_logging():
-    # fileHandler = logging.FileHandler(abspath(path_join(CLOUDINARY_HOME, "{}.log_json".format(datetime.datetime.now()))))
-    # logger.addHandler(fileHandler)
+# fileHandler = logging.FileHandler(abspath(path_join(CLOUDINARY_HOME, "{}.log_json".format(datetime.datetime.now()))))
+# logger.addHandler(fileHandler)
 
 
 def etag(fi):
-    return md5(open(fi, 'rb').read()).hexdigest()
+    BLOCK_SIZE = 65536
+    file_hash = md5()
+    with open(fi, 'rb') as f:
+        fb = f.read(BLOCK_SIZE)
+        while len(fb) > 0:
+            file_hash.update(fb)
+            fb = f.read(BLOCK_SIZE)
+
+    return file_hash.hexdigest()
 
 
 def refresh_config(config):
