@@ -1,7 +1,7 @@
 from click import command, argument
 
-from cloudinary_cli.defaults import TEMPLATE_EXTS
-from cloudinary_cli.utils import load_template, logger
+from cloudinary_cli.defaults import TEMPLATE_EXTS, logger
+from cloudinary_cli.utils import load_template
 
 
 @command("make", short_help="Scaffold Cloudinary templates.",
@@ -18,4 +18,8 @@ def make(template):
     elif template[0] in TEMPLATE_EXTS.keys():
         language = template[0]
         template = template[1:]
-    logger.info(load_template(language, '_'.join(template)))
+    try:
+        src = load_template(language, '_'.join(template))
+        print(src)
+    except Exception as e:
+        logger.error(e)
