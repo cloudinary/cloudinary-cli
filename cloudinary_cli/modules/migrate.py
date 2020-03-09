@@ -7,11 +7,11 @@ from ..utils import F_OK, F_FAIL
 
 
 @command("migrate",
-         short_help="Migrate files using an existing auto-upload mapping and a file of URLs",
-         help="Migrate files using an existing auto-upload mapping and a file of URLs")
+         short_help="Migrate files using an existing auto-upload mapping and a file of URLs.",
+         help="Migrate a list of external media files to Cloudinary. The URLs of the files to migrate are listed in a separate file and must all have the same prefix.")
 @argument("upload_mapping")
 @argument("file")
-@option("-d", "--delimiter", default="\n", help="Separator for the URLs. Default: New line")
+@option("-d", "--delimiter", default="\n", help="The separator used between the URLs. Default: New line")
 @option("-v", "--verbose", is_flag=True)
 def migrate(upload_mapping, file, delimiter, verbose):
     with open(file) as f:

@@ -4,8 +4,8 @@ from ..defaults import TEMPLATE_EXTS
 
 @command("make", short_help="Scaffold Cloudinary templates.",
          help="""\b
-Scaffold Cloudinary templates.
-eg. cld make product gallery
+Returns template code for implementing the specified Cloudinary widget.
+e.g. cld make product_gallery
 """)
 @argument("template", nargs=-1)
 def make(template):

@@ -4,10 +4,10 @@ from click import command, argument, option
 from ..utils import get_help, F_FAIL, parse_args_kwargs, parse_option_value, log, write_out
 
 @command("admin",
-         short_help="Admin API bindings",
+         short_help="Run any methods that can be called through the admin API.",
          help="""\b
-Admin API bindings
-format: cld admin <method> <parameters> <optional_parameters>
+Enables you to run any methods that can be called through the admin API.
+Format: cld <cli options> admin <command options> <method> <method parameters>
 \te.g. cld admin resources max_results=10 tags=sample
 \t      OR
 \t    cld admin resources -o max_results 10 -o tags sample
@@ -15,12 +15,12 @@ format: cld admin <method> <parameters> <optional_parameters>
 \t    cld admin resources max_results=10 -o tags sample
 """)
 @argument("params", nargs=-1)
-@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings")
+@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
-        help="Pass optional parameters as interpreted strings")
-@option("-ls", "--ls", is_flag=True, help="List all available methods in the Admin API")
-@option("--save", nargs=1, help="Save output to a file")
-@option("-d", "--doc", is_flag=True, help="Opens Admin API documentation page")
+        help="Pass optional parameters as interpreted strings.")
+@option("-ls", "--ls", is_flag=True, help="List all available methods in the Admin API.")
+@option("--save", nargs=1, help="Save output to a file.")
+@option("-d", "--doc", is_flag=True, help="Open the Admin API reference in a browser.")
 def admin(params, optional_parameter, optional_parameter_parsed, ls, save, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/admin_api")
