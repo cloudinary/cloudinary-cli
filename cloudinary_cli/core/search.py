@@ -1,9 +1,7 @@
-import datetime
-import os
-import sys
+import json as _json
+import tempfile
 from csv import DictWriter
 from functools import reduce
-from json import loads, dumps
 from webbrowser import open as open_url
 
 import cloudinary
@@ -66,30 +64,21 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
             else:
                 logger.info("Continuing. You may use the -F flag to force auto_pagination.")
 
-        tmp_file = os.path.join(os.getcwd(), ".cloudinary-cli-search-temp-{}".format(
-            round(datetime.datetime.timestamp(datetime.datetime.now()))))
+        with tempfile.TemporaryFile(mode="w+b") as tmp_file:
+            tmp_file.write(bytes(_json.dumps(res['resources']) + "\n", encoding="utf8"))
 
-        tmp_stdout = sys.stdout
-        sys.stdout = open(tmp_file, 'w+')
-        sys.stdout.write(dumps(res['resources']) + "\n")
+            while 'next_cursor' in res.keys():
+                # stream output to file
+                exp = base_exp.next_cursor(res['next_cursor'])
+                res = exp.execute()
+                tmp_file.write(bytes(_json.dumps(res['resources']) + "\n", encoding="utf8"))
 
-        while 'next_cursor' in res.keys():
-            # stream output to file
-            exp = base_exp.next_cursor(res['next_cursor'])
-            res = exp.execute()
-            sys.stdout.write(dumps(res['resources']) + "\n")
+            all_results['resources'] = []
+            tmp_file.seek(0)
 
-        sys.stdout.close()
-        sys.stdout = tmp_stdout
-
-        all_results['resources'] = []
-        with open(tmp_file, "r") as f:
-            for line in f:
-                l = line.rstrip("\n")
-                if l:
-                    all_results['resources'] += loads(l)
-
-        os.remove(tmp_file)
+            for line in tmp_file:
+                if line:
+                    all_results['resources'] += _json.loads(line.decode('utf8'))
 
     return_fields = []
     if filter_fields:
