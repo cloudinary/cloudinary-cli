@@ -70,8 +70,6 @@ def initialize():
         with open(CLOUDINARY_CLI_CONFIG_FILE, 'w') as cfg:
             json.dump(new_config, cfg)
         os.remove(OLD_CLOUDINARY_CLI_CONFIG_FILE)
-    if cloudinary.config().cloud_name is None:
-        logger.warn("Cloudinary configration is not set in your environment. Please set it up in your terminal config file.\n")
 
 
 def get_help(api):
