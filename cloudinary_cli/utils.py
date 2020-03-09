@@ -11,6 +11,7 @@ from pkg_resources import resource_filename
 from pygments import highlight
 from pygments.formatters import TerminalFormatter
 from pygments.lexers import JsonLexer
+from platform import system
 
 from .defaults import OLD_CLOUDINARY_CLI_CONFIG_FILE, CLOUDINARY_CLI_CONFIG_FILE, logger, TEMPLATE_FOLDER, \
     CLOUDINARY_HOME, CUSTOM_TEMPLATE_FOLDER
@@ -84,8 +85,11 @@ def log_json(res):
         res = json.dumps(res, indent=2)
     finally:
         pass
-    colorful_json = highlight(res.encode('UTF-8'), JsonLexer(), TerminalFormatter())
-    logger.info(colorful_json)
+    if system() != "Windows":
+        colorful_json = highlight(res.encode('UTF-8'), JsonLexer(), TerminalFormatter())
+        logger.info(colorful_json)
+    else:
+        logger.info(res)
 
 
 def load_template(language, _template):
