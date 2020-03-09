@@ -46,14 +46,13 @@ def refresh_config(config):
 
 
 def initialize():
-    if not os.path.isdir(CLOUDINARY_HOME):
-        os.mkdir(CLOUDINARY_HOME)
+    os.makedirs(CLOUDINARY_HOME, exist_ok=True)
 
     if not os.path.exists(CLOUDINARY_CLI_CONFIG_FILE):
         open(CLOUDINARY_CLI_CONFIG_FILE, "a").close()
 
-    if not os.path.isdir(CUSTOM_TEMPLATE_FOLDER):
-        os.mkdir(CUSTOM_TEMPLATE_FOLDER)
+    os.makedirs(CUSTOM_TEMPLATE_FOLDER, exist_ok=True)
+
     # migrate old config file to new location
     if os.path.exists(OLD_CLOUDINARY_CLI_CONFIG_FILE):
         with open(OLD_CLOUDINARY_CLI_CONFIG_FILE) as f:
@@ -71,9 +70,8 @@ def initialize():
         with open(CLOUDINARY_CLI_CONFIG_FILE, 'w') as cfg:
             json.dump(new_config, cfg)
         os.remove(OLD_CLOUDINARY_CLI_CONFIG_FILE)
-    if os.environ.get("CLOUDINARY_URL") == '':
-        logger.warn("CLOUDINARY_URL is not set in your environment. Please set it up in your terminal config file.\n")
-        pass
+    if cloudinary.config().cloud_name is None:
+        logger.warn("Cloudinary configration is not set in your environment. Please set it up in your terminal config file.\n")
 
 
 def get_help(api):
