@@ -10,7 +10,7 @@ from click import command, argument, option, Choice
 @option("-t", "--type", default="upload",
         type=Choice(['upload', 'private', 'authenticated', 'fetch', 'list', 'url2png']),
         help="The delivery type.")
-@option("-o", "--open", is_flag=True, help="Generate the derived asset and open it in your browser.)
+@option("-o", "--open", is_flag=True, help="Generate the derived asset and open it in your browser.")
 @option("-s", "--sign", is_flag=True, help="Generate a signed URL.", default=False)
 def url(public_id, transformation, resource_type, type, open, sign):
     if type == "authenticated" or resource_type == "url2png":
