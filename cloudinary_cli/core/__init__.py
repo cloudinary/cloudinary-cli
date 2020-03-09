@@ -1,12 +1,12 @@
 import click
 import cloudinary.uploader
 
-from .admin import admin
-from .config import config
-from .overrides import resolve_command, upload
-from .search import search
-from .uploader import uploader
-from .utils import url
+from cloudinary_cli.core.admin import admin
+from cloudinary_cli.core.config import config
+from cloudinary_cli.core.overrides import resolve_command, upload
+from cloudinary_cli.core.search import search
+from cloudinary_cli.core.uploader import uploader
+from cloudinary_cli.core.utils import url
 
 setattr(click.MultiCommand, "resolve_command", resolve_command)
 cloudinary.uploader.upload = upload

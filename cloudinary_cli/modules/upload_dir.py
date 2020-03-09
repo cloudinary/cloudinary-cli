@@ -1,10 +1,13 @@
-from click import command, argument, option
-from cloudinary import uploader as _uploader
 from os import getcwd, walk
 from os.path import dirname, split, join as path_join, abspath
 from threading import Thread, active_count
 from time import sleep
-from ..utils import parse_option_value, log, F_OK, F_FAIL
+
+from click import command, argument, option, echo, style
+from cloudinary import uploader as _uploader
+
+from cloudinary_cli.utils import parse_option_value, log_json, logger
+
 
 @command("upload_dir",
          help="""Uploads a folder of assets, maintaining the folder structure.""")
@@ -15,13 +18,14 @@ from ..utils import parse_option_value, log, F_OK, F_FAIL
         nargs=2,
         help="Pass optional parameters as interpreted strings.")
 @option("-t", "--transformation", help="The transformation to apply on all uploads.")
-@option("-f", "--folder", default="", help="The Cloudinary folder where you want to upload the assets. You can specify a whole path, for example folder1/folder2/folder3. Any folders that do not exist are automatically created.")
+@option("-f", "--folder", default="",
+        help="The Cloudinary folder where you want to upload the assets. You can specify a whole path, for example folder1/folder2/folder3. Any folders that do not exist are automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
 @option("-v", "--verbose", is_flag=True, help="Output information for each uploaded file.")
 def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose):
     items, skipped = [], []
     dir_to_upload = abspath(path_join(getcwd(), directory))
-    print("Uploading directory '{}'".format(dir_to_upload))
+    echo("Uploading directory '{}'".format(dir_to_upload))
     parent = dirname(dir_to_upload)
     options = {
         **{k: v for k, v in optional_parameter},
@@ -39,13 +43,12 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
     def upload_multithreaded(file_path, items, skipped, v, **kwargs):
         try:
             _r = _uploader.upload(file_path, **kwargs)
-            print(F_OK("Successfully uploaded {} as {}".format(file_path, _r['public_id'])))
+            echo("Successfully uploaded {} as {}".format(file_path, _r['public_id']))
             if v:
-                log(_r)
+                log_json(_r)
             items.append(_r['public_id'])
-        except Exception as e:
-            print(F_FAIL("Failed uploading {}".format(file_path)))
-            print(e)
+        except Exception:
+            logger.error("Failed uploading {}".format(file_path))
             skipped.append(file_path)
             pass
 
@@ -65,13 +68,10 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
             # prevent concurrency overload
             sleep(1)
         t.start()
-        sleep(1/10)
+        sleep(1 / 10)
 
     for t in threads:
         t.join()
-
-    print(F_OK("\n{} resources uploaded:".format(len(items))))
-    print(F_OK('\n'.join(items)))
+    logger.info(style("{} resources uploaded".format(len(items)), fg="green"))
     if len(skipped):
-        print(F_FAIL("\n{} items skipped:".format(len(skipped))))
-        print(F_FAIL('\n'.join(skipped)))
+        logger.warn("{} items skipped".format(len(skipped)))

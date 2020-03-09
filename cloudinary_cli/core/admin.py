@@ -1,7 +1,10 @@
 from webbrowser import open as open_url
-from cloudinary import api
+
 from click import command, argument, option
-from ..utils import get_help, F_FAIL, parse_args_kwargs, parse_option_value, log, write_out
+from cloudinary import api
+
+from cloudinary_cli.utils import get_help, parse_args_kwargs, parse_option_value, log_json, write_out, logger
+
 
 @command("admin",
          short_help="Run any methods that can be called through the admin API.",
@@ -24,24 +27,22 @@ Format: cld <cli options> admin <command options> <method> <method parameters>
 def admin(params, optional_parameter, optional_parameter_parsed, ls, save, doc):
     if doc:
         open_url("https://cloudinary.com/documentation/admin_api")
-        exit(0)
+        return
     if ls or len(params) < 1:
-        print(get_help(api))
-        exit(0)
+        logger.info(get_help(api))
+        return
     try:
         func = api.__dict__[params[0]]
         if not callable(func):
-            raise Exception(F_FAIL("{} is not callable.".format(func)))
-            exit(1)
-    except:
-        print(F_FAIL("Method {} does not exist in the Admin API.".format(params[0])))
-        exit(1)
+            raise Exception("{} is not callable".format(func))
+    except Exception:
+        raise Exception("Method {} does not exist in the Admin API.".format(params[0]))
     parameters, options = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
     res = func(*parameters, **{
         **options,
         **{k: v for k, v in optional_parameter},
         **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
     })
-    log(res)
+    log_json(res)
     if save:
         write_out(res, save)

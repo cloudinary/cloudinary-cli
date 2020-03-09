@@ -1,0 +1,6 @@
+cloudinary
+pygments
+jinja2
+click
+click-log
+requests
