@@ -58,13 +58,13 @@ def initialize():
     if os.path.exists(OLD_CLOUDINARY_CLI_CONFIG_FILE):
         with open(OLD_CLOUDINARY_CLI_CONFIG_FILE) as f:
             try:
-                old_config = json.loads(f.read())
+                old_config = json.loads(f.read() or "{}")
             except Exception as e:
                 raise json.JSONDecodeError("Unable to parse old Cloudinary config file")
 
         with open(CLOUDINARY_CLI_CONFIG_FILE) as f:
             try:
-                new_config = json.loads(f.read())
+                new_config = json.loads(f.read() or "{}")
             except Exception as e:
                 raise json.JSONDecodeError("Unable to parse Cloudinary config file")
         new_config.update(old_config)
