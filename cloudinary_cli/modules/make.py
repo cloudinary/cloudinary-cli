@@ -4,9 +4,9 @@ from cloudinary_cli.defaults import TEMPLATE_EXTS, logger
 from cloudinary_cli.utils import load_template
 
 
-@command("make", short_help="Scaffold Cloudinary templates.",
+@command("make", short_help="Return template code for implementing the specified Cloudinary widget.",
          help="""\b
-Returns template code for implementing the specified Cloudinary widget.
+Return template code for implementing the specified Cloudinary widget.
 e.g. cld make product_gallery
 """)
 @argument("template", nargs=-1)

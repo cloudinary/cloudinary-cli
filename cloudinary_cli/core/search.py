@@ -11,9 +11,9 @@ from cloudinary_cli.utils import logger, log_json, write_out
 
 
 @command("search",
-         short_help="Runs the admin API search method.",
+         short_help="Run the admin API search method.",
          help="""\b
-Runs the admin API search method.
+Run the admin API search method.
 Format: cld <cli options> search <command options> <Lucene query syntax string>
 e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 """)

@@ -9,7 +9,7 @@ from cloudinary_cli.utils import get_help, parse_args_kwargs, parse_option_value
 @command("admin",
          short_help="Run any methods that can be called through the admin API.",
          help="""\b
-Enables you to run any methods that can be called through the admin API.
+Run any methods that can be called through the admin API.
 Format: cld <cli options> admin <command options> <method> <method parameters>
 \te.g. cld admin resources max_results=10 tags=sample
 \t      OR

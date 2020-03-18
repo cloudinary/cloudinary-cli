@@ -11,7 +11,7 @@ from cloudinary_cli.utils import logger, get_help, parse_args_kwargs, parse_opti
          short_help="Run any methods that can be called through the upload API.",
          help="""
 \b
-Enables you to run any methods that can be called through the upload API.
+Run any methods that can be called through the upload API.
 Format: cld <cli options> uploader <command options> <method> <method parameters>
 \te.g. cld uploader upload http://res.cloudinary.com/demo/image/upload/sample public_id=flowers invalidate=True
 \b

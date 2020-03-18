@@ -15,7 +15,7 @@ from cloudinary_cli.utils import log_json, etag, logger
 
 
 @command("sync",
-         short_help="Synchronizes between a local directory and a Cloudinary folder.",
+         short_help="Synchronize between a local directory and a Cloudinary folder.",
          help="Synchronize between a local directory and a Cloudinary folder, maintaining the folder structure.")
 @argument("local_folder")
 @argument("cloudinary_folder")

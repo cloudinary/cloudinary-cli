@@ -12,17 +12,14 @@ Python 3.6 or later.  You can install Python from [https://www.python.org/](http
 
 ## Setup and Installation
 
-1. Set your account's CLOUDINARY_URL environment variable in your terminal configuration file.
-You can do this by adding `export <YOUR_ENVIRONMENT_VARIABLE>` to `~/.bash_profile` from the terminal. For example:
-    
-    ```
-    echo "export CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name" >> ~/.bash_profile && source ~/.bash_profile
-    ```
+1. To install this package, run: `pip3 install cloudinary-cli`
+2. To make all your `cld` commands point to your Cloudinary account, set up your CLOUDINARY\_URL environment variable. For example:
+    * On Mac or Linux:<br>`export CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
+    * On Windows:<br>`set CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
 
 _**Note:** you can copy and paste your account environment variable from the Account Details section of the Dashboard page in the Cloudinary console._
 
-2. To install this package, run: `pip3 install cloudinary-cli`
-3. Make sure your configuration is set up properly by running `cld config`. A response of the following form is returned:
+3. Check your configuration by running `cld config`. A response of the following form is returned:
 
     ```
     cloud_name:     <CLOUD_NAME>
@@ -212,6 +209,8 @@ Whereas using the saved configuration "accountx":
 cld -C accountx admin usage
 ```
 
+_**Caution:** Creating a saved configuration may put your API secret at risk as it is stored in a local plain text file._
+
 You can create, delete and list saved configurations using the `config` command.
 
 ```
@@ -220,25 +219,6 @@ cld config [options]
 
 For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#config).
 
-## Sample resources
-
-Creates a URL based on a sample resource from the demo account.
-
-Usage:
-
-```
-cld <sample_resource> <transformation>
-```
-
-- `sample` - http://res.cloudinary.com/demo/image/upload/sample
-- `couple` - http://res.cloudinary.com/demo/image/upload/couple
-- `dog` - http://res.cloudinary.com/demo/video/upload/dog
-
-Example: create the URL for the dog video with optimized quality.
-
-```
-cld dog q_auto
-```
 
 # TODOs
 - Globbing support
