@@ -6,7 +6,7 @@ from cloudinary.utils import cloudinary_url
 from cloudinary_cli.utils import logger
 
 
-@command("url", help="Generates a Cloudinary URL, which you can optionally open in your browser.")
+@command("url", help="Generate a Cloudinary URL, which you can optionally open in your browser.")
 @argument("public_id", required=True)
 @argument("transformation", default="")
 @option("-rt", "--resource_type", default="image", type=Choice(['image', 'video', 'raw']), help="The asset type")

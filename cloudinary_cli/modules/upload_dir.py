@@ -10,7 +10,7 @@ from cloudinary_cli.utils import parse_option_value, log_json, logger
 
 
 @command("upload_dir",
-         help="""Uploads a folder of assets, maintaining the folder structure.""")
+         help="""Upload a folder of assets, maintaining the folder structure.""")
 @argument("directory", default=".")
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed",
