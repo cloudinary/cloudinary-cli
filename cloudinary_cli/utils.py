@@ -73,11 +73,15 @@ def initialize():
         os.remove(OLD_CLOUDINARY_CLI_CONFIG_FILE)
 
 
-def get_help(api):
+def get_help_str(api):
     funcs = list(filter(lambda x: callable(api.__dict__[x]) and x[0].islower() and x not in not_callable,
                         api.__dict__.keys()))
-    sigs = '\n'.join(["{0:25}({1})".format(x, ", ".join(list(signature(api.__dict__[x]).parameters))) for x in funcs])
-    return sigs
+    return '\n'.join(["{0:25}({1})".format(x, ", ".join(list(signature(api.__dict__[x]).parameters))) for x in funcs])
+
+
+def print_help(api):
+    logger.info(get_help_str(api))
+    return
 
 
 def log_json(res):
