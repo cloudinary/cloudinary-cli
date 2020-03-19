@@ -42,3 +42,7 @@ def main():
         cli()
     except Exception as e:
         logger.error(str(e))
+
+
+if __name__ == "__main__":
+    main()
