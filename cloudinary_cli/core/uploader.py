@@ -1,7 +1,10 @@
 from click import command, argument, option
 from cloudinary import uploader
 
-from core.api_command import handle_api_command
+from cloudinary_cli.core.overrides import upload
+from cloudinary_cli.utils.api_utils import handle_api_command
+
+uploader.upload = upload
 
 
 @command("uploader",

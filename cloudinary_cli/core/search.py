@@ -1,13 +1,13 @@
-import json as _json
-import tempfile
-from csv import DictWriter
-from functools import reduce
 from webbrowser import open as open_url
 
 import cloudinary
 from click import command, argument, option
 
-from cloudinary_cli.utils import logger, log_json, write_out
+from cloudinary_cli.defaults import logger
+from cloudinary_cli.utils.json_utils import write_json_to_file, print_json
+from cloudinary_cli.utils.utils import write_json_list_to_csv
+
+DEFAULT_MAX_RESULTS = 500
 
 
 @command("search",
@@ -20,8 +20,10 @@ e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 @argument("query", nargs=-1)
 @option("-f", "--with_field", multiple=True, help="Specify which asset attribute to include in the result.")
 @option("-s", "--sort_by", nargs=2, help="Sort search results by (field, <asc|desc>).")
-@option("-a", "--aggregate", nargs=1, help="Specify the attribute for which an aggregation count should be calculated and returned.")
-@option("-n", "--max_results", nargs=1, default=10, help="The maximum number of results to return. Default: 10, maximum: 500.")
+@option("-a", "--aggregate", nargs=1,
+        help="Specify the attribute for which an aggregation count should be calculated and returned.")
+@option("-n", "--max_results", nargs=1, default=10,
+        help="The maximum number of results to return. Default: 10, maximum: 500.")
 @option("-c", "--next_cursor", nargs=1, help="Continue a search using an existing cursor.")
 @option("-A", "--auto_paginate", is_flag=True, help="Return all results. Will call Admin API multiple times.")
 @option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate.")
@@ -32,81 +34,86 @@ e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
            auto_paginate, force, filter_fields, json, csv, doc):
     if doc:
-        open_url("https://cloudinary.com/documentation/search_api")
-        return
-    base_exp = cloudinary.search.Search().expression(" ".join(query))
-    if auto_paginate:
-        max_results = 500
-    if with_field:
-        for i in with_field:
-            base_exp = base_exp.with_field(i)
-    if sort_by:
-        base_exp = base_exp.sort_by(*sort_by)
-    if aggregate:
-        base_exp = base_exp.aggregate(aggregate)
-    base_exp = base_exp.max_results(max_results)
-    exp = base_exp
-    if next_cursor:
-        exp = exp.next_cursor(next_cursor)
-    res = exp.execute()
+        return open_url("https://cloudinary.com/documentation/search_api")
 
-    all_results = res
-    if auto_paginate and 'next_cursor' in res.keys():
-        if not force:
-            r = input("{} total results. {} Admin API rate limit remaining.\n"
-                      "Running this program will use {} Admin API calls. Continue? (Y/N) ".format(
-                res['total_count'],
-                res.__dict__['rate_limit_remaining'] + 1,
-                res['total_count'] // 500 + 1))
-            if r.lower() != 'y':
-                logger.info("Exiting. Please run again without -A.")
-                return
-            else:
-                logger.info("Continuing. You may use the -F flag to force auto_pagination.")
-
-        with tempfile.TemporaryFile(mode="w+b") as tmp_file:
-            tmp_file.write(bytes(_json.dumps(res['resources']) + "\n", encoding="utf8"))
-
-            while 'next_cursor' in res.keys():
-                # stream output to file
-                exp = base_exp.next_cursor(res['next_cursor'])
-                res = exp.execute()
-                tmp_file.write(bytes(_json.dumps(res['resources']) + "\n", encoding="utf8"))
-
-            all_results['resources'] = []
-            tmp_file.seek(0)
-
-            for line in tmp_file:
-                if line:
-                    all_results['resources'] += _json.loads(line.decode('utf8'))
-
-    return_fields = []
+    fields_to_keep = []
     if filter_fields:
         for f in list(filter_fields):
             if "," in f:
-                return_fields += f.split(",")
+                fields_to_keep += f.split(",")
             else:
-                return_fields.append(f)
-        return_fields = tuple(return_fields) + with_field
-        all_results['resources'] = list(map(lambda x: {k: x[k] if k in x.keys()
-        else None for k in return_fields}, all_results['resources']))
+                fields_to_keep.append(f)
+        fields_to_keep = tuple(fields_to_keep) + with_field
 
-    log_json(all_results)
+    expression = cloudinary.search.Search().expression(" ".join(query))
+
+    if auto_paginate:
+        max_results = DEFAULT_MAX_RESULTS
+    if with_field:
+        for f in with_field:
+            expression.with_field(f)
+    if sort_by:
+        expression.sort_by(*sort_by)
+    if aggregate:
+        expression.aggregate(aggregate)
+    if next_cursor:
+        expression.next_cursor(next_cursor)
+
+    expression.max_results(max_results)
+
+    res = execute_single_request(expression, fields_to_keep)
+
+    if auto_paginate:
+        res = handle_auto_pagination(res, expression, force, fields_to_keep)
+
+    print_json(res)
 
     if json:
-        write_out(all_results['resources'], json)
+        write_json_to_file(res['resources'], json)
+        logger.info(f"Saved search JSON to '{json}' file")
 
     if csv:
-        all_results = all_results['resources']
-        f = open('{}.csv'.format(csv), 'w')
-        if not return_fields:
-            possible_keys = reduce(lambda x, y: set(y.keys()) | x, all_results, set())
-            return_fields = list(possible_keys)
-        writer = DictWriter(f, fieldnames=list(return_fields))
+        write_json_list_to_csv(res['resources'], csv, fields_to_keep)
+        logger.info(f"Saved search to '{csv}.csv' file")
 
-        writer.writeheader()
-        writer.writerows(all_results)
 
-        f.close()
+def execute_single_request(expression, fields_to_keep):
+    res = expression.execute()
 
-        logger.info('Saved search to \'{}.csv\''.format(csv))
+    if fields_to_keep:
+        res['resources'] = list(
+            map(lambda x: {k: x[k] if k in x.keys() else None for k in fields_to_keep}, res['resources'])
+        )
+
+    return res
+
+
+def handle_auto_pagination(res, expression, force, fields_to_keep):
+    if 'next_cursor' not in res.keys():
+        return res
+
+    if not force:
+        r = input(
+            f"{res['total_count']} total results. "
+            f"{res.rate_limit_remaining + 1} Admin API rate limit remaining.\n"
+            f"Running this query will use {res['total_count'] // DEFAULT_MAX_RESULTS + 1} Admin API calls. "
+            f"Continue? (y/N) "
+        )
+        if r.lower() != 'y':
+            logger.info("Stopping. Please run again without -A.")
+            return res
+        else:
+            logger.info("Continuing. You may use the -F flag to force auto_pagination.")
+
+    all_results = res
+    while 'next_cursor' in res.keys():
+        expression.next_cursor(res['next_cursor'])
+
+        res = execute_single_request(expression, fields_to_keep)
+
+        all_results['resources'] += res['resources']
+        all_results['time'] += res['time']
+
+    all_results.pop('next_cursor')  # it is empty by now
+
+    return all_results

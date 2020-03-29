@@ -1,5 +1,5 @@
-import cloudinary
-
 __version__ = "0.4.1"
 
-cloudinary.USER_PLATFORM = "CloudinaryCLI/{}".format(__version__)
+import cloudinary
+
+cloudinary.USER_PLATFORM = f"CloudinaryCLI/{__version__}"

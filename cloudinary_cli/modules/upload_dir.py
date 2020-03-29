@@ -1,16 +1,14 @@
 from os import getcwd, walk
 from os.path import dirname, split, join as path_join, abspath
-from threading import Thread, active_count
-from time import sleep
 
-from click import command, argument, option, echo, style
-from cloudinary import uploader as _uploader
+from click import command, argument, option, style
 
-from cloudinary_cli.utils import parse_option_value, log_json, logger
+from cloudinary_cli.utils.api_utils import upload_file
+from cloudinary_cli.utils.thread_utils import run_tasks_concurrently
+from cloudinary_cli.utils.utils import parse_option_value, logger
 
 
-@command("upload_dir",
-         help="""Upload a folder of assets, maintaining the folder structure.""")
+@command("upload_dir", help="""Upload a folder of assets, maintaining the folder structure.""")
 @argument("directory", default=".")
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed",
@@ -19,13 +17,16 @@ from cloudinary_cli.utils import parse_option_value, log_json, logger
         help="Pass optional parameters as interpreted strings.")
 @option("-t", "--transformation", help="The transformation to apply on all uploads.")
 @option("-f", "--folder", default="",
-        help="The Cloudinary folder where you want to upload the assets. You can specify a whole path, for example folder1/folder2/folder3. Any folders that do not exist are automatically created.")
+        help="The Cloudinary folder where you want to upload the assets. "
+             "You can specify a whole path, for example folder1/folder2/folder3. "
+             "Any folders that do not exist are automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
-@option("-v", "--verbose", is_flag=True, help="Output information for each uploaded file.")
-def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset, verbose):
+@option("-w", "--concurrent_workers", type=int, default=30, help="Specify number of concurrent network threads.")
+def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset,
+               concurrent_workers):
     items, skipped = [], []
     dir_to_upload = abspath(path_join(getcwd(), directory))
-    echo("Uploading directory '{}'".format(dir_to_upload))
+    logger.info("Uploading directory '{}'".format(dir_to_upload))
     parent = dirname(dir_to_upload)
     options = {
         **{k: v for k, v in optional_parameter},
@@ -38,19 +39,7 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
         "upload_preset": preset
     }
 
-    threads = []
-
-    def upload_multithreaded(file_path, items, skipped, v, **kwargs):
-        try:
-            _r = _uploader.upload(file_path, **kwargs)
-            echo("Successfully uploaded {} as {}".format(file_path, _r['public_id']))
-            if v:
-                log_json(_r)
-            items.append(_r['public_id'])
-        except Exception:
-            logger.error("Failed uploading {}".format(file_path))
-            skipped.append(file_path)
-            pass
+    uploads = []
 
     for root, _, files in walk(dir_to_upload):
         for fi in files:
@@ -59,19 +48,10 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
             if split(file_path)[1][0] == ".":
                 continue
             options = {**options, "folder": mod_folder}
-            threads.append(Thread(target=upload_multithreaded,
-                                  args=(file_path, items, skipped, verbose),
-                                  kwargs=options))
+            uploads.append((file_path, options, items, skipped))
 
-    for t in threads:
-        while active_count() >= 30:
-            # prevent concurrency overload
-            sleep(1)
-        t.start()
-        sleep(1 / 10)
+    run_tasks_concurrently(upload_file, uploads, concurrent_workers)
 
-    for t in threads:
-        t.join()
     logger.info(style("{} resources uploaded".format(len(items)), fg="green"))
-    if len(skipped):
+    if skipped:
         logger.warn("{} items skipped".format(len(skipped)))

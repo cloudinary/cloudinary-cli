@@ -1,7 +1,7 @@
 from click import command, argument, option
 from cloudinary import api
 
-from core.api_command import handle_api_command
+from cloudinary_cli.utils.api_utils import handle_api_command
 
 
 @command("admin",
