@@ -4,8 +4,7 @@ from os.path import dirname, split, join as path_join, abspath
 from click import command, argument, option, style
 
 from cloudinary_cli.utils.api_utils import upload_file
-from cloudinary_cli.utils.thread_utils import run_tasks_concurrently
-from cloudinary_cli.utils.utils import parse_option_value, logger
+from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_concurrently
 
 
 @command("upload_dir", help="""Upload a folder of assets, maintaining the folder structure.""")

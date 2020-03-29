@@ -6,6 +6,7 @@ from csv import DictWriter
 from functools import reduce
 from hashlib import md5
 from inspect import signature, getfullargspec
+from multiprocessing import pool
 
 import cloudinary
 from jinja2 import Environment
@@ -95,3 +96,8 @@ def write_json_list_to_csv(json_list, filename, fields_to_keep=()):
         writer = DictWriter(f, fieldnames=fields_to_keep)
         writer.writeheader()
         writer.writerows(json_list)
+
+
+def run_tasks_concurrently(func, tasks, concurrent_workers):
+    thread_pool = pool.ThreadPool(concurrent_workers)
+    thread_pool.starmap(func, tasks)

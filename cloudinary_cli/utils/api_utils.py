@@ -58,7 +58,7 @@ def download_file(remote_file, local_path):
     with open(local_path, "wb") as f:
         f.write(requests.get(cloudinary_url(remote_file['public_id'], resource_type=remote_file['resource_type'],
                                             type=remote_file['type'])[0]).content)
-    logger.debug(style("Downloaded '{}' to '{}'".format(remote_file['relative_path'], local_path), fg="green"))
+    logger.info(style("Downloaded '{}' to '{}'".format(remote_file['relative_path'], local_path), fg="green"))
 
 
 def handle_api_command(

@@ -10,8 +10,7 @@ from cloudinary import api
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file
 from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs
 from cloudinary_cli.utils.json_utils import print_json
-from cloudinary_cli.utils.thread_utils import run_tasks_concurrently
-from cloudinary_cli.utils.utils import logger
+from cloudinary_cli.utils.utils import logger, run_tasks_concurrently
 
 
 @command("sync",
@@ -152,7 +151,7 @@ class SyncDir:
         for file in self.unique_local_file_names:
             path = abspath(self.local_files[file]['path'])
             remove(path)
-            logger.debug(f"Deleted '{path}'")
+            logger.info(f"Deleted '{path}'")
 
         logger.info("Deleting empty folders...")
         delete_empty_dirs(self.local_dir)
