@@ -5,7 +5,7 @@ from click import command, argument, option
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.json_utils import write_json_to_file, print_json
-from cloudinary_cli.utils.utils import write_json_list_to_csv
+from cloudinary_cli.utils.utils import write_json_list_to_csv, confirm_action
 
 DEFAULT_MAX_RESULTS = 500
 
@@ -93,13 +93,11 @@ def handle_auto_pagination(res, expression, force, fields_to_keep):
         return res
 
     if not force:
-        r = input(
-            f"{res['total_count']} total results. "
-            f"{res.rate_limit_remaining + 1} Admin API rate limit remaining.\n"
-            f"Running this query will use {res['total_count'] // DEFAULT_MAX_RESULTS + 1} Admin API calls. "
-            f"Continue? (y/N) "
-        )
-        if r.lower() != 'y':
+        if not confirm_action(
+                f"{res['total_count']} total results. "
+                f"{res.rate_limit_remaining + 1} Admin API rate limit remaining.\n"
+                f"Running this query will use {res['total_count'] // DEFAULT_MAX_RESULTS + 1} Admin API calls. "
+                f"Continue? (y/N)"):
             logger.info("Stopping. Please run again without -A.")
             return res
         else:

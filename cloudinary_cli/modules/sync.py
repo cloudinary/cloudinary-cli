@@ -10,7 +10,9 @@ from cloudinary import api
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file
 from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs
 from cloudinary_cli.utils.json_utils import print_json
-from cloudinary_cli.utils.utils import logger, run_tasks_concurrently
+from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, confirm_action
+
+DELETE_ASSETS_BATCH_SIZE = 100
 
 
 @command("sync",
@@ -21,11 +23,12 @@ from cloudinary_cli.utils.utils import logger, run_tasks_concurrently
 @option("--push", help="Push changes from your local folder to your Cloudinary folder.", is_flag=True)
 @option("--pull", help="Pull changes from your Cloudinary folder to your local folder.", is_flag=True)
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify number of concurrent network threads.")
-def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers):
+@option("-F", "--force", is_flag=True, help="Skip confirmation when deleting files.")
+def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force):
     if push == pull:
         raise Exception("Please use either the '--push' OR '--pull' options")
 
-    sync_dir = SyncDir(local_folder, cloudinary_folder, concurrent_workers)
+    sync_dir = SyncDir(local_folder, cloudinary_folder, concurrent_workers, force)
 
     if push:
         sync_dir.push()
@@ -36,10 +39,11 @@ def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers):
 
 
 class SyncDir:
-    def __init__(self, local_dir, remote_dir, concurrent_workers):
+    def __init__(self, local_dir, remote_dir, concurrent_workers, force):
         self.local_dir = local_dir
         self.remote_dir = remote_dir
         self.concurrent_workers = concurrent_workers
+        self.force = force
 
         self.verbose = logger.getEffectiveLevel() < logging.INFO
 
@@ -75,7 +79,9 @@ class SyncDir:
         return out_of_sync_file_names
 
     def push(self):
-        self._delete_unique_remote_files()
+        if not self._delete_unique_remote_files():
+            logger.info("Aborting...")
+            return False
 
         files_to_push = self.unique_local_file_names | self.out_of_sync_file_names
 
@@ -98,7 +104,12 @@ class SyncDir:
 
     def _delete_unique_remote_files(self):
         if not len(self.unique_remote_file_names):
-            return
+            return True
+
+        if not (self.force or confirm_action(
+                f"Running this command will delete {len(self.unique_remote_file_names)} remote files. "
+                f"Continue? (y/N)")):
+            return False
 
         logger.info(f"Deleting {len(self.unique_remote_file_names)} resources "
                     f"from Cloudinary folder '{self.remote_dir}'")
@@ -113,10 +124,11 @@ class SyncDir:
 
             logger.info("Deleting {} resources with type '{}' and resource_type '{}'".format(len(batch), *i))
             counter = 0
-            while counter * 100 < len(batch) and len(batch) > 0:
+            while counter * DELETE_ASSETS_BATCH_SIZE < len(batch) and len(batch) > 0:
                 counter += 1
-                res = api.delete_resources(batch[(counter - 1) * 100:counter * 100], invalidate=True,
-                                           resource_type=i[1], type=i[0])
+                res = api.delete_resources(
+                    batch[(counter - 1) * DELETE_ASSETS_BATCH_SIZE:counter * DELETE_ASSETS_BATCH_SIZE], invalidate=True,
+                    resource_type=i[1], type=i[0])
                 num_deleted = reduce(lambda x, y: x + 1 if y == "deleted" else x, res['deleted'].values(), 0)
                 if self.verbose:
                     print_json(res)
@@ -126,8 +138,17 @@ class SyncDir:
                 else:
                     logger.info(style(f"Deleted {num_deleted} resources", fg="green"))
 
+        return True
+
     def pull(self):
-        self._delete_unique_local_files()
+        if not self._delete_unique_local_files():
+            logger.info("Aborting...")
+            return False
+
+        if not (self.force or confirm_action(
+                f"Running this command will delete {len(self.unique_local_file_names)} local files. "
+                f"Continue? (y/N)")):
+            return False
 
         files_to_pull = self.unique_remote_file_names | self.out_of_sync_file_names
 
@@ -155,3 +176,5 @@ class SyncDir:
 
         logger.info("Deleting empty folders...")
         delete_empty_dirs(self.local_dir)
+
+        return True
