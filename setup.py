@@ -10,8 +10,8 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="cloudinary-cli",
     version=__version__,
-    author="Brian Luk",
-    author_email="lukitsbrian@gmail.com",
+    author="Cloudinary, Brian Luk",
+    author_email="info@cloudinary.com, lukitsbrian@gmail.com",
     classifiers=[
         "Programming Language :: Python :: 3 :: Only",
         "License :: OSI Approved :: MIT License",
@@ -26,11 +26,12 @@ setuptools.setup(
     },
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/brian-cloudinary/cloudinary-cli",
+    url="https://github.com/cloudinary/cloudinary-cli",
     packages=setuptools.find_packages(),
     keywords='cloudinary cli pycloudinary image video digital asset management command line interface transformation '
              'friendly easy flexible',
     license="MIT",
+    python_requires='>=3.6.0',
     setup_requires=["pytest-runner"],
     tests_require=["pytest"],
     install_requires=[

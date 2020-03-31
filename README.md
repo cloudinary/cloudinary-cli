@@ -218,9 +218,3 @@ cld config [options]
 ```
 
 For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#config).
-
-
-# TODOs
-- Globbing support
-- Local GUI support
-- More code samples
