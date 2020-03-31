@@ -1,7 +1,7 @@
-from click import command, argument
+from click import command, argument, echo
 
-from cloudinary_cli.defaults import TEMPLATE_EXTS, logger
-from cloudinary_cli.utils import load_template
+from cloudinary_cli.defaults import TEMPLATE_EXTS
+from cloudinary_cli.utils.utils import load_template
 
 
 @command("make", short_help="Return template code for implementing the specified Cloudinary widget.",
@@ -18,8 +18,5 @@ def make(template):
     elif template[0] in TEMPLATE_EXTS.keys():
         language = template[0]
         template = template[1:]
-    try:
-        src = load_template(language, '_'.join(template))
-        print(src)
-    except Exception as e:
-        logger.error(e)
+
+    echo(load_template(language, '_'.join(template)))

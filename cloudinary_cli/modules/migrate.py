@@ -5,12 +5,13 @@ from cloudinary import api
 from cloudinary.utils import cloudinary_url
 from requests import head
 
-from cloudinary_cli.utils import logger
+from cloudinary_cli.utils.utils import logger
 
 
 @command("migrate",
          short_help="Migrate files using an existing auto-upload mapping and a file of URLs.",
-         help="Migrate a list of external media files to Cloudinary. The URLs of the files to migrate are listed in a separate file and must all have the same prefix.")
+         help="Migrate a list of external media files to Cloudinary. "
+              "The URLs of the files to migrate are listed in a separate file and must all have the same prefix.")
 @argument("upload_mapping")
 @argument("file")
 @option("-d", "--delimiter", default="\n", help="The separator used between the URLs. Default: New line")
