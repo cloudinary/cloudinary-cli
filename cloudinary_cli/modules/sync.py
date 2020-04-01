@@ -80,8 +80,11 @@ class SyncDir:
 
     def push(self):
         if not self._delete_unique_remote_files():
-            logger.info("Aborting...")
-            return False
+            if not (self.force or confirm_action(
+                    f"Cloudinary folder `{abspath(self.remote_dir)}` is empty or does not exist. "
+                    "Continue? (y/N) ")):
+                logger.info("Aborting...")
+                return False
 
         files_to_push = self.unique_local_file_names | self.out_of_sync_file_names
 
@@ -142,8 +145,11 @@ class SyncDir:
 
     def pull(self):
         if not self._delete_unique_local_files():
-            logger.info("Aborting...")
-            return False
+            if not (self.force or confirm_action(
+                    f"Local directory `{abspath(self.local_dir)}` is empty or does not exist. "
+                    "Continue? (y/N) ")):
+                logger.info("Aborting...")
+                return False
 
         if not (self.force or confirm_action(
                 f"Running this command will delete {len(self.unique_local_file_names)} local files. "

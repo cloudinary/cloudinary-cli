@@ -1,5 +1,10 @@
 
- 1.0.0 / 2020-04-01
+1.0.1 / 2020-04-01
+=============
+
+  * Restore `push` / `pull` functionality to empty Cloudinary/local directory
+
+1.0.0 / 2020-04-01
 =============
   * Clean up and refactor code
 
