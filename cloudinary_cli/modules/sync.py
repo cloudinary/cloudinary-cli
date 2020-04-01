@@ -145,11 +145,6 @@ class SyncDir:
             logger.info("Aborting...")
             return False
 
-        if not (self.force or confirm_action(
-                f"Running this command will delete {len(self.unique_local_file_names)} local files. "
-                f"Continue? (y/N)")):
-            return False
-
         files_to_pull = self.unique_remote_file_names | self.out_of_sync_file_names
 
         logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
@@ -166,7 +161,12 @@ class SyncDir:
 
     def _delete_unique_local_files(self):
         if not len(self.unique_local_file_names):
-            return
+            return True
+
+        if not (self.force or confirm_action(
+                f"Running this command will delete {len(self.unique_local_file_names)} local files. "
+                f"Continue? (y/N)")):
+            return False
 
         logger.info(f"Deleting {len(self.unique_local_file_names)} local files...")
         for file in self.unique_local_file_names:
