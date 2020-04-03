@@ -1,1 +1,1 @@
-include cloudinary_cli/templates/*
+recursive-include cloudinary_cli/templates *
