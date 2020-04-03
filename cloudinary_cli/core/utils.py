@@ -20,7 +20,7 @@ def url(public_id, transformation, resource_type, delivery_type, open_in_browser
         public_id += ".json"
 
     res = cloudinary_url(public_id, resource_type=resource_type,
-                         raw_transformation=transformation, type=type, sign_url=sign)[0]
+                         raw_transformation=transformation, type=delivery_type, sign_url=sign)[0]
     echo(res)
 
     if open_in_browser:
