@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 
 import setuptools
-from cloudinary_cli import __version__
 
+with open("README.md", "r") as rmf:
+    long_description = rmf.read()
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+with open('cloudinary_cli/version.py') as vf:
+    version = vf.readline().strip().split('"')[1]
 
 setuptools.setup(
     name="cloudinary-cli",
-    version=__version__,
+    version=version,
     author="Cloudinary, Brian Luk",
     author_email="info@cloudinary.com, lukitsbrian@gmail.com",
     classifiers=[

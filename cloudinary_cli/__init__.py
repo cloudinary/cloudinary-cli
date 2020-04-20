@@ -1,4 +1,4 @@
-__version__ = "1.0.4"
+from cloudinary_cli.version import __version__
 
 import cloudinary
 
