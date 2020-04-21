@@ -1,4 +1,11 @@
 
+1.0.5 / 2020-04-21
+==================
+
+  * Fix package installation issue
+  * Fix unit tests
+  * Fix package creation
+
 1.0.4 / 2020-04-03
 ==================
 
