@@ -96,7 +96,8 @@ class SyncDir:
         }
         uploads = []
         for file in to_upload:
-            folder = path_join(self.remote_dir, sep.join(file.split(sep)[:-1]))
+            folder = "/".join([self.remote_dir, *split(file)[:-1]])
+            print(folder)
 
             uploads.append((self.local_files[file]['path'], {**options, 'folder': folder}))
 
