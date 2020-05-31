@@ -15,7 +15,8 @@ Python 3.6 or later.  You can install Python from [https://www.python.org/](http
 1. To install this package, run: `pip3 install cloudinary-cli`
 2. To make all your `cld` commands point to your Cloudinary account, set up your CLOUDINARY\_URL environment variable. For example:
     * On Mac or Linux:<br>`export CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
-    * On Windows:<br>`set CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
+    * On Windows (cmd.exe):<br>`set CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
+    * On Windows (PowerShell):<br>`$Env:CLOUDINARY_URL="cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name"`
 
 _**Note:** you can copy and paste your account environment variable from the Account Details section of the Dashboard page in the Cloudinary console._
 
