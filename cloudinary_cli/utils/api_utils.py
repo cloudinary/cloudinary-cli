@@ -42,7 +42,11 @@ def upload_file(file_path, options, uploaded=None, skipped=None):
     verbose = logger.getEffectiveLevel() < logging.INFO
 
     try:
-        result = uploader.upload(file_path, **options)
+        size = path.getsize(file_path)
+        upload_func = uploader.upload
+        if size > 20000000:
+            upload_func = uploader.upload_large
+        result = upload_func(file_path, **options)
         logger.info(style(f"Successfully uploaded {file_path} as {result['public_id']}", fg="green"))
         if verbose:
             print_json(result)
