@@ -43,7 +43,7 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
     for root, _, files in walk(dir_to_upload):
         for fi in files:
             file_path = abspath(path_join(dir_to_upload, root, fi))
-            mod_folder = path_join(folder, dirname(file_path[len(parent) + 1:]))
+            mod_folder = "/".join(folder, split(dirname(file_path[len(parent) + 1:])))
             if split(file_path)[1][0] == ".":
                 continue
             options = {**options, "folder": mod_folder}
