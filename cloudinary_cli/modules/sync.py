@@ -84,7 +84,6 @@ class SyncDir:
             return False
 
         files_to_push = self.unique_local_file_names | self.out_of_sync_file_names
-        print(files_to_push)
         to_upload = list(filter(lambda x: split(x)[1][0] != ".", files_to_push))
         logger.info(f"Uploading {len(to_upload)} items to Cloudinary folder '{self.remote_dir}'")
 
