@@ -1,4 +1,5 @@
-from os import walk, path, listdir, rmdir
+from os import walk, path, listdir, rmdir, sep
+from os.path import split
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.utils import etag
@@ -30,3 +31,11 @@ def delete_empty_dirs(root, remove_root=False):
     if len(files) == 0 and remove_root:
         logger.debug(f"Removing empty folder '{root}'")
         rmdir(root)
+
+def get_folder_path(file_path):
+    splitted = split(file_path)
+    folder_path = []
+    if splitted[0]:
+        folder_path = splitted[0].split(sep)
+
+    return folder_path

@@ -1,14 +1,14 @@
 import logging
 from functools import reduce
 from itertools import product
-from os import sep, remove
+from os import remove
 from os.path import split, join as path_join, abspath
 
 from click import command, argument, option, style
 from cloudinary import api
 
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file
-from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs
+from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_folder_path
 from cloudinary_cli.utils.json_utils import print_json
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, confirm_action
 
@@ -84,7 +84,7 @@ class SyncDir:
             return False
 
         files_to_push = self.unique_local_file_names | self.out_of_sync_file_names
-
+        print(files_to_push)
         to_upload = list(filter(lambda x: split(x)[1][0] != ".", files_to_push))
         logger.info(f"Uploading {len(to_upload)} items to Cloudinary folder '{self.remote_dir}'")
 
@@ -96,7 +96,8 @@ class SyncDir:
         }
         uploads = []
         for file in to_upload:
-            folder = "/".join([self.remote_dir, *split(file)[:-1]])
+
+            folder = "/".join([self.remote_dir, *get_folder_path(file)])
 
             uploads.append((self.local_files[file]['path'], {**options, 'folder': folder}))
 
