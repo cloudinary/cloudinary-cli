@@ -32,10 +32,14 @@ def delete_empty_dirs(root, remove_root=False):
         logger.debug(f"Removing empty folder '{root}'")
         rmdir(root)
 
-def get_folder_path(file_path):
+
+def get_destination_folder(cloudinary_folder, file_path):
+
     splitted = split(file_path)
     folder_path = []
+
     if splitted[0]:
         folder_path = splitted[0].split(sep)
 
-    return folder_path
+    return "/".join([cloudinary_folder, *folder_path]).strip("/")
+

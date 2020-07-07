@@ -5,7 +5,7 @@ from click import command, argument, option, style
 
 from cloudinary_cli.utils.api_utils import upload_file
 from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_concurrently
-from cloudinary_cli.utils.file_utils import get_folder_path
+from cloudinary_cli.utils.file_utils import get_destination_folder
 
 
 @command("upload_dir", help="""Upload a folder of assets, maintaining the folder structure.""")
@@ -47,8 +47,8 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
 
             if split(file_path)[1][0] == ".":
                 continue
-            mod_folder = "/".join([folder, *get_folder_path(file_path)])
-            options = {**options, "folder": mod_folder}
+
+            options = {**options, "folder": get_destination_folder(folder, file_path)}
             uploads.append((file_path, options, items, skipped))
 
     run_tasks_concurrently(upload_file, uploads, concurrent_workers)

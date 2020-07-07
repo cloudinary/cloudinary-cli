@@ -8,7 +8,7 @@ from click import command, argument, option, style
 from cloudinary import api
 
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file
-from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_folder_path
+from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_destination_folder
 from cloudinary_cli.utils.json_utils import print_json
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, confirm_action
 
@@ -96,7 +96,7 @@ class SyncDir:
         uploads = []
         for file in to_upload:
 
-            folder = "/".join([self.remote_dir, *get_folder_path(file)])
+            folder = get_destination_folder(self.remote_dir, file)
 
             uploads.append((self.local_files[file]['path'], {**options, 'folder': folder}))
 
