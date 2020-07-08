@@ -1,4 +1,10 @@
 
+1.0.7 / 2020-07-09
+==================
+
+  * Refactor path/public_id formatting
+  * Normalize folder name when querying resources
+
 1.0.6 / 2020-06-23
 ==================
 
