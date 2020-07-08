@@ -15,6 +15,9 @@ from cloudinary_cli.utils.utils import print_help, parse_args_kwargs, parse_opti
 def query_cld_folder(folder):
     files = {}
     next_cursor = True
+
+    folder = folder.rstrip('/')
+
     expression = Search().expression(f"folder:{folder}/*").with_field("image_analysis").max_results(500)
     while next_cursor:
         res = expression.execute()
