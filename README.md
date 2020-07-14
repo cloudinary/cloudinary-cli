@@ -1,5 +1,5 @@
 # Cloudinary CLI
-
+![](https://img.shields.io/pypi/dm/cloudinary-cli) ![](https://img.shields.io/pypi/pyversions/cloudinary-cli)
 ## Features
 The Cloudinary CLI (Command Line Interface) enables you to interact with Cloudinary through the command line. For example, you can perform Admin and Upload API operations by typing commands into a terminal without having to spend time setting up a formal coding environment. Additional helper commands are provided to help you to try out transformations, optimizations, and other common actions with minimal effort. You can also combine CLI commands in a batch file to automate laborious tasks.
 
