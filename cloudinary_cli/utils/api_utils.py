@@ -68,6 +68,31 @@ def download_file(remote_file, local_path):
     logger.info(style("Downloaded '{}' to '{}'".format(remote_file['relative_path'], local_path), fg="green"))
 
 
+def handle_command(
+        params,
+        optional_parameter,
+        optional_parameter_parsed,
+        module,
+        module_name):
+
+    try:
+        func = module.__dict__[params[0]]
+    except KeyError:
+        raise Exception(f"Method {params[0]} does not exist in {module_name.capitalize()}.")
+
+    if not callable(func):
+        raise Exception(f"{params[0]} is not callable.")
+
+    args, kwargs = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
+    kwargs = {
+        **kwargs,
+        **{k: v for k, v in optional_parameter},
+        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
+    }
+
+    return func(*args, **kwargs)
+
+
 def handle_api_command(
         params,
         optional_parameter,
@@ -87,20 +112,12 @@ def handle_api_command(
     if ls or len(params) < 1:
         return print_help(api_instance)
 
-    try:
-        func = api_instance.__dict__[params[0]]
-        if not callable(func):
-            raise Exception(f"{func} is not callable")
-    except Exception:
-        raise Exception(f"Method {params[0]} does not exist in the {api_name.capitalize()} API.")
-
-    args, kwargs = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
-
-    res = func(*args, **{
-        **kwargs,
-        **{k: v for k, v in optional_parameter},
-        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
-    })
+    res = handle_command(
+        params,
+        optional_parameter,
+        optional_parameter_parsed,
+        api_instance,
+        api_name)
 
     print_json(res)
 
