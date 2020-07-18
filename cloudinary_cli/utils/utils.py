@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import builtins
 import json
 import os
 from csv import DictWriter
@@ -13,7 +13,7 @@ from jinja2 import Environment
 
 from cloudinary_cli.defaults import logger, TEMPLATE_FOLDER
 
-not_callable = ['is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api', 'text']
+not_callable = ('is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api', 'text')
 
 BLOCK_SIZE = 65536
 
@@ -29,14 +29,27 @@ def etag(fi):
     return file_hash.hexdigest()
 
 
-def get_help_str(api):
-    funcs = list(filter(lambda x: callable(api.__dict__[x]) and x[0].islower() and x not in not_callable,
-                        api.__dict__.keys()))
-    return '\n'.join(["{0:25}({1})".format(x, ", ".join(list(signature(api.__dict__[x]).parameters))) for x in funcs])
+def is_builtin_class_instance(obj):
+    return type(obj).__name__ in dir(builtins)
 
 
-def print_help(api):
-    logger.info(get_help_str(api))
+def get_help_str(module, block_list=(), allow_list=()):
+    funcs = list(filter(
+        lambda f:
+        callable(module.__dict__[f])
+        and not is_builtin_class_instance(module.__dict__[f])
+        and f[0].islower()
+        and (f not in block_list and block_list)
+        and (f in allow_list or not allow_list),
+        module.__dict__.keys()))
+
+    template = "{0:" + str(len(max(funcs, key=len)) + 1) + "}({1})"  # Gets the maximal length of the functions' names
+
+    return '\n'.join([template.format(f, ", ".join(list(signature(module.__dict__[f]).parameters))) for f in funcs])
+
+
+def print_help(api, block_list=not_callable, allow_list=()):
+    logger.info(get_help_str(api, block_list=block_list, allow_list=allow_list))
 
 
 def log_exception(e, message=None):
