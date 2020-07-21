@@ -9,7 +9,7 @@ from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
-from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, only_fields, \
+from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, \
     get_command_params, merge_responses
 
 
