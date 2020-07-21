@@ -18,7 +18,7 @@ def query_cld_folder(folder):
 
     folder = folder.rstrip('/')
 
-    expression = Search().expression(f"folder:{folder}/*").with_field("image_analysis").max_results(500)
+    expression = Search().expression(f"folder:\"{folder}/*\"").with_field("image_analysis").max_results(500)
     while next_cursor:
         res = expression.execute()
 
