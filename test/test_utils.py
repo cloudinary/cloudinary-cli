@@ -1,6 +1,6 @@
 import unittest
 
-from cloudinary_cli.utils.utils import parse_option_value
+from cloudinary_cli.utils.utils import parse_option_value, only_fields, merge_responses
 
 
 class UtilsTest(unittest.TestCase):
@@ -18,3 +18,40 @@ class UtilsTest(unittest.TestCase):
     def test_parse_option_value_converts_int_to_str(self):
         """ should convert a parsed int to a str """
         self.assertEqual("1", parse_option_value(1))
+
+    def test_only_fields(self):
+        """ should filter fields correctly """
+        self.assertEqual([{"1": "2"}], only_fields([{"1": "2", "3": "4"}], "1"))
+
+    def test_merge_responses(self):
+        """ should merge responses based with or without additional kwargs """
+
+        merged_1 = ({"a": "b", "c": [{"1": "2"}, {"1": "3"}, {"1": "4"}, {"1": "5"}]}, "c")
+        merged_1_2 = (
+            {"a": "b", "c": [{"1": "2", "2": "2"}, {"1": "3", "2": "2"}, {"1": "4", "2": "2"}, {"1": "5", "2": "2"}]},
+            "c"
+        )
+        self.assertEqual(
+            merged_1,
+            merge_responses(
+                {"a": "b", "c": [{"1": "2", "2": "2"}, {"1": "3", "2": "2"}]},
+                {"a": "b", "c": [{"1": "4", "2": "2"}, {"1": "5", "2": "2"}]},
+                fields_to_keep=["1"]))
+        self.assertEqual(
+            merged_1,
+            merge_responses(
+                {"a": "b", "c": [{"1": "2"}, {"1": "3"}]},
+                {"a": "b", "c": [{"1": "4", "2": "2"}, {"1": "5", "2": "2"}]},
+                fields_to_keep=["1"],
+                known_field="c"))
+        self.assertEqual(
+            merged_1_2,
+            merge_responses(
+                {"a": "b", "c": [{"1": "2", "2": "2"}, {"1": "3", "2": "2"}]},
+                {"a": "b", "c": [{"1": "4", "2": "2"}, {"1": "5", "2": "2"}]},
+                known_field="c"))
+        self.assertEqual(
+            merged_1_2,
+            merge_responses(
+                {"a": "b", "c": [{"1": "2", "2": "2"}, {"1": "3", "2": "2"}]},
+                {"a": "b", "c": [{"1": "4", "2": "2"}, {"1": "5", "2": "2"}]}))
