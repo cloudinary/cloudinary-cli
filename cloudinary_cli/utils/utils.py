@@ -192,15 +192,15 @@ def only_fields(data, fields_to_keep):
     return data
 
 
-def merge_responses(res1, res2, fields_to_keep=None, known_field=None):
-    if not known_field:
+def merge_responses(res1, res2, fields_to_keep=None, paginate_field=None):
+    if not paginate_field:
         for key in res1:
             if res1[key] != res2.get(key, 0) and type(res1[key]) == list:
-                known_field = key
+                paginate_field = key
 
-        res1[known_field] = only_fields(res1[known_field], fields_to_keep)
+        res1[paginate_field] = only_fields(res1[paginate_field], fields_to_keep)
 
-    res1[known_field] += only_fields(res2[known_field], fields_to_keep)
+    res1[paginate_field] += only_fields(res2[paginate_field], fields_to_keep)
 
-    return res1, known_field
+    return res1, paginate_field
 

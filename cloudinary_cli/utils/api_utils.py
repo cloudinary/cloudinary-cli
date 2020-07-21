@@ -162,14 +162,14 @@ def handle_api_command(
             all_results = res
             kwargs['max_results'] = 500
 
-            known_field = None
+            paginate_field = None
             while res.get(cursor_field, 0):
                 kwargs[cursor_field] = res.get(cursor_field, 0)
                 res = call_api(func, args, kwargs)
-                all_results, known_field = merge_responses(all_results,
+                all_results, paginate_field = merge_responses(all_results,
                                                            res,
                                                            fields_to_keep=fields_to_keep,
-                                                           known_field=known_field)
+                                                           paginate_field=paginate_field)
 
             del all_results[cursor_field]
 
