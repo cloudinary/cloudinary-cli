@@ -43,13 +43,13 @@ class UtilsTest(unittest.TestCase):
                 {"a": "b", "c": [{"1": "2"}, {"1": "3"}]},
                 {"a": "b", "c": [{"1": "4", "2": "2"}, {"1": "5", "2": "2"}]},
                 fields_to_keep=["1"],
-                known_field="c"))
+                paginate_field="c"))
         self.assertEqual(
             merged_1_2,
             merge_responses(
                 {"a": "b", "c": [{"1": "2", "2": "2"}, {"1": "3", "2": "2"}]},
                 {"a": "b", "c": [{"1": "4", "2": "2"}, {"1": "5", "2": "2"}]},
-                known_field="c"))
+                paginate_field="c"))
         self.assertEqual(
             merged_1_2,
             merge_responses(
