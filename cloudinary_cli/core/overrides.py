@@ -2,6 +2,7 @@ from click.parser import split_opt
 from click.utils import make_str
 from cloudinary import api, uploader
 from cloudinary.uploader import upload as original_upload
+from cloudinary.utils import cloudinary_url as original_cloudinary_url
 
 
 # overrides click.MultiCommand.resolve_command
@@ -37,3 +38,8 @@ def upload(file, **options):
     if "resource_type" not in options.keys():
         options["resource_type"] = "auto"
     return original_upload(file, **options)
+
+
+# Patch to return only the URL
+def cloudinary_url(source, **options):
+    return original_cloudinary_url(source, **options)[0]

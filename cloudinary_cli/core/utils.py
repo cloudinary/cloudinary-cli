@@ -1,7 +1,29 @@
 from webbrowser import open as open_url
 
 from click import command, argument, option, Choice, echo
-from cloudinary.utils import cloudinary_url
+from cloudinary import utils as cld_utils
+
+from cloudinary_cli.core.overrides import cloudinary_url
+from cloudinary_cli.utils.api_utils import handle_command
+from cloudinary_cli.utils.utils import print_help
+
+cld_utils.cloudinary_url = cloudinary_url
+
+utils_list = ["api_sign_request", "cloudinary_url", "download_archive_url", "download_zip_url",
+              "download_backedup_asset", "verify_api_response_signature", "verify_notification_signature"]
+
+
+@command("utils", help="Call Cloudinary utility methods.")
+@argument("params", nargs=-1)
+@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
+@option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
+        help="Pass optional parameters as interpreted strings.")
+@option("-ls", "--ls", is_flag=True, help="List all available utility methods.")
+def utils(params, optional_parameter, optional_parameter_parsed, ls):
+    if ls or len(params) < 1:
+        return print_help(cld_utils, allow_list=utils_list)
+
+    echo(handle_command(params, optional_parameter, optional_parameter_parsed, cld_utils, "Utils"))
 
 
 @command("url", help="Generate a Cloudinary URL, which you can optionally open in your browser.")
@@ -20,7 +42,7 @@ def url(public_id, transformation, resource_type, delivery_type, open_in_browser
         public_id += ".json"
 
     res = cloudinary_url(public_id, resource_type=resource_type,
-                         raw_transformation=transformation, type=delivery_type, sign_url=sign)[0]
+                         raw_transformation=transformation, type=delivery_type, sign_url=sign)
     echo(res)
 
     if open_in_browser:
