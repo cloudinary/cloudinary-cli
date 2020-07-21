@@ -154,3 +154,39 @@ def get_user_action(message, options):
     """
     r = input(message).lower()
     return options.get(r, options.get("default"))
+
+
+def get_command_params(
+        params,
+        optional_parameter,
+        optional_parameter_parsed,
+        module,
+        module_name):
+    try:
+        func = module.__dict__[params[0]]
+    except KeyError:
+        raise Exception(f"Method {params[0]} does not exist in {module_name.capitalize()}.")
+
+    if not callable(func):
+        raise Exception(f"{params[0]} is not callable.")
+
+    args, kwargs = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
+
+    kwargs = {
+        **kwargs,
+        **{k: v for k, v in optional_parameter},
+        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
+    }
+
+    return func, args, kwargs
+
+
+def only_fields(data, fields_to_keep):
+    if fields_to_keep:
+        data = list(
+                map(lambda x: {
+                    k: x[k] if k in x.keys() else None 
+                    for k in fields_to_keep}, 
+                    data)
+                )
+    return data

@@ -5,7 +5,7 @@ from click import command, argument, option
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.json_utils import write_json_to_file, print_json
-from cloudinary_cli.utils.utils import write_json_list_to_csv, confirm_action
+from cloudinary_cli.utils.utils import write_json_list_to_csv, confirm_action, only_fields
 
 DEFAULT_MAX_RESULTS = 500
 
@@ -81,9 +81,7 @@ def execute_single_request(expression, fields_to_keep):
     res = expression.execute()
 
     if fields_to_keep:
-        res['resources'] = list(
-            map(lambda x: {k: x[k] if k in x.keys() else None for k in fields_to_keep}, res['resources'])
-        )
+        res['resources'] = only_fields(res['resources'], fields_to_keep)
 
     return res
 
