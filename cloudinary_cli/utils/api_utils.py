@@ -9,7 +9,8 @@ from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
-from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, only_fields, get_command_params
+from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, only_fields, \
+    get_command_params, merge_responses
 
 
 def query_cld_folder(folder):
@@ -122,8 +123,7 @@ def handle_api_command(
         doc_url,
         api_instance,
         api_name,
-        auto_paginate_field=None,
-        cursor_field=None,
+        auto_paginate=False,
         filter_fields=None):
     """
     Used by Admin and Upload API commands
@@ -143,9 +143,10 @@ def handle_api_command(
 
     res = call_api(func, args, kwargs)
 
-    if auto_paginate_field:
-        if cursor_field is None:
-            raise Exception("Using the `--auto_paginate_field` option requires a `--cursor_field` value.")
+    if auto_paginate:
+        cursor_field = "next_cursor"
+        if func.__name__ == "resource":
+            cursor_field = "derived_next_cursor"
 
         if confirm_action("Using auto pagination will use multiple API calls.\n" +
                           f"You currently have {res.rate_limit_remaining} Admin API calls remaining. Continue? (y/N)"):
@@ -155,21 +156,22 @@ def handle_api_command(
                 for f in list(filter_fields):
                     if "," in f:
                         fields_to_keep += f.split(",")
+                    else:
+                        fields_to_keep.append(f)
                     
             all_results = res
-
-            all_results[auto_paginate_field] = only_fields(all_results[auto_paginate_field], fields_to_keep)
-
             kwargs['max_results'] = 500
 
-            while True:
-                kwargs[cursor_field] = res[cursor_field]
+            known_field = None
+            while res.get(cursor_field, 0):
+                kwargs[cursor_field] = res.get(cursor_field, 0)
                 res = call_api(func, args, kwargs)
-                all_results[auto_paginate_field] += only_fields(res[auto_paginate_field], fields_to_keep)
+                all_results, known_field = merge_responses(all_results,
+                                                           res,
+                                                           fields_to_keep=fields_to_keep,
+                                                           known_field=known_field)
 
-                if cursor_field not in res.keys():
-                    del all_results[cursor_field]
-                    break
+            del all_results[cursor_field]
 
             res = all_results
 
