@@ -13,7 +13,8 @@ from jinja2 import Environment
 
 from cloudinary_cli.defaults import logger, TEMPLATE_FOLDER
 
-not_callable = ('is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api', 'text')
+not_callable = ('is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api', 'text',
+                'account_config', 'reset_config')
 
 BLOCK_SIZE = 65536
 
