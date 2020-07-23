@@ -1,4 +1,18 @@
 
+1.1.0 / 2020-07-23
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for Provisioning API
+  * Add support for utility methods
+
+Other Changes
+-------------
+
+  * Improve expression in `query_cld_folder`
+
 1.0.7 / 2020-07-09
 ==================
 
