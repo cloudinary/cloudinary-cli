@@ -1,6 +1,7 @@
-cloudinary
+cloudinary>=1.22
 pygments
 jinja2
 click
 click-log
 requests
+certifi
