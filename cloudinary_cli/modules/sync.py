@@ -10,7 +10,7 @@ from cloudinary import api
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file
 from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_destination_folder
 from cloudinary_cli.utils.json_utils import print_json
-from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, confirm_action
+from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, confirm_action, get_user_action
 
 DELETE_ASSETS_BATCH_SIZE = 100
 
@@ -24,11 +24,12 @@ DELETE_ASSETS_BATCH_SIZE = 100
 @option("--pull", help="Pull changes from your Cloudinary folder to your local folder.", is_flag=True)
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify number of concurrent network threads.")
 @option("-F", "--force", is_flag=True, help="Skip confirmation when deleting files.")
-def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force):
+@option("-K", "--keep-unique", is_flag=True, help="Keep unique files in the destination folder.")
+def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force, keep_unique):
     if push == pull:
         raise Exception("Please use either the '--push' OR '--pull' options")
 
-    sync_dir = SyncDir(local_folder, cloudinary_folder, concurrent_workers, force)
+    sync_dir = SyncDir(local_folder, cloudinary_folder, concurrent_workers, force, keep_unique)
 
     if push:
         sync_dir.push()
@@ -39,11 +40,12 @@ def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force)
 
 
 class SyncDir:
-    def __init__(self, local_dir, remote_dir, concurrent_workers, force):
+    def __init__(self, local_dir, remote_dir, concurrent_workers, force, keep_deleted):
         self.local_dir = local_dir
         self.remote_dir = remote_dir
         self.concurrent_workers = concurrent_workers
         self.force = force
+        self.keep_unique = keep_deleted
 
         self.verbose = logger.getEffectiveLevel() < logging.INFO
 
@@ -72,6 +74,8 @@ class SyncDir:
         out_of_sync_file_names = set()
         for f in common_file_names:
             if self.local_files[f]['etag'] != self.remote_files[f]['etag']:
+                logger.warning(f"{f} is out of sync")
+                logger.debug(f"Local etag: {self.local_files[f]['etag']}. Remote etag: {self.remote_files[f]['etag']}")
                 out_of_sync_file_names.add(f)
                 continue
             logger.debug(f"{f} is in sync")
@@ -79,7 +83,7 @@ class SyncDir:
         return out_of_sync_file_names
 
     def push(self):
-        if not self._delete_unique_remote_files():
+        if not self._handle_unique_remote_files():
             logger.info("Aborting...")
             return False
 
@@ -101,14 +105,10 @@ class SyncDir:
 
         run_tasks_concurrently(upload_file, uploads, self.concurrent_workers)
 
-    def _delete_unique_remote_files(self):
-        if not len(self.unique_remote_file_names):
-            return True
-
-        if not (self.force or confirm_action(
-                f"Running this command will delete {len(self.unique_remote_file_names)} remote files. "
-                f"Continue? (y/N)")):
-            return False
+    def _handle_unique_remote_files(self):
+        handled = self._handle_files_deletion(len(self.unique_remote_file_names), "remote")
+        if handled is not None:
+            return handled
 
         logger.info(f"Deleting {len(self.unique_remote_file_names)} resources "
                     f"from Cloudinary folder '{self.remote_dir}'")
@@ -140,14 +140,12 @@ class SyncDir:
         return True
 
     def pull(self):
-        if not self._delete_unique_local_files():
-            logger.info("Aborting...")
+        if not self._handle_unique_local_files():
             return False
 
         files_to_pull = self.unique_remote_file_names | self.out_of_sync_file_names
 
         logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
-
         downloads = []
         for file in files_to_pull:
             remote_file = self.remote_files[file]
@@ -158,14 +156,10 @@ class SyncDir:
 
         run_tasks_concurrently(download_file, downloads, self.concurrent_workers)
 
-    def _delete_unique_local_files(self):
-        if not len(self.unique_local_file_names):
-            return True
-
-        if not (self.force or confirm_action(
-                f"Running this command will delete {len(self.unique_local_file_names)} local files. "
-                f"Continue? (y/N)")):
-            return False
+    def _handle_unique_local_files(self):
+        handled = self._handle_files_deletion(len(self.unique_local_file_names), "local")
+        if handled is not None:
+            return handled
 
         logger.info(f"Deleting {len(self.unique_local_file_names)} local files...")
         for file in self.unique_local_file_names:
@@ -177,3 +171,39 @@ class SyncDir:
         delete_empty_dirs(self.local_dir)
 
         return True
+
+    def _handle_files_deletion(self, num_files, location):
+        if not num_files:
+            logger.debug("No files found for deletion.")
+            return True
+
+        decision = self._handle_files_deletion_decision(num_files, location)
+
+        if decision is True:
+            logger.info(f"Keeping {num_files} {location} files...")
+            return True
+        elif decision is False:
+            logger.info("Aborting...")
+            return False
+
+        return decision
+
+    def _handle_files_deletion_decision(self, num_files, location):
+        if self.keep_unique:
+            return True
+
+        if self.force:
+            return None
+
+        decision = get_user_action(
+            f"Running this command will delete {num_files} {location} files.\n"
+            f"To keep the files and continue partial sync, please choose k.\n"
+            f"Continue? (y/k/N)",
+            {
+                "y": None,
+                "k": True,
+                "default": False
+            }
+        )
+
+        return decision

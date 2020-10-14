@@ -117,9 +117,32 @@ def run_tasks_concurrently(func, tasks, concurrent_workers):
     thread_pool.starmap(func, tasks)
 
 
-def confirm_action(message):
-    r = input(message)
-    if r.lower() != 'y':
-        return False
+def confirm_action(message="Continue? (y/N)"):
+    """
+    Confirms whether the user wants to continue.
 
-    return True
+    :param message: The message to the user.
+    :type message: string
+
+    :return: Boolean indicating whether user wants to continue.
+    :rtype bool
+    """
+    return get_user_action(message, {"y": True, "default": False})
+
+
+def get_user_action(message, options):
+    """
+    Reads user input and returns value specified in options.
+
+    In case user specified unknown option, returns default value.
+    If default value is not set, returns None
+
+    :param message: The message for user.
+    :type message: string
+    :param options: Options mapping.
+    :type options: dict
+
+    :return: Value according to the user selection.
+    """
+    r = input(message).lower()
+    return options.get(r, options.get("default"))
