@@ -148,7 +148,7 @@ class SyncDir:
         files_to_pull = self.unique_remote_file_names | self.out_of_sync_file_names
 
         if not files_to_pull:
-            return
+            return True
 
         logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
         downloads = []
