@@ -2,7 +2,7 @@ import logging
 from functools import reduce
 from itertools import product
 from os import remove
-from os.path import split, join as path_join, abspath
+from os.path import join as path_join, abspath
 
 from click import command, argument, option, style
 from cloudinary import api
@@ -10,7 +10,7 @@ from cloudinary import api
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file
 from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_destination_folder
 from cloudinary_cli.utils.json_utils import print_json
-from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, confirm_action, get_user_action
+from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action
 
 DELETE_ASSETS_BATCH_SIZE = 100
 
@@ -88,8 +88,10 @@ class SyncDir:
             return False
 
         files_to_push = self.unique_local_file_names | self.out_of_sync_file_names
-        to_upload = list(filter(lambda x: split(x)[1][0] != ".", files_to_push))
-        logger.info(f"Uploading {len(to_upload)} items to Cloudinary folder '{self.remote_dir}'")
+        if not files_to_push:
+            return True
+
+        logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.remote_dir}'")
 
         options = {
             'use_filename': True,
@@ -98,7 +100,7 @@ class SyncDir:
             'resource_type': 'auto'
         }
         uploads = []
-        for file in to_upload:
+        for file in files_to_push:
             folder = get_destination_folder(self.remote_dir, file)
 
             uploads.append((self.local_files[file]['path'], {**options, 'folder': folder}))
@@ -145,12 +147,14 @@ class SyncDir:
 
         files_to_pull = self.unique_remote_file_names | self.out_of_sync_file_names
 
+        if not files_to_pull:
+            return
+
         logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
         downloads = []
         for file in files_to_pull:
             remote_file = self.remote_files[file]
-            file_name = file + "." + remote_file['format'] if remote_file['resource_type'] != 'raw' else file
-            local_path = abspath(path_join(self.local_dir, file_name))
+            local_path = abspath(path_join(self.local_dir, file))
 
             downloads.append((remote_file, local_path))
 

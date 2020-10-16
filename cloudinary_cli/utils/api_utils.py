@@ -15,15 +15,13 @@ from cloudinary_cli.utils.utils import print_help, parse_args_kwargs, parse_opti
 def query_cld_folder(folder):
     files = {}
     next_cursor = True
-
-    folder = folder.rstrip('/')
-
+    folder = folder.strip('/')
     expression = Search().expression(f"folder:\"{folder}/*\"").with_field("image_analysis").max_results(500)
     while next_cursor:
         res = expression.execute()
 
         for asset in res['resources']:
-            rel_path = path.relpath(asset['public_id'], folder)
+            rel_path = path.relpath(asset_source(asset), folder)
             files[rel_path] = {
                 "type": asset['type'],
                 "resource_type": asset['resource_type'],
@@ -63,9 +61,27 @@ def upload_file(file_path, options, uploaded=None, skipped=None):
 def download_file(remote_file, local_path):
     makedirs(path.dirname(local_path), exist_ok=True)
     with open(local_path, "wb") as f:
-        f.write(requests.get(cloudinary_url(remote_file['public_id'], resource_type=remote_file['resource_type'],
-                                            type=remote_file['type'])[0]).content)
+        download_url = cloudinary_url(asset_source(remote_file), resource_type=remote_file['resource_type'],
+                                      type=remote_file['type'])[0]
+        f.write(requests.get(download_url).content)
     logger.info(style("Downloaded '{}' to '{}'".format(remote_file['relative_path'], local_path), fg="green"))
+
+
+def asset_source(asset_details):
+    """
+    Public ID of the transformable file (image/video) does not include file extension.
+
+    It needs to be added in order to download file properly (without creating derived asset).
+
+    Raw files are accessed using only public_id.
+
+    :param asset_details: The details of the asset.
+    :rtype asset_details: dict
+
+    :return:
+    """
+    base_name = asset_details['public_id']
+    return base_name + "." + asset_details['format'] if asset_details['resource_type'] != 'raw' else base_name
 
 
 def handle_command(
@@ -74,7 +90,6 @@ def handle_command(
         optional_parameter_parsed,
         module,
         module_name):
-
     try:
         func = module.__dict__[params[0]]
     except KeyError:

@@ -8,10 +8,13 @@ from cloudinary_cli.utils.utils import etag
 def walk_dir(root_dir):
     all_files = {}
     for root, _, files in walk(root_dir):
+        relative_path = relpath(root, root_dir) if root_dir != root else ""
         for file in files:
-            all_files[path.splitext(path.join(root, file)[len(root_dir) + 1:])[0]] = {
-                "path": path.join(root, file),
-                "etag": etag(path.join(root, file))
+            full_path = path.join(root, file)
+            relative_file_path = "/".join(p for p in [relative_path, file] if p)
+            all_files[relative_file_path] = {
+                "path": full_path,
+                "etag": etag(full_path)
             }
     return all_files
 
