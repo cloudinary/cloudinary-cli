@@ -14,11 +14,13 @@ from cloudinary_cli.utils.utils import print_help, parse_args_kwargs, parse_opti
 
 def query_cld_folder(folder):
     files = {}
+
+    folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
+    folder_query = f"{folder}/*" if folder else "*"
+
+    expression = Search().expression(f"folder:\"{folder_query}\"").with_field("image_analysis").max_results(500)
+
     next_cursor = True
-
-    folder = folder.rstrip('/')
-
-    expression = Search().expression(f"folder:\"{folder}/*\"").with_field("image_analysis").max_results(500)
     while next_cursor:
         res = expression.execute()
 
