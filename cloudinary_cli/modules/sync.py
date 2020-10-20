@@ -12,7 +12,7 @@ from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_des
 from cloudinary_cli.utils.json_utils import print_json
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action
 
-DELETE_ASSETS_BATCH_SIZE = 100
+DELETE_ASSETS_BATCH_SIZE = 30
 
 
 @command("sync",
