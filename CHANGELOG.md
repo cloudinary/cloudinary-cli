@@ -1,4 +1,10 @@
 
+1.2.1 / 2020-10-20
+==================
+
+  * Fix `sync --pull` for files with extension in public id
+  * Fix `sync --pull` for root folder
+
 1.2.0 / 2020-10-16
 ==================
 

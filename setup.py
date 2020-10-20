@@ -36,7 +36,7 @@ setuptools.setup(
     setup_requires=["pytest-runner"],
     tests_require=["pytest"],
     install_requires=[
-        "cloudinary>=1.21.0",
+        "cloudinary>=1.22.0",
         "pygments",
         "jinja2",
         "click",
