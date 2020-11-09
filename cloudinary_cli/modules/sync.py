@@ -23,17 +23,20 @@ _DEFAULT_CONCURRENT_WORKERS = 30
 @argument("cloudinary_folder")
 @option("--push", help="Push changes from your local folder to your Cloudinary folder.", is_flag=True)
 @option("--pull", help="Pull changes from your Cloudinary folder to your local folder.", is_flag=True)
+@option("-H", "--include-hidden", is_flag=True, help="Include hidden files in sync.")
 @option("-w", "--concurrent_workers", type=int, default=_DEFAULT_CONCURRENT_WORKERS,
         help="Specify the number of concurrent network threads.")
 @option("-F", "--force", is_flag=True, help="Skip confirmation when deleting files.")
 @option("-K", "--keep-unique", is_flag=True, help="Keep unique files in the destination folder.")
 @option("-D", "--deletion-batch-size", type=int, default=_DEFAULT_DELETION_BATCH_SIZE,
         help="Specify the batch size for deleting remote assets.")
-def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force, keep_unique, deletion_batch_size):
+def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent_workers, force, keep_unique,
+         deletion_batch_size):
     if push == pull:
         raise Exception("Please use either the '--push' OR '--pull' options")
 
-    sync_dir = SyncDir(local_folder, cloudinary_folder, concurrent_workers, force, keep_unique, deletion_batch_size)
+    sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
+                       deletion_batch_size)
 
     if push:
         sync_dir.push()
@@ -44,9 +47,11 @@ def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force,
 
 
 class SyncDir:
-    def __init__(self, local_dir, remote_dir, concurrent_workers, force, keep_deleted, deletion_batch_size):
+    def __init__(self, local_dir, remote_dir, include_hidden, concurrent_workers, force, keep_deleted,
+                 deletion_batch_size):
         self.local_dir = local_dir
         self.remote_dir = remote_dir
+        self.include_hidden = include_hidden
         self.concurrent_workers = concurrent_workers
         self.force = force
         self.keep_unique = keep_deleted
@@ -54,7 +59,7 @@ class SyncDir:
 
         self.verbose = logger.getEffectiveLevel() < logging.INFO
 
-        self.local_files = walk_dir(abspath(self.local_dir))
+        self.local_files = walk_dir(abspath(self.local_dir), include_hidden)
         logger.info(f"Found {len(self.local_files)} items in local folder '{local_dir}'")
 
         self.remote_files = query_cld_folder(self.remote_dir)

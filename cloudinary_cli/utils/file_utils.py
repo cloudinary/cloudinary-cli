@@ -1,3 +1,5 @@
+import os
+import stat
 from os import walk, path, listdir, rmdir, sep
 from os.path import split, relpath, abspath
 
@@ -5,9 +7,13 @@ from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.utils import etag
 
 
-def walk_dir(root_dir):
+def walk_dir(root_dir, include_hidden=False):
     all_files = {}
-    for root, _, files in walk(root_dir):
+    for root, dirs, files in walk(root_dir):
+        if not include_hidden:
+            files = [f for f in files if not is_hidden(root, f)]
+            dirs[:] = [d for d in dirs if not is_hidden(root, d)]
+
         relative_path = relpath(root, root_dir) if root_dir != root else ""
         for file in files:
             full_path = path.join(root, file)
@@ -17,6 +23,25 @@ def walk_dir(root_dir):
                 "etag": etag(full_path)
             }
     return all_files
+
+
+def is_hidden(root, relative_path):
+    return is_hidden_path(path.join(root, relative_path))
+
+
+def is_hidden_path(filepath):
+    name = os.path.basename(filepath)
+    return name.startswith('.') or has_hidden_attribute(filepath)
+
+
+def has_hidden_attribute(filepath):
+    st = os.stat(filepath)
+
+    if not hasattr(st, 'st_file_attributes'):  # not a pythonic way, but it's relevant only for windows, no need to try
+        return False
+
+    # noinspection PyUnresolvedReferences
+    return bool(st.st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
 
 
 def delete_empty_dirs(root, remove_root=False):
