@@ -12,7 +12,8 @@ from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_des
 from cloudinary_cli.utils.json_utils import print_json
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action
 
-DELETE_ASSETS_BATCH_SIZE = 30
+_DEFAULT_DELETION_BATCH_SIZE = 30
+_DEFAULT_CONCURRENT_WORKERS = 30
 
 
 @command("sync",
@@ -22,14 +23,17 @@ DELETE_ASSETS_BATCH_SIZE = 30
 @argument("cloudinary_folder")
 @option("--push", help="Push changes from your local folder to your Cloudinary folder.", is_flag=True)
 @option("--pull", help="Pull changes from your Cloudinary folder to your local folder.", is_flag=True)
-@option("-w", "--concurrent_workers", type=int, default=30, help="Specify number of concurrent network threads.")
+@option("-w", "--concurrent_workers", type=int, default=_DEFAULT_CONCURRENT_WORKERS,
+        help="Specify the number of concurrent network threads.")
 @option("-F", "--force", is_flag=True, help="Skip confirmation when deleting files.")
 @option("-K", "--keep-unique", is_flag=True, help="Keep unique files in the destination folder.")
-def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force, keep_unique):
+@option("-D", "--deletion-batch-size", type=int, default=_DEFAULT_DELETION_BATCH_SIZE,
+        help="Specify the batch size for deleting remote assets.")
+def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force, keep_unique, deletion_batch_size):
     if push == pull:
         raise Exception("Please use either the '--push' OR '--pull' options")
 
-    sync_dir = SyncDir(local_folder, cloudinary_folder, concurrent_workers, force, keep_unique)
+    sync_dir = SyncDir(local_folder, cloudinary_folder, concurrent_workers, force, keep_unique, deletion_batch_size)
 
     if push:
         sync_dir.push()
@@ -40,12 +44,13 @@ def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force,
 
 
 class SyncDir:
-    def __init__(self, local_dir, remote_dir, concurrent_workers, force, keep_deleted):
+    def __init__(self, local_dir, remote_dir, concurrent_workers, force, keep_deleted, deletion_batch_size):
         self.local_dir = local_dir
         self.remote_dir = remote_dir
         self.concurrent_workers = concurrent_workers
         self.force = force
         self.keep_unique = keep_deleted
+        self.deletion_batch_size = deletion_batch_size
 
         self.verbose = logger.getEffectiveLevel() < logging.INFO
 
@@ -125,10 +130,10 @@ class SyncDir:
 
             logger.info("Deleting {} resources with type '{}' and resource_type '{}'".format(len(batch), *i))
             counter = 0
-            while counter * DELETE_ASSETS_BATCH_SIZE < len(batch) and len(batch) > 0:
+            while counter * self.deletion_batch_size < len(batch) and len(batch) > 0:
                 counter += 1
                 res = api.delete_resources(
-                    batch[(counter - 1) * DELETE_ASSETS_BATCH_SIZE:counter * DELETE_ASSETS_BATCH_SIZE], invalidate=True,
+                    batch[(counter - 1) * self.deletion_batch_size:counter * self.deletion_batch_size], invalidate=True,
                     resource_type=i[1], type=i[0])
                 num_deleted = reduce(lambda x, y: x + 1 if y == "deleted" else x, res['deleted'].values(), 0)
                 if self.verbose:
