@@ -24,11 +24,11 @@ _DEFAULT_CONCURRENT_WORKERS = 30
 @option("--push", help="Push changes from your local folder to your Cloudinary folder.", is_flag=True)
 @option("--pull", help="Pull changes from your Cloudinary folder to your local folder.", is_flag=True)
 @option("-w", "--concurrent_workers", type=int, default=_DEFAULT_CONCURRENT_WORKERS,
-        help="Specify number of concurrent network threads.")
+        help="Specify the number of concurrent network threads.")
 @option("-F", "--force", is_flag=True, help="Skip confirmation when deleting files.")
 @option("-K", "--keep-unique", is_flag=True, help="Keep unique files in the destination folder.")
 @option("-D", "--deletion-batch-size", type=int, default=_DEFAULT_DELETION_BATCH_SIZE,
-        help="Specify the batch size for the remote assets deletion.")
+        help="Specify the batch size for deleting remote assets.")
 def sync(local_folder, cloudinary_folder, push, pull, concurrent_workers, force, keep_unique, deletion_batch_size):
     if push == pull:
         raise Exception("Please use either the '--push' OR '--pull' options")

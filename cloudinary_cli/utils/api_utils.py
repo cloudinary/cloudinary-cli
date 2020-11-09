@@ -75,7 +75,7 @@ def asset_source(asset_details):
     """
     Public ID of the transformable file (image/video) does not include file extension.
 
-    It needs to be added in order to download file properly (without creating a derived asset).
+    It needs to be added in order to download the file properly (without creating a derived asset).
 
     Raw files are accessed using only public_id.
 
