@@ -1,4 +1,18 @@
 
+1.3.0 / 2020-11-09
+==================
+
+New functionality and features
+------------------------------
+
+  * Add `include-hidden` option to `sync`
+  * Add `deletion-batch-size` option to `sync`
+
+Other Changes
+-------------
+
+  * Improve sync of files with special characters
+
 1.2.2 / 2020-10-20
 ==================
 
