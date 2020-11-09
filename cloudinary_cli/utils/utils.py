@@ -102,6 +102,14 @@ def remove_string_prefix(string, prefix):
     return string[string.startswith(prefix) and len(prefix):]
 
 
+def invert_dict(d):
+    inv_dict = {}
+    for k, v in d.items():
+        inv_dict[v] = k
+
+    return inv_dict
+
+
 def write_json_list_to_csv(json_list, filename, fields_to_keep=()):
     with open(f'{filename}.csv', 'w') as f:
         if not fields_to_keep:
