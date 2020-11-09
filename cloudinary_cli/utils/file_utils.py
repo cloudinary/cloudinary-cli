@@ -35,7 +35,11 @@ def is_hidden_path(filepath):
 
 
 def has_hidden_attribute(filepath):
-    st = os.stat(filepath)
+    try:
+        st = os.stat(filepath)
+    except OSError as e:
+        logger.debug(f"Failed getting os.stat for file '{filepath}': {e}")
+        return False
 
     if not hasattr(st, 'st_file_attributes'):  # not a pythonic way, but it's relevant only for windows, no need to try
         return False

@@ -10,10 +10,7 @@ from cloudinary_cli.utils.utils import log_exception
 
 
 def load_config():
-    if not os.path.exists(CLOUDINARY_CLI_CONFIG_FILE) or os.path.getsize(CLOUDINARY_CLI_CONFIG_FILE) < 1:
-        return {}
-
-    return read_json_from_file(CLOUDINARY_CLI_CONFIG_FILE)
+    return read_json_from_file(CLOUDINARY_CLI_CONFIG_FILE, does_not_exist_ok=True)
 
 
 def save_config(config):
@@ -68,9 +65,7 @@ def migrate_old_config():
                      f"please fix or remove it")
         raise
 
-    new_config = load_config()
-    new_config.update(old_config)
-    save_config(new_config)
+    update_config(old_config)
 
     os.remove(OLD_CLOUDINARY_CLI_CONFIG_FILE)
 

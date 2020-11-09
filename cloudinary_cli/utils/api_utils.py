@@ -42,7 +42,7 @@ def query_cld_folder(folder):
 
 
 def upload_file(file_path, options, uploaded=None, skipped=None):
-    uploaded = uploaded if uploaded is not None else []
+    uploaded = uploaded if uploaded is not None else {}
     skipped = skipped if skipped is not None else []
     verbose = logger.getEffectiveLevel() < logging.INFO
 
@@ -55,7 +55,7 @@ def upload_file(file_path, options, uploaded=None, skipped=None):
         logger.info(style(f"Successfully uploaded {file_path} as {result['public_id']}", fg="green"))
         if verbose:
             print_json(result)
-        uploaded.append(result['public_id'])
+        uploaded[file_path] = asset_source(result)
     except Exception as e:
         log_exception(e, f"Failed uploading {file_path}")
         skipped.append(file_path)
