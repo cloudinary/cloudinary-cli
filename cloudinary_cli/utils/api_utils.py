@@ -75,9 +75,11 @@ def asset_source(asset_details):
     """
     Public ID of the transformable file (image/video) does not include file extension.
 
-    It needs to be added in order to download file properly (without creating derived asset).
+    It needs to be added in order to download file properly (without creating a derived asset).
 
     Raw files are accessed using only public_id.
+
+    Fetched files are not altered as well.
 
     :param asset_details: The details of the asset.
     :rtype asset_details: dict
@@ -85,7 +87,10 @@ def asset_source(asset_details):
     :return:
     """
     base_name = asset_details['public_id']
-    return base_name + "." + asset_details['format'] if asset_details['resource_type'] != 'raw' else base_name
+    if asset_details['resource_type'] == 'raw' or asset_details['type'] == 'fetch':
+        return base_name
+
+    return base_name + '.' + asset_details['format']
 
 
 def handle_command(
