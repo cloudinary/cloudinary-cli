@@ -5,7 +5,8 @@ from click import command, argument, option
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.json_utils import write_json_to_file, print_json
-from cloudinary_cli.utils.utils import write_json_list_to_csv, confirm_action
+from cloudinary_cli.utils.utils import write_json_list_to_csv, confirm_action, whitelist_keys, \
+    normalize_list_params
 
 DEFAULT_MAX_RESULTS = 500
 
@@ -38,12 +39,7 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
 
     fields_to_keep = []
     if filter_fields:
-        for f in list(filter_fields):
-            if "," in f:
-                fields_to_keep += f.split(",")
-            else:
-                fields_to_keep.append(f)
-        fields_to_keep = tuple(fields_to_keep) + with_field
+        fields_to_keep = tuple(normalize_list_params(filter_fields)) + with_field
 
     expression = cloudinary.search.Search().expression(" ".join(query))
 
@@ -81,15 +77,13 @@ def execute_single_request(expression, fields_to_keep):
     res = expression.execute()
 
     if fields_to_keep:
-        res['resources'] = list(
-            map(lambda x: {k: x[k] if k in x.keys() else None for k in fields_to_keep}, res['resources'])
-        )
+        res['resources'] = whitelist_keys(res['resources'], fields_to_keep)
 
     return res
 
 
 def handle_auto_pagination(res, expression, force, fields_to_keep):
-    if 'next_cursor' not in res.keys():
+    if 'next_cursor' not in res:
         return res
 
     if not force:
@@ -99,6 +93,7 @@ def handle_auto_pagination(res, expression, force, fields_to_keep):
                 f"Running this query will use {res['total_count'] // DEFAULT_MAX_RESULTS + 1} Admin API calls. "
                 f"Continue? (y/N)"):
             logger.info("Stopping. Please run again without -A.")
+
             return res
         else:
             logger.info("Continuing. You may use the -F flag to force auto_pagination.")
@@ -112,6 +107,6 @@ def handle_auto_pagination(res, expression, force, fields_to_keep):
         all_results['resources'] += res['resources']
         all_results['time'] += res['time']
 
-    all_results.pop('next_cursor')  # it is empty by now
+    all_results.pop('next_cursor', None)  # it is empty by now
 
     return all_results

@@ -9,7 +9,12 @@ from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
-from cloudinary_cli.utils.utils import print_help, parse_args_kwargs, parse_option_value, log_exception
+from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, \
+    get_command_params, merge_responses, normalize_list_params
+
+PAGINATION_MAX_RESULTS = 500
+
+_cursor_fields = {"resource": "derived_next_cursor"}
 
 
 def query_cld_folder(folder):
@@ -93,28 +98,22 @@ def asset_source(asset_details):
     return base_name + '.' + asset_details['format']
 
 
+def call_api(func, args, kwargs):
+    return func(*args, **kwargs)
+
+
 def handle_command(
         params,
         optional_parameter,
         optional_parameter_parsed,
         module,
         module_name):
-    try:
-        func = module.__dict__[params[0]]
-    except KeyError:
-        raise Exception(f"Method {params[0]} does not exist in {module_name.capitalize()}.")
-
-    if not callable(func):
-        raise Exception(f"{params[0]} is not callable.")
-
-    args, kwargs = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
-    kwargs = {
-        **kwargs,
-        **{k: v for k, v in optional_parameter},
-        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
-    }
-
-    return func(*args, **kwargs)
+    func, args, kwargs = get_command_params(params,
+                                            optional_parameter,
+                                            optional_parameter_parsed,
+                                            module,
+                                            module_name)
+    return call_api(func, args, kwargs)
 
 
 def handle_api_command(
@@ -126,7 +125,10 @@ def handle_api_command(
         doc,
         doc_url,
         api_instance,
-        api_name):
+        api_name,
+        auto_paginate=False,
+        force=False,
+        filter_fields=None):
     """
     Used by Admin and Upload API commands
     """
@@ -136,14 +138,56 @@ def handle_api_command(
     if ls or len(params) < 1:
         return print_help(api_instance)
 
-    res = handle_command(
+    func, args, kwargs = get_command_params(
         params,
         optional_parameter,
         optional_parameter_parsed,
         api_instance,
         api_name)
 
+    res = call_api(func, args, kwargs)
+
+    if auto_paginate:
+        res = handle_auto_pagination(res, func, args, kwargs, force, filter_fields)
+
     print_json(res)
 
     if save:
         write_json_to_file(res, save)
+
+
+def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
+    cursor_field = _cursor_fields.get(func.__name__, "next_cursor")
+
+    if cursor_field not in res:
+        return res
+
+    if not force:
+        if not confirm_action(
+                "Using auto pagination will use multiple API calls.\n" +
+                f"You currently have {res.rate_limit_remaining} Admin API calls remaining. Continue? (y/N)"):
+            logger.info("Stopping. Please run again without -A.")
+
+            return res
+        else:
+            logger.info("Continuing. You may use the -F flag to force auto_pagination.")
+
+    fields_to_keep = []
+    if filter_fields:
+        fields_to_keep = normalize_list_params(filter_fields)
+
+    kwargs['max_results'] = PAGINATION_MAX_RESULTS
+
+    all_results = res
+    # We have many different APIs that have different fields that we paginate.
+    # The field is unknown before we perform the second call and then compare results and find the field.
+    pagination_field = None
+    while res.get(cursor_field, None):
+        kwargs[cursor_field] = res.get(cursor_field, None)
+        res = call_api(func, args, kwargs)
+        all_results, pagination_field = merge_responses(all_results, res, fields_to_keep=fields_to_keep,
+                                                        pagination_field=pagination_field)
+
+    all_results.pop(cursor_field, None)
+
+    return all_results
