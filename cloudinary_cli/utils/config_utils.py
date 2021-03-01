@@ -2,6 +2,7 @@
 import os
 
 import cloudinary
+from click import echo
 from cloudinary import api
 
 from cloudinary_cli.defaults import CLOUDINARY_CLI_CONFIG_FILE, OLD_CLOUDINARY_CLI_CONFIG_FILE, logger
@@ -51,6 +52,12 @@ def verify_cloudinary_url(cloudinary_url):
     return True
 
 
+def show_cloudinary_config(cloudinary_config):
+    obfuscated_config = {k: v if k != "api_secret" else "***************{}".format(v[-4:])
+                         for k, v in cloudinary_config.__dict__.items() if not k.startswith("_")}
+    echo('\n'.join(["{}:\t{}".format(k, v) for k, v in obfuscated_config.items()]))
+
+
 def migrate_old_config():
     """
     Migrate old config file (if exists) to new location
@@ -76,3 +83,4 @@ def initialize():
 
 def _verify_file_path(file):
     os.makedirs(os.path.dirname(file), exist_ok=True)
+
