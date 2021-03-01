@@ -162,10 +162,11 @@ def get_command_params(
         optional_parameter_parsed,
         module,
         module_name):
-    try:
-        func = module.__dict__[params[0]]
-    except KeyError:
+    method = params[0]
+    if method not in module.__dict__:
         raise Exception(f"Method {params[0]} does not exist in {module_name.capitalize()}.")
+
+    func = module.__dict__.get(method)
 
     if not callable(func):
         raise Exception(f"{params[0]} is not callable.")
@@ -181,26 +182,65 @@ def get_command_params(
     return func, args, kwargs
 
 
-def only_fields(data, fields_to_keep):
-    if fields_to_keep:
-        data = list(
-                map(lambda x: {
-                    k: x[k] if k in x.keys() else None 
-                    for k in fields_to_keep}, 
-                    data)
-                )
-    return data
+def whitelist_keys(data, keys):
+    """
+    Iterates over a list of dictionaries and keeps only the keys that were specified.
+
+    :param data: A list of dictionaries.
+    :type data: list
+    :param keys: a list of keys to keep in each dictionary.
+    :type keys: list
+
+    :return: The whitelisted list.
+    :rtype list
+    """
+    # no whitelist when fields are not provided or on a list of non-dictionary items.
+    if not keys or any(not isinstance(i, dict) for i in data):
+        return data
+
+    return list(
+        map(lambda x: {
+            k: x[k]
+            for k in keys if k in x},
+            data)
+    )
 
 
-def merge_responses(res1, res2, fields_to_keep=None, paginate_field=None):
-    if not paginate_field:
-        for key in res1:
-            if res1[key] != res2.get(key, 0) and type(res1[key]) == list:
-                paginate_field = key
+def merge_responses(all_res, paginated_res, fields_to_keep=None, pagination_field=None):
+    if not pagination_field:
+        for key in all_res:
+            if all_res[key] != paginated_res.get(key, 0) and type(all_res[key]) == list:
+                pagination_field = key
 
-        res1[paginate_field] = only_fields(res1[paginate_field], fields_to_keep)
+        if not pagination_field:  # should not happen
+            raise Exception("Failed to detect pagination_field")
 
-    res1[paginate_field] += only_fields(res2[paginate_field], fields_to_keep)
+        # whitelist fields of the initial response
+        all_res[pagination_field] = whitelist_keys(all_res[pagination_field], fields_to_keep)
 
-    return res1, paginate_field
+    all_res[pagination_field] += whitelist_keys(paginated_res[pagination_field], fields_to_keep)
 
+    return all_res, pagination_field
+
+
+def normalize_list_params(params):
+    """
+    Normalizes parameters that could be provided as strings separated by ','.
+
+    >>> normalize_list_params(["f1,f2", "f3"])
+    ["f1", "f2", "f3"]
+
+    :param params: Params to normalize.
+    :type params: list
+
+    :return: A list of normalized params.
+    :rtype list
+    """
+    normalized_params = []
+    for f in list(params):
+        if "," in f:
+            normalized_params += f.split(",")
+        else:
+            normalized_params.append(f)
+
+    return normalized_params

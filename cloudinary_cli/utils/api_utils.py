@@ -10,7 +10,11 @@ from cloudinary.utils import cloudinary_url
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, \
-    get_command_params, merge_responses
+    get_command_params, merge_responses, normalize_list_params
+
+PAGINATION_MAX_RESULTS = 500
+
+_cursor_fields = {"resource": "derived_next_cursor"}
 
 
 def query_cld_folder(folder):
@@ -94,7 +98,6 @@ def asset_source(asset_details):
     return base_name + '.' + asset_details['format']
 
 
-
 def call_api(func, args, kwargs):
     return func(*args, **kwargs)
 
@@ -124,6 +127,7 @@ def handle_api_command(
         api_instance,
         api_name,
         auto_paginate=False,
+        force=False,
         filter_fields=None):
     """
     Used by Admin and Upload API commands
@@ -144,38 +148,46 @@ def handle_api_command(
     res = call_api(func, args, kwargs)
 
     if auto_paginate:
-        cursor_field = "next_cursor"
-        if func.__name__ == "resource":
-            cursor_field = "derived_next_cursor"
-
-        if confirm_action("Using auto pagination will use multiple API calls.\n" +
-                          f"You currently have {res.rate_limit_remaining} Admin API calls remaining. Continue? (y/N)"):
-            
-            fields_to_keep = []
-            if filter_fields:
-                for f in list(filter_fields):
-                    if "," in f:
-                        fields_to_keep += f.split(",")
-                    else:
-                        fields_to_keep.append(f)
-                    
-            all_results = res
-            kwargs['max_results'] = 500
-
-            paginate_field = None
-            while res.get(cursor_field, 0):
-                kwargs[cursor_field] = res.get(cursor_field, 0)
-                res = call_api(func, args, kwargs)
-                all_results, paginate_field = merge_responses(all_results,
-                                                           res,
-                                                           fields_to_keep=fields_to_keep,
-                                                           paginate_field=paginate_field)
-
-            del all_results[cursor_field]
-
-            res = all_results
+        res = handle_auto_pagination(res, func, args, kwargs, force, filter_fields)
 
     print_json(res)
 
     if save:
         write_json_to_file(res, save)
+
+
+def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
+    cursor_field = _cursor_fields.get(func.__name__, "next_cursor")
+
+    if cursor_field not in res:
+        return res
+
+    if not force:
+        if not confirm_action(
+                "Using auto pagination will use multiple API calls.\n" +
+                f"You currently have {res.rate_limit_remaining} Admin API calls remaining. Continue? (y/N)"):
+            logger.info("Stopping. Please run again without -A.")
+
+            return res
+        else:
+            logger.info("Continuing. You may use the -F flag to force auto_pagination.")
+
+    fields_to_keep = []
+    if filter_fields:
+        fields_to_keep = normalize_list_params(filter_fields)
+
+    kwargs['max_results'] = PAGINATION_MAX_RESULTS
+
+    all_results = res
+    # We have many different APIs that have different fields that we paginate.
+    # The field is unknown before we perform the second call and then compare results and find the field.
+    pagination_field = None
+    while res.get(cursor_field, None):
+        kwargs[cursor_field] = res.get(cursor_field, None)
+        res = call_api(func, args, kwargs)
+        all_results, pagination_field = merge_responses(all_results, res, fields_to_keep=fields_to_keep,
+                                                        pagination_field=pagination_field)
+
+    all_results.pop(cursor_field, None)
+
+    return all_results

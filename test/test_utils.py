@@ -1,6 +1,6 @@
 import unittest
 
-from cloudinary_cli.utils.utils import parse_option_value, only_fields, merge_responses
+from cloudinary_cli.utils.utils import parse_option_value, whitelist_keys, merge_responses, normalize_list_params
 
 
 class UtilsTest(unittest.TestCase):
@@ -19,9 +19,11 @@ class UtilsTest(unittest.TestCase):
         """ should convert a parsed int to a str """
         self.assertEqual("1", parse_option_value(1))
 
-    def test_only_fields(self):
-        """ should filter fields correctly """
-        self.assertEqual([{"1": "2"}], only_fields([{"1": "2", "3": "4"}], "1"))
+    def test_whitelist_keys(self):
+        """ should whitelist keys correctly """
+        self.assertEqual([{"k1": "v1"}], whitelist_keys([{"k1": "v1", "k2": "v2"}], ["k1"]))
+        self.assertEqual([{"k1": "v1", "k2": "v2"}], whitelist_keys([{"k1": "v1", "k2": "v2"}], []))
+        self.assertEqual([{"k1": "v1"}], whitelist_keys([{"k1": "v1", "k2": "v2"}], ["k1", "k3"]))
 
     def test_merge_responses(self):
         """ should merge responses based with or without additional kwargs """
@@ -43,15 +45,19 @@ class UtilsTest(unittest.TestCase):
                 {"a": "b", "c": [{"1": "2"}, {"1": "3"}]},
                 {"a": "b", "c": [{"1": "4", "2": "2"}, {"1": "5", "2": "2"}]},
                 fields_to_keep=["1"],
-                paginate_field="c"))
+                pagination_field="c"))
         self.assertEqual(
             merged_1_2,
             merge_responses(
                 {"a": "b", "c": [{"1": "2", "2": "2"}, {"1": "3", "2": "2"}]},
                 {"a": "b", "c": [{"1": "4", "2": "2"}, {"1": "5", "2": "2"}]},
-                paginate_field="c"))
+                pagination_field="c"))
         self.assertEqual(
             merged_1_2,
             merge_responses(
                 {"a": "b", "c": [{"1": "2", "2": "2"}, {"1": "3", "2": "2"}]},
                 {"a": "b", "c": [{"1": "4", "2": "2"}, {"1": "5", "2": "2"}]}))
+
+    def test_normalize_list_params(self):
+        """ should normalize a list of parameters """
+        self.assertEqual(["f1", "f2", "f3"], normalize_list_params(["f1,f2", "f3"]))

@@ -21,11 +21,12 @@ Format: cld <cli options> admin <command options> <method> <method parameters>
         help="Pass optional parameters as interpreted strings.")
 @option("-A", "--auto_paginate", is_flag=True, help="Will auto paginate Admin API calls.", default=False)
 @option("-ff", "--filter_fields", multiple=True, help="Filter fields to return when using auto pagination.")
+@option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate.")
 @option("-ls", "--ls", is_flag=True, help="List all available methods in the Admin API.")
 @option("--save", nargs=1, help="Save output to a file.")
 @option("-d", "--doc", is_flag=True, help="Open the Admin API reference in a browser.")
-def admin(params, optional_parameter, optional_parameter_parsed, 
-          auto_paginate, filter_fields,
+def admin(params, optional_parameter, optional_parameter_parsed,
+          auto_paginate, force, filter_fields,
           ls, save, doc):
     return handle_api_command(params, optional_parameter, optional_parameter_parsed,
                               ls, save, doc,
@@ -33,4 +34,5 @@ def admin(params, optional_parameter, optional_parameter_parsed,
                               api_instance=api,
                               api_name="admin",
                               auto_paginate=auto_paginate,
+                              force=force,
                               filter_fields=filter_fields)
