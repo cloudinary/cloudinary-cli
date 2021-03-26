@@ -1,3 +1,18 @@
+1.4.0 / 2021-03-26
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for auto-paginated Admin API calls
+  * Add support for viewing details of saved configurations
+  * Bump `pycloudinary` to `1.25.0`
+
+Other Changes
+-------------
+
+  * Add release tools
+
 
 1.3.1 / 2020-12-18
 ==================
