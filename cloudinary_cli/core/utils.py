@@ -9,8 +9,9 @@ from cloudinary_cli.utils.utils import print_help
 
 cld_utils.cloudinary_url = cloudinary_url
 
-utils_list = ["api_sign_request", "cloudinary_url", "download_archive_url", "download_zip_url",
-              "download_backedup_asset", "verify_api_response_signature", "verify_notification_signature"]
+utils_list = ["api_sign_request", "cloudinary_url", "download_archive_url", "download_zip_url", "private_download_url",
+              "download_folder", "download_backedup_asset", "verify_api_response_signature",
+              "verify_notification_signature"]
 
 
 @command("utils", help="Call Cloudinary utility methods.")
