@@ -1,6 +1,7 @@
 import unittest
 
-from cloudinary_cli.utils.utils import parse_option_value, whitelist_keys, merge_responses, normalize_list_params
+from cloudinary_cli.utils.utils import parse_option_value, parse_args_kwargs, whitelist_keys, merge_responses, \
+    normalize_list_params
 
 
 class UtilsTest(unittest.TestCase):
@@ -18,6 +19,32 @@ class UtilsTest(unittest.TestCase):
     def test_parse_option_value_converts_int_to_str(self):
         """ should convert a parsed int to a str """
         self.assertEqual("1", parse_option_value(1))
+
+    def test_parse_args_kwargs(self):
+        args, kwargs = parse_args_kwargs(_no_args_test_func, [])
+        self.assertEqual(0, len(args))
+        self.assertEqual(0, len(kwargs))
+
+        args, kwargs = parse_args_kwargs(_only_args_test_func, ["a1", "a2"])
+        self.assertListEqual(["a1", "a2"], args)
+        self.assertEqual(0, len(kwargs))
+
+        with self.assertRaisesRegex(Exception, "requires 2 arguments"):
+            parse_args_kwargs(_only_args_test_func, ["a1"])
+
+        args, kwargs = parse_args_kwargs(_args_kwargs_test_func, ["a1", 'arg2=a2'])
+        self.assertListEqual(["a1"], args)
+        self.assertDictEqual({"arg2": "a2"}, kwargs)
+
+        # should parse values
+        args, kwargs = parse_args_kwargs(_args_kwargs_test_func, ['["a1"]', 'arg2={"k2":"a2"}'])
+        self.assertListEqual([["a1"]], args)
+        self.assertDictEqual({"arg2": {"k2": "a2"}}, kwargs)
+
+        # should allow passing optional args as positional
+        args, kwargs = parse_args_kwargs(_args_kwargs_test_func, ["a1", "a2"])
+        self.assertListEqual(["a1", "a2"], args)
+        self.assertEqual(0, len(kwargs))
 
     def test_whitelist_keys(self):
         """ should whitelist keys correctly """
@@ -61,3 +88,15 @@ class UtilsTest(unittest.TestCase):
     def test_normalize_list_params(self):
         """ should normalize a list of parameters """
         self.assertEqual(["f1", "f2", "f3"], normalize_list_params(["f1,f2", "f3"]))
+
+
+def _no_args_test_func():
+    pass
+
+
+def _only_args_test_func(arg1, arg2):
+    return arg1, arg2
+
+
+def _args_kwargs_test_func(arg1, arg2=None):
+    return arg1, arg2
