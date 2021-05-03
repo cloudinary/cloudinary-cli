@@ -93,9 +93,19 @@ def parse_args_kwargs(func, params):
     n_req = n_args - n_defaults
     if len(params) < n_req:
         raise Exception("Function '{}' requires {} arguments".format(func.__name__, n_req))
+    # consume required args
     args = [parse_option_value(x) for x in params[:n_req]]
+    kwargs = {}
 
-    kwargs = {k: parse_option_value(v) for k, v in [x.split('=') for x in params[n_req:]]} if params[n_req:] else {}
+    for p in params[n_req:]:
+        if '=' not in p:
+            # named/positional with default value args passed as positional
+            args.append(p)
+            continue
+
+        k, v = p.split('=', 1)
+        kwargs[k] = parse_option_value(v)
+
     return args, kwargs
 
 
