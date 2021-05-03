@@ -36,6 +36,11 @@ class UtilsTest(unittest.TestCase):
         self.assertListEqual(["a1"], args)
         self.assertDictEqual({"arg2": "a2"}, kwargs)
 
+        # should parse values
+        args, kwargs = parse_args_kwargs(_args_kwargs_test_func, ['["a1"]', 'arg2={"k2":"a2"}'])
+        self.assertListEqual([["a1"]], args)
+        self.assertDictEqual({"arg2": {"k2": "a2"}}, kwargs)
+
         # should allow passing optional args as positional
         args, kwargs = parse_args_kwargs(_args_kwargs_test_func, ["a1", "a2"])
         self.assertListEqual(["a1", "a2"], args)
