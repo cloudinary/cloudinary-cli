@@ -1,9 +1,9 @@
 ---
 name: Feature request
-about: " Feature request for Cloudinary CLI"
+about: Feature request for Cloudinary CLI
 title: ''
 labels: ''
-assignees: const-cloudinary
+assignees: ''
 
 ---
 
