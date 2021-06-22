@@ -23,8 +23,8 @@ def migrate(upload_mapping, file, delimiter, verbose):
     items = map(lambda x: cloudinary_url(join(mapping['folder'], x[len(mapping['template']):])),
                 filter(lambda x: x != '', items))
     for i in items:
-        res = head(i[0])
+        res = head(i)
         if res.status_code != 200:
             logger.error("Failed uploading asset: " + res.__dict__['headers']['X-Cld-Error'])
         elif verbose:
-            logger.info("Uploaded {}".format(i[0]))
+            logger.info("Uploaded {}".format(i))
