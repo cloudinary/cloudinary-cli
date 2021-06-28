@@ -69,10 +69,23 @@ def upload_file(file_path, options, uploaded=None, skipped=None):
 
 def download_file(remote_file, local_path):
     makedirs(path.dirname(local_path), exist_ok=True)
+
+    sign_url = True if remote_file['type'] in ("private", "authenticated") else False
+
+    download_url = cloudinary_url(asset_source(remote_file), resource_type=remote_file['resource_type'],
+                                  type=remote_file['type'], sign_url=sign_url)[0]
+
+    result = requests.get(download_url)
+
+    if result.status_code != 200:
+        msg = f"Failed downloading: {download_url}, status code: {result.status_code}, " \
+              f"details: {result.headers.get('x-cld-error')}"
+        logger.error(msg)
+
+        return
+
     with open(local_path, "wb") as f:
-        download_url = cloudinary_url(asset_source(remote_file), resource_type=remote_file['resource_type'],
-                                      type=remote_file['type'])[0]
-        f.write(requests.get(download_url).content)
+        f.write(result.content)
     logger.info(style("Downloaded '{}' to '{}'".format(remote_file['relative_path'], local_path), fg="green"))
 
 
