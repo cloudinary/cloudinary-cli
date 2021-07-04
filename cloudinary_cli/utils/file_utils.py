@@ -6,6 +6,37 @@ from os.path import split, relpath, abspath
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.utils import etag
 
+FORMAT_ALIASES = {
+    'jpeg': 'jpg',
+    'jpe': 'jpg',
+    'tif': 'tiff',
+    'ps': 'eps',
+    'ept': 'eps',
+    'eps3': 'eps',
+    'j2k': 'jpc',
+    'jxr': 'wdp',
+    'hdp': 'wdp',
+    'm4v': 'mp4',
+    'h264': 'mp4',
+    'asf': 'wmv',
+    'm2v': 'mpeg',
+    'm2t': 'ts',
+    'm2ts': 'ts',
+    'aif': 'aiff',
+    'aifc': 'aiff',
+    'mka': 'webm',
+    'webmda': 'webm',
+    'webmdv': 'webm',
+    'mp4dv': 'mp4',
+    'mp4da': 'mp4',
+    'opus': 'ogg',
+    'bmp2': 'bmp',
+    'bmp3': 'bmp',
+    'mpg/3': 'mp3',
+    'heif': 'heic',
+    'mid': 'midi'
+}
+
 
 def walk_dir(root_dir, include_hidden=False):
     all_files = {}
@@ -18,7 +49,8 @@ def walk_dir(root_dir, include_hidden=False):
         for file in files:
             full_path = path.join(root, file)
             relative_file_path = "/".join(p for p in [relative_path, file] if p)
-            all_files[relative_file_path] = {
+            normalized_relative_file_path = normalize_file_extension(relative_file_path)
+            all_files[normalized_relative_file_path] = {
                 "path": full_path,
                 "etag": etag(full_path)
             }
@@ -82,3 +114,16 @@ def get_destination_folder(cloudinary_folder: str, file_path: str, parent: str =
 
     return "/".join([cloudinary_folder, *folder_path]).strip("/")
 
+
+def normalize_file_extension(filename: str) -> str:
+    """
+    Normalizes file extension. Makes it lower case and removes aliases.
+
+    :param filename: The input file name.
+    :return: File name with normalized extension.
+    """
+    filename, extension = os.path.splitext(filename)
+    extension = extension[1:].lower()
+    extension_alias = FORMAT_ALIASES.get(extension, extension)
+
+    return ".".join([p for p in [filename, extension_alias] if p])
