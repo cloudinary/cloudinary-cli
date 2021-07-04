@@ -1,6 +1,6 @@
 import unittest
 
-from cloudinary_cli.utils.file_utils import get_destination_folder, walk_dir
+from cloudinary_cli.utils.file_utils import get_destination_folder, walk_dir, normalize_file_extension
 
 
 class FileUtilsTest(unittest.TestCase):
@@ -21,3 +21,13 @@ class FileUtilsTest(unittest.TestCase):
 
         self.assertEqual(1, len(walk_dir(test_dir, include_hidden=False)))
         self.assertEqual(4, len(walk_dir(test_dir, include_hidden=True)))
+
+    def test_normalize_file_extension(self):
+        for value, expected in {
+            "sample.jpg": "sample.jpg",
+            "sample": "sample",
+            "sample.JPG": "sample.jpg",
+            "sample.JPE": "sample.jpg",
+            "SAMPLE.JPEG": "SAMPLE.jpg",
+        }.items():
+            self.assertEqual(expected, normalize_file_extension(value))
