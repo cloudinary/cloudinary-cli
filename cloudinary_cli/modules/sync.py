@@ -82,7 +82,9 @@ class SyncDir:
         To overcome this limitation, cloudinary-cli keeps .cld-sync hidden file in the sync directory that contains a 
         mapping of the diverse file names. This file keeps tracking on the files and allows syncing in both directions.
         """
-        self.diverse_file_names = read_json_from_file(self.sync_meta_file, does_not_exist_ok=True)
+        diverse_file_names = read_json_from_file(self.sync_meta_file, does_not_exist_ok=True)
+        self.diverse_file_names = dict(
+            (normalize_file_extension(k), normalize_file_extension(v)) for k, v in diverse_file_names.items())
         inverted_diverse_file_names = invert_dict(self.diverse_file_names)
 
         cloudinarized_local_file_names = [self.diverse_file_names.get(f, f) for f in local_file_names]
@@ -109,13 +111,13 @@ class SyncDir:
             local_etag = self.local_files[f]['etag']
             remote_etag = self.recovered_remote_files[f]['etag']
             if local_etag != remote_etag:
-                logger.warning(f"{f} is out of sync" +
-                               (f" with '{self.diverse_file_names[f]}" if f in self.diverse_file_names else ""))
+                logger.warning(f"'{f}' is out of sync" +
+                               (f" with '{self.diverse_file_names[f]}'" if f in self.diverse_file_names else ""))
                 logger.debug(f"Local etag: {local_etag}. Remote etag: {remote_etag}")
                 out_of_sync_file_names.add(f)
                 continue
             logger.debug(f"'{f}' is in sync" +
-                         (f" with '{self.diverse_file_names[f]}" if f in self.diverse_file_names else ""))
+                         (f" with '{self.diverse_file_names[f]}'" if f in self.diverse_file_names else ""))
 
         return out_of_sync_file_names
 
@@ -151,7 +153,7 @@ class SyncDir:
         diverse_filenames = {}
         for local_path, remote_path in upload_results.items():
             local = normalize_file_extension(path.relpath(local_path, self.local_dir))
-            remote = path.relpath(remote_path, self.remote_dir)
+            remote = normalize_file_extension(path.relpath(remote_path, self.remote_dir))
             if local != remote:
                 diverse_filenames[local] = remote
 
