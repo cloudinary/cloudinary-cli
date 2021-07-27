@@ -24,7 +24,7 @@ from cloudinary_cli.utils.file_utils import get_destination_folder
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify number of concurrent network threads.")
 def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset,
                concurrent_workers):
-    items, skipped = {}, []
+    items, skipped = {}, {}
     dir_to_upload = abspath(path_join(getcwd(), directory))
     logger.info("Uploading directory '{}'".format(dir_to_upload))
     parent = dirname(dir_to_upload)
