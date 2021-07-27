@@ -47,9 +47,9 @@ def query_cld_folder(folder):
     return files
 
 
-def upload_file(file_path, options, uploaded=None, skipped=None):
+def upload_file(file_path, options, uploaded=None, failed=None):
     uploaded = uploaded if uploaded is not None else {}
-    skipped = skipped if skipped is not None else []
+    failed = failed if failed is not None else {}
     verbose = logger.getEffectiveLevel() < logging.INFO
 
     try:
@@ -64,11 +64,12 @@ def upload_file(file_path, options, uploaded=None, skipped=None):
         uploaded[file_path] = asset_source(result)
     except Exception as e:
         log_exception(e, f"Failed uploading {file_path}")
-        skipped.append(file_path)
-        raise
+        failed[file_path] = str(e)
 
 
-def download_file(remote_file, local_path):
+def download_file(remote_file, local_path, downloaded=None, failed=None):
+    downloaded = downloaded if downloaded is not None else {}
+    failed = failed if failed is not None else {}
     makedirs(path.dirname(local_path), exist_ok=True)
 
     sign_url = True if remote_file['type'] in ("private", "authenticated") else False
@@ -79,14 +80,18 @@ def download_file(remote_file, local_path):
     result = requests.get(download_url)
 
     if result.status_code != 200:
+        err = result.headers.get('x-cld-error')
         msg = f"Failed downloading: {download_url}, status code: {result.status_code}, " \
-              f"details: {result.headers.get('x-cld-error')}"
+              f"details: {err}"
         logger.error(msg)
-
+        failed[download_url] = err
         return
 
     with open(local_path, "wb") as f:
         f.write(result.content)
+
+    downloaded[remote_file['relative_path']] = local_path
+
     logger.info(style("Downloaded '{}' to '{}'".format(remote_file['relative_path'], local_path), fg="green"))
 
 

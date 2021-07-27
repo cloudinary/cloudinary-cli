@@ -40,12 +40,15 @@ def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent
     sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
                        deletion_batch_size)
 
+    result = 0
     if push:
-        sync_dir.push()
+        result = sync_dir.push()
     elif pull:
-        sync_dir.pull()
+        result = sync_dir.pull()
 
     logger.info("Done!")
+
+    return result
 
 
 class SyncDir:
@@ -53,6 +56,7 @@ class SyncDir:
                  deletion_batch_size):
         self.local_dir = local_dir
         self.remote_dir = remote_dir.strip('/')
+        self.user_friendly_remote_dir = self.remote_dir if self.remote_dir else '/'
         self.include_hidden = include_hidden
         self.concurrent_workers = concurrent_workers
         self.force = force
@@ -67,7 +71,7 @@ class SyncDir:
         logger.info(f"Found {len(self.local_files)} items in local folder '{local_dir}'")
 
         self.remote_files = query_cld_folder(self.remote_dir)
-        logger.info(f"Found {len(self.remote_files)} items in Cloudinary folder '{self.remote_dir}'")
+        logger.info(f"Found {len(self.remote_files)} items in Cloudinary folder '{self.user_friendly_remote_dir}'")
 
         local_file_names = self.local_files.keys()
         remote_file_names = self.remote_files.keys()
@@ -99,10 +103,10 @@ class SyncDir:
         self.out_of_sync_remote_file_names = set(self.diverse_file_names.get(f, f) for f in
                                                  self.out_of_sync_local_file_names)
 
-        skipping = len(common_file_names) - len(self.out_of_sync_local_file_names)
+        self.synced_files_count = len(common_file_names) - len(self.out_of_sync_local_file_names)
 
-        if skipping:
-            logger.info(f"Skipping {skipping} items")
+        if self.synced_files_count:
+            logger.info(f"Skipping {self.synced_files_count} items")
 
     def _get_out_of_sync_file_names(self, common_file_names):
         logger.debug("\nCalculating differences...\n")
@@ -130,7 +134,7 @@ class SyncDir:
         if not files_to_push:
             return True
 
-        logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.remote_dir}'")
+        logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}'")
 
         options = {
             'use_filename': True,
@@ -139,17 +143,32 @@ class SyncDir:
             'resource_type': 'auto'
         }
         upload_results = {}
+        upload_errors = {}
         uploads = []
         for file in files_to_push:
             folder = get_destination_folder(self.remote_dir, file)
 
-            uploads.append((self.local_files[file]['path'], {**options, 'folder': folder}, upload_results))
+            uploads.append(
+                (self.local_files[file]['path'], {**options, 'folder': folder}, upload_results, upload_errors))
 
-        run_tasks_concurrently(upload_file, uploads, self.concurrent_workers)
+        try:
+            run_tasks_concurrently(upload_file, uploads, self.concurrent_workers)
+        finally:
+            self._print_sync_status(upload_results, upload_errors)
+            self._save_sync_meta_file(upload_results)
 
-        self.save_sync_meta_file(upload_results)
+        if upload_errors:
+            raise Exception("Sync did not finish successfully")
 
-    def save_sync_meta_file(self, upload_results):
+    def _print_sync_status(self, success, errors):
+        logger.info("==Sync Status==")
+        logger.info("===============")
+        logger.info(f"In Sync| {self.synced_files_count}")
+        logger.info(f"Synced | {len(success)}")
+        logger.info(f"Failed | {len(errors)}")
+        logger.info("===============")
+
+    def _save_sync_meta_file(self, upload_results):
         diverse_filenames = {}
         for local_path, remote_path in upload_results.items():
             local = normalize_file_extension(path.relpath(local_path, self.local_dir))
@@ -163,6 +182,7 @@ class SyncDir:
         if diverse_filenames or current_diverse_files != self.diverse_file_names:
             current_diverse_files.update(diverse_filenames)
             try:
+                logger.debug(f"Updating '{self.sync_meta_file}' file")
                 write_json_to_file(current_diverse_files, self.sync_meta_file)
                 logger.debug(f"Updated '{self.sync_meta_file}' file")
             except Exception as e:
@@ -175,7 +195,7 @@ class SyncDir:
             return handled
 
         logger.info(f"Deleting {len(self.unique_remote_file_names)} resources "
-                    f"from Cloudinary folder '{self.remote_dir}'")
+                    f"from Cloudinary folder '{self.user_friendly_remote_dir}'")
         files_to_delete_from_cloudinary = list(map(lambda x: self.remote_files[x], self.unique_remote_file_names))
 
         for i in product({"upload", "private", "authenticated"}, {"image", "video", "raw"}):
@@ -204,6 +224,8 @@ class SyncDir:
         return True
 
     def pull(self):
+        download_results = {}
+        download_errors = {}
         if not self._handle_unique_local_files():
             return False
 
@@ -218,9 +240,15 @@ class SyncDir:
             remote_file = self.remote_files[file]
             local_path = path.abspath(path.join(self.local_dir, file))
 
-            downloads.append((remote_file, local_path))
+            downloads.append((remote_file, local_path, download_results, download_errors))
 
-        run_tasks_concurrently(download_file, downloads, self.concurrent_workers)
+        try:
+            run_tasks_concurrently(download_file, downloads, self.concurrent_workers)
+        finally:
+            self._print_sync_status(download_results, download_errors)
+
+        if download_errors:
+            raise Exception("Sync did not finish successfully")
 
     def _handle_unique_local_files(self):
         handled = self._handle_files_deletion(len(self.unique_local_file_names), "local")

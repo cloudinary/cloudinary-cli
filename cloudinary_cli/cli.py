@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 
 import click
 import click_log
@@ -63,4 +64,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
