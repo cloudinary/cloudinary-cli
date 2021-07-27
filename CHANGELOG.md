@@ -1,3 +1,9 @@
+1.4.5 / 2021-07-27
+==================
+
+  * Improve `sync` error handling
+  * Fix syncing of raw files with uppercase extension
+
 1.4.4 / 2021-07-04
 ==================
 
