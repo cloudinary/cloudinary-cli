@@ -17,8 +17,9 @@ class UtilsTest(unittest.TestCase):
                               "a", "list"], parse_option_value('["this","will","be","read","as","a","list"]'))
 
     def test_parse_option_value_converts_int_to_str(self):
-        """ should convert a parsed int to a str """
-        self.assertEqual("1", parse_option_value(1))
+        """ should convert a parsed 0 to a str """
+        self.assertEqual("0", parse_option_value(0))
+        self.assertEqual(1, parse_option_value(1))
 
     def test_parse_args_kwargs(self):
         args, kwargs = parse_args_kwargs(_no_args_test_func, [])
