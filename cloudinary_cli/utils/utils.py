@@ -80,7 +80,8 @@ def parse_option_value(value):
         value = json.loads(value)
     except Exception:
         pass
-    if isinstance(value, int):
+    # serialize 0 to "0" string, otherwise it will be omitted (counted as False)
+    if isinstance(value, int) and not value:
         value = str(value)
     return value
 
