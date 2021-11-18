@@ -8,7 +8,7 @@ from cloudinary import api
 
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file
 from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_destination_folder, \
-    normalize_file_extension
+    normalize_file_extension, posix_rel_path
 from cloudinary_cli.utils.json_utils import print_json, read_json_from_file, write_json_to_file
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict
 
@@ -171,8 +171,8 @@ class SyncDir:
     def _save_sync_meta_file(self, upload_results):
         diverse_filenames = {}
         for local_path, remote_path in upload_results.items():
-            local = normalize_file_extension(path.relpath(local_path, self.local_dir))
-            remote = normalize_file_extension(path.relpath(remote_path, self.remote_dir))
+            local = normalize_file_extension(posix_rel_path(local_path, self.local_dir))
+            remote = normalize_file_extension(posix_rel_path(remote_path, self.remote_dir))
             if local != remote:
                 diverse_filenames[local] = remote
 
