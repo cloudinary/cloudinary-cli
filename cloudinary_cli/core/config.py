@@ -21,7 +21,7 @@ def config(new, ls, show, rm, from_url):
         config_name, cloudinary_url = new or [None, from_url]
 
         if not verify_cloudinary_url(cloudinary_url):
-            return
+            return 1
 
         config_name = config_name or cloudinary.config().cloud_name
 
@@ -31,7 +31,7 @@ def config(new, ls, show, rm, from_url):
         logger.info("Example usage: cld -C {} <command>".format(config_name))
     elif rm:
         if remove_config_keys(rm):
-            logger.warn(f"Configuration '{rm}' not found.")
+            logger.warning(f"Configuration '{rm}' not found.")
         else:
             logger.info(f"Configuration '{rm}' deleted.")
     elif ls:
