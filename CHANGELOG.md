@@ -1,3 +1,11 @@
+1.4.6 / 2021-11-18
+==================
+
+  * Fix `sync` on Windows
+  * Fix integer parameters handling
+  * Remove internal methods from help strings
+
+
 1.4.5 / 2021-07-27
 ==================
 
