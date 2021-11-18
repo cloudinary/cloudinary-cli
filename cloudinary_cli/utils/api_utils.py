@@ -8,7 +8,7 @@ from cloudinary import Search, uploader
 from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
-from cloudinary_cli.utils.file_utils import normalize_file_extension
+from cloudinary_cli.utils.file_utils import normalize_file_extension, posix_rel_path
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, \
     get_command_params, merge_responses, normalize_list_params
@@ -31,7 +31,7 @@ def query_cld_folder(folder):
         res = expression.execute()
 
         for asset in res['resources']:
-            rel_path = path.relpath(asset_source(asset), folder)
+            rel_path = posix_rel_path(asset_source(asset), folder)
             files[normalize_file_extension(rel_path)] = {
                 "type": asset['type'],
                 "resource_type": asset['resource_type'],

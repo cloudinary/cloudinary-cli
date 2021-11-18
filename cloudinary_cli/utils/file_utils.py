@@ -2,6 +2,7 @@ import os
 import stat
 from os import walk, path, listdir, rmdir, sep
 from os.path import split, relpath, abspath
+from pathlib import PurePath
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.utils import etag
@@ -45,7 +46,7 @@ def walk_dir(root_dir, include_hidden=False):
             files = [f for f in files if not is_hidden(root, f)]
             dirs[:] = [d for d in dirs if not is_hidden(root, d)]
 
-        relative_path = relpath(root, root_dir) if root_dir != root else ""
+        relative_path = posix_rel_path(root, root_dir) if root_dir != root else ""
         for file in files:
             full_path = path.join(root, file)
             relative_file_path = "/".join(p for p in [relative_path, file] if p)
@@ -107,7 +108,7 @@ def get_destination_folder(cloudinary_folder: str, file_path: str, parent: str =
     folder_path = []
 
     parent_path = abspath(parent) if parent else None
-    splitted = split(relpath(file_path, parent_path))
+    splitted = split(posix_rel_path(file_path, parent_path))
 
     if splitted[0]:
         folder_path = splitted[0].split(sep)
@@ -127,3 +128,14 @@ def normalize_file_extension(filename: str) -> str:
     extension_alias = FORMAT_ALIASES.get(extension, extension)
 
     return ".".join([p for p in [filename, extension_alias] if p])
+
+
+def posix_rel_path(end, start) -> str:
+    """
+    Returns a relative path in posix style on any system.
+
+    :param end: The end path.
+    :param start: The start path.
+    :return: The Relative path.
+    """
+    return PurePath(relpath(end, start)).as_posix()
