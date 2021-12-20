@@ -10,8 +10,6 @@ matrix:
     env: TOXENV=py38-core
   - python: 3.9
     env: TOXENV=py39-core
-  - python: 3.10
-    env: TOXENV=py310-core
 install:
 - pip install tox
 
