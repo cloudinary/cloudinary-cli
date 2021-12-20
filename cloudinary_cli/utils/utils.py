@@ -20,6 +20,10 @@ not_callable = ('is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'ca
 BLOCK_SIZE = 65536
 
 
+class ConfigurationError(Exception):
+    pass
+
+
 def etag(fi):
     file_hash = md5()
     with open(fi, 'rb') as f:

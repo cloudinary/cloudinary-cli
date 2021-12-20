@@ -2,6 +2,7 @@ import logging
 from os import path, makedirs
 from webbrowser import open as open_url
 
+import cloudinary
 import requests
 from click import style
 from cloudinary import Search, uploader
@@ -11,7 +12,8 @@ from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.file_utils import normalize_file_extension, posix_rel_path
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, \
-    get_command_params, merge_responses, normalize_list_params
+    get_command_params, merge_responses, normalize_list_params, ConfigurationError
+from utils.config_utils import is_valid_cloudinary_config
 
 PAGINATION_MAX_RESULTS = 500
 
@@ -163,6 +165,9 @@ def handle_api_command(
         optional_parameter_parsed,
         api_instance,
         api_name)
+
+    if not is_valid_cloudinary_config():
+        raise ConfigurationError("No Cloudinary configuration found.")
 
     res = call_api(func, args, kwargs)
 
