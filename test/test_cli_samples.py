@@ -1,5 +1,6 @@
 import unittest
 
+import cloudinary
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
@@ -7,6 +8,10 @@ from cloudinary_cli.cli import cli
 
 class TestCLISamples(unittest.TestCase):
     runner = CliRunner()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cloudinary.reset_config()
 
     def test_sample(self):
         result = self.runner.invoke(cli, 'sample')

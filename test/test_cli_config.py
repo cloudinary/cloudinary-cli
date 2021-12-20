@@ -23,11 +23,15 @@ class TestCLIConfig(unittest.TestCase):
     TEST_CLOUD_NAME = 'test_cloud'
     TEST_CLOUDINARY_URL = 'cloudinary://key:secret@' + TEST_CLOUD_NAME
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls._save_current_config(cls)
+
     def test_cli_config_no_config(self):
         result = self.runner.invoke(cli, ['--config'])
 
         self.assertEqual(2, result.exit_code)
-        self.assertIn('Error: --config option requires an argument', result.output)
+        self.assertIn('requires an argument', result.output)
 
     def test_cli_config_valid_config(self):
         result = self.runner.invoke(cli, ['--config', self.TEST_CLOUDINARY_URL, 'url', 'sample'])

@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+import cloudinary.provisioning
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
@@ -18,7 +19,7 @@ class TestCLIApi(unittest.TestCase):
         mocker.return_value = API_MOCK_RESPONSE
         result = self.runner.invoke(cli, ['ping'])
 
-        self.assertEqual(0, result.exit_code)
+        self.assertEqual(0, result.exit_code, result.output)
         self.assertIn('"foo": "bar"', result.output)
 
     @patch('urllib3.request.RequestMethods.request')
@@ -26,13 +27,14 @@ class TestCLIApi(unittest.TestCase):
         mocker.return_value = UPLOAD_MOCK_RESPONSE
         result = self.runner.invoke(cli, ['upload', 'test_cli_api.py'])
 
-        self.assertEqual(0, result.exit_code)
+        self.assertEqual(0, result.exit_code, result.output)
         self.assertIn('"foo": "bar"', result.output)
 
     @patch('urllib3.request.RequestMethods.request')
+    @unittest.skipUnless(cloudinary.provisioning.account_config().account_id, "requires account_id")
     def test_provisioning(self, mocker):
         mocker.return_value = API_MOCK_RESPONSE
         result = self.runner.invoke(cli, ['provisioning', 'users'])
 
-        self.assertEqual(0, result.exit_code)
+        self.assertEqual(0, result.exit_code, result.output)
         self.assertIn('"foo": "bar"', result.output)
