@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import shutil
 import sys
 
 import click
@@ -12,7 +13,7 @@ from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.config_utils import initialize, load_config, refresh_cloudinary_config
 from cloudinary_cli.utils.utils import log_exception
 
-CONTEXT_SETTINGS = dict(max_content_width=click.get_terminal_size()[0], terminal_width=click.get_terminal_size()[0])
+CONTEXT_SETTINGS = dict(max_content_width=shutil.get_terminal_size()[0], terminal_width=shutil.get_terminal_size()[0])
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
