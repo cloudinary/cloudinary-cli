@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 
@@ -25,7 +26,7 @@ class TestCLIApi(unittest.TestCase):
     @patch('urllib3.request.RequestMethods.request')
     def test_upload(self, mocker):
         mocker.return_value = UPLOAD_MOCK_RESPONSE
-        result = self.runner.invoke(cli, ['upload', 'test_cli_api.py'])
+        result = self.runner.invoke(cli, ['upload', os.path.abspath(__file__)])
 
         self.assertEqual(0, result.exit_code, result.output)
         self.assertIn('"foo": "bar"', result.output)
