@@ -1,0 +1,25 @@
+language: python
+dist: focal
+matrix:
+  include:
+  - python: 3.6
+    env: TOXENV=py36-core
+  - python: 3.7
+    env: TOXENV=py37-core
+  - python: 3.8
+    env: TOXENV=py38-core
+  - python: 3.9
+    env: TOXENV=py39-core
+install:
+- pip install tox
+
+before_script: >
+  export CLOUDINARY_URL=$(bash tools/get_test_cloud.sh);
+  echo cloud_name: "$(echo $CLOUDINARY_URL | cut -d'@' -f2)"
+script:
+- tox -e $TOXENV
+
+notifications:
+  email:
+    recipients:
+      - sdk_developers@cloudinary.com

@@ -23,7 +23,7 @@ setuptools.setup(
         'console_scripts': [
             'cld=cloudinary_cli.cli:main',
             'cloudinary=cloudinary_cli.cli:main',
-            ],
+        ],
     },
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -34,7 +34,7 @@ setuptools.setup(
     license="MIT",
     python_requires='>=3.6.0',
     setup_requires=["pytest-runner"],
-    tests_require=["pytest"],
+    tests_require=["pytest", "mock", "urllib3"],
     install_requires=[
         "cloudinary>=1.25.0",
         "pygments",

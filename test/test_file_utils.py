@@ -1,6 +1,8 @@
 import unittest
+from pathlib import Path
 
 from cloudinary_cli.utils.file_utils import get_destination_folder, walk_dir, normalize_file_extension
+from test.helper_test import RESOURCES_DIR
 
 
 class FileUtilsTest(unittest.TestCase):
@@ -17,7 +19,7 @@ class FileUtilsTest(unittest.TestCase):
     def test_walk_dir(self):
         """ should skip hidden files in the directory """
 
-        test_dir = "test_resources/test_file_utils"
+        test_dir = str(Path.joinpath(RESOURCES_DIR, "test_file_utils"))
 
         self.assertEqual(1, len(walk_dir(test_dir, include_hidden=False)))
         self.assertEqual(4, len(walk_dir(test_dir, include_hidden=True)))

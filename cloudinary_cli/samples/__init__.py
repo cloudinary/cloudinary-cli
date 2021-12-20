@@ -28,7 +28,7 @@ def dog(transformation, open_in_browser):
 
 def _handle_sample_command(source, transformation=None, open_in_browser=False, resource_type="image"):
     cloudinary.config(cloud_name="demo", secure_distribution=None, cname=None)
-    res = cloudinary_url(source, raw_transformation=transformation, resource_type=resource_type)[0]
+    res = cloudinary_url(source, raw_transformation=transformation, resource_type=resource_type)
     print(res)
     if open_in_browser:
         open_url(res)
