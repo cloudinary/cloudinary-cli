@@ -13,7 +13,7 @@ from cloudinary_cli.utils.file_utils import normalize_file_extension, posix_rel_
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, \
     get_command_params, merge_responses, normalize_list_params, ConfigurationError
-from utils.config_utils import is_valid_cloudinary_config
+from cloudinary_cli.utils.config_utils import is_valid_cloudinary_config
 
 PAGINATION_MAX_RESULTS = 500
 
