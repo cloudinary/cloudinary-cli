@@ -35,7 +35,7 @@ jobs:
     - name: Get test cloud
       run: echo "CLOUDINARY_URL=$(bash tools/get_test_cloud.sh)" >> $GITHUB_ENV
     - name: Show test cloud
-      run: echo $CLOUDINARY_URL | cut -d'@' -f2)
+      run: echo $CLOUDINARY_URL | cut -d'@' -f2
     - name: Test with pytest
       run: |
         pytest
