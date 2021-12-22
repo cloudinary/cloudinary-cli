@@ -77,10 +77,13 @@ def migrate_old_config():
     os.remove(OLD_CLOUDINARY_CLI_CONFIG_FILE)
 
 
+def is_valid_cloudinary_config():
+    return None not in [cloudinary.config().cloud_name, cloudinary.config().api_key, cloudinary.config().api_secret]
+
+
 def initialize():
     migrate_old_config()
 
 
 def _verify_file_path(file):
     os.makedirs(os.path.dirname(file), exist_ok=True)
-

@@ -10,8 +10,9 @@ import cloudinary_cli.core
 import cloudinary_cli.modules
 import cloudinary_cli.samples
 from cloudinary_cli.defaults import logger
-from cloudinary_cli.utils.config_utils import initialize, load_config, refresh_cloudinary_config
-from cloudinary_cli.utils.utils import log_exception
+from cloudinary_cli.utils.config_utils import initialize, load_config, refresh_cloudinary_config, \
+    is_valid_cloudinary_config
+from cloudinary_cli.utils.utils import log_exception, ConfigurationError
 
 CONTEXT_SETTINGS = dict(max_content_width=shutil.get_terminal_size()[0], terminal_width=shutil.get_terminal_size()[0])
 
@@ -34,7 +35,7 @@ def cli(config, config_saved):
 
         refresh_cloudinary_config(config[config_saved])
 
-    if cloudinary.config().cloud_name is None:
+    if not is_valid_cloudinary_config():
         logger.warning("No Cloudinary configuration found.")
 
     return 0
@@ -57,8 +58,15 @@ def main():
     initialize()
     try:
         exit_status = cli()
+    except ConfigurationError as e:
+        log_exception(e)
+        exit_status = 1
     except Exception as e:
-        log_exception(e, "Command execution failed")
+        # Improve configuration error handling
+        if "Must supply cloud_name" in str(e):
+            log_exception("No Cloudinary configuration found.")
+        else:
+            log_exception(e, "Command execution failed")
         exit_status = 1
 
     return exit_status
