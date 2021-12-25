@@ -49,6 +49,8 @@ def get_help_str(module, block_list=(), allow_list=()):
         and (f in allow_list or not allow_list),
         module.__dict__.keys()))
 
+    funcs.sort()
+
     template = "{0:" + str(len(max(funcs, key=len)) + 1) + "}({1})"  # Gets the maximal length of the functions' names
 
     return '\n'.join([template.format(f, ", ".join(list(signature(module.__dict__[f]).parameters))) for f in funcs])
