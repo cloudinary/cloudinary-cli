@@ -1,7 +1,7 @@
 import unittest
 
 from cloudinary_cli.utils.utils import parse_option_value, parse_args_kwargs, whitelist_keys, merge_responses, \
-    normalize_list_params
+    normalize_list_params, chunker
 
 
 class UtilsTest(unittest.TestCase):
@@ -89,6 +89,11 @@ class UtilsTest(unittest.TestCase):
     def test_normalize_list_params(self):
         """ should normalize a list of parameters """
         self.assertEqual(["f1", "f2", "f3"], normalize_list_params(["f1,f2", "f3"]))
+
+    def test_chunker(self):
+        animals = ['cat', 'dog', 'rabbit', 'duck', 'bird', 'cow', 'gnu', 'fish']
+        groups = [group for group in chunker(animals, 3)]
+        self.assertListEqual([['cat', 'dog', 'rabbit'], ['duck', 'bird', 'cow'], ['gnu', 'fish']], groups)
 
 
 def _no_args_test_func():

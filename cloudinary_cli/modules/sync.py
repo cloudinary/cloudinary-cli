@@ -1,6 +1,6 @@
 import logging
-from functools import reduce
-from itertools import product
+from collections import Counter
+from itertools import groupby
 from os import path, remove
 
 from click import command, argument, option, style
@@ -10,7 +10,7 @@ from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, downlo
 from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_destination_folder, \
     normalize_file_extension, posix_rel_path
 from cloudinary_cli.utils.json_utils import print_json, read_json_from_file, write_json_to_file
-from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict
+from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict, chunker
 
 _DEFAULT_DELETION_BATCH_SIZE = 30
 _DEFAULT_CONCURRENT_WORKERS = 30
@@ -108,24 +108,10 @@ class SyncDir:
         if self.synced_files_count:
             logger.info(f"Skipping {self.synced_files_count} items")
 
-    def _get_out_of_sync_file_names(self, common_file_names):
-        logger.debug("\nCalculating differences...\n")
-        out_of_sync_file_names = set()
-        for f in common_file_names:
-            local_etag = self.local_files[f]['etag']
-            remote_etag = self.recovered_remote_files[f]['etag']
-            if local_etag != remote_etag:
-                logger.warning(f"'{f}' is out of sync" +
-                               (f" with '{self.diverse_file_names[f]}'" if f in self.diverse_file_names else ""))
-                logger.debug(f"Local etag: {local_etag}. Remote etag: {remote_etag}")
-                out_of_sync_file_names.add(f)
-                continue
-            logger.debug(f"'{f}' is in sync" +
-                         (f" with '{self.diverse_file_names[f]}'" if f in self.diverse_file_names else ""))
-
-        return out_of_sync_file_names
-
     def push(self):
+        """
+        Pushes changes from the local folder to the Cloudinary folder.
+        """
         if not self._handle_unique_remote_files():
             logger.info("Aborting...")
             return False
@@ -160,6 +146,36 @@ class SyncDir:
         if upload_errors:
             raise Exception("Sync did not finish successfully")
 
+    def pull(self):
+        """
+        Pulls changes from the Cloudinary folder to the local folder.
+        """
+        download_results = {}
+        download_errors = {}
+        if not self._handle_unique_local_files():
+            return False
+
+        files_to_pull = self.unique_remote_file_names | self.out_of_sync_remote_file_names
+
+        if not files_to_pull:
+            return True
+
+        logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
+        downloads = []
+        for file in files_to_pull:
+            remote_file = self.remote_files[file]
+            local_path = path.abspath(path.join(self.local_dir, file))
+
+            downloads.append((remote_file, local_path, download_results, download_errors))
+
+        try:
+            run_tasks_concurrently(download_file, downloads, self.concurrent_workers)
+        finally:
+            self._print_sync_status(download_results, download_errors)
+
+        if download_errors:
+            raise Exception("Sync did not finish successfully")
+
     def _print_sync_status(self, success, errors):
         logger.info("==Sync Status==")
         logger.info("===============")
@@ -190,6 +206,12 @@ class SyncDir:
                 logger.warning(f"Failed updating '{self.sync_meta_file}' file: {e}")
 
     def _handle_unique_remote_files(self):
+        """
+        Handles remote files (on Cloudinary servers) that do not exist in the local folder.
+        User can decide to keep them or to delete. Optionally user can abort the operation.
+
+        :return: True if successful, otherwise False
+        """
         handled = self._handle_files_deletion(len(self.unique_remote_file_names), "remote")
         if handled is not None:
             return handled
@@ -198,59 +220,51 @@ class SyncDir:
                     f"from Cloudinary folder '{self.user_friendly_remote_dir}'")
         files_to_delete_from_cloudinary = list(map(lambda x: self.remote_files[x], self.unique_remote_file_names))
 
-        for i in product({"upload", "private", "authenticated"}, {"image", "video", "raw"}):
-            batch = list(map(lambda x: x['public_id'],
-                             filter(lambda x: x["type"] == i[0] and x["resource_type"] == i[1],
-                                    files_to_delete_from_cloudinary)))
-            if not len(batch):
-                continue
+        # We group files into batches by resource_type and type to reduce the number of API calls.
+        batches = groupby(files_to_delete_from_cloudinary, lambda file: (file["resource_type"], file["type"]))
+        for attrs, batch_iter in batches:
+            batch = [file["public_id"] for file in batch_iter]
+            logger.info("Deleting {} resources with resource_type '{}' and type '{}'".format(len(batch), *attrs))
 
-            logger.info("Deleting {} resources with type '{}' and resource_type '{}'".format(len(batch), *i))
-            counter = 0
-            while counter * self.deletion_batch_size < len(batch) and len(batch) > 0:
-                counter += 1
-                res = api.delete_resources(
-                    batch[(counter - 1) * self.deletion_batch_size:counter * self.deletion_batch_size], invalidate=True,
-                    resource_type=i[1], type=i[0])
-                num_deleted = reduce(lambda x, y: x + 1 if y == "deleted" else x, res['deleted'].values(), 0)
+            # Each batch is further chunked by a deletion batch size that can be specified by the user.
+            for deletion_batch in chunker(batch, self.deletion_batch_size):
+                res = api.delete_resources(deletion_batch, invalidate=True, resource_type=attrs[0], type=attrs[1])
+                num_deleted = Counter(res['deleted'].values())["deleted"]
                 if self.verbose:
                     print_json(res)
-                if num_deleted != len(batch):
-                    logger.error("Failed deletes:\n{}".format("\n".join(list(
-                        map(lambda x: x[0], filter(lambda x: x[1] != 'deleted', res['deleted'].items()))))))
+                if num_deleted != len(deletion_batch):
+                    # This should not happen in reality, unless some terrible race condition happens with the folder.
+                    failed = [f"{file}: {reason}" for file, reason in res['deleted'].items() if reason != "deleted"]
+                    logger.error("Failed deletes:\n{}".format("\n".join(failed)))
                 else:
                     logger.info(style(f"Deleted {num_deleted} resources", fg="green"))
 
         return True
 
-    def pull(self):
-        download_results = {}
-        download_errors = {}
-        if not self._handle_unique_local_files():
-            return False
+    def _get_out_of_sync_file_names(self, common_file_names):
+        logger.debug("\nCalculating differences...\n")
+        out_of_sync_file_names = set()
+        for f in common_file_names:
+            local_etag = self.local_files[f]['etag']
+            remote_etag = self.recovered_remote_files[f]['etag']
+            if local_etag != remote_etag:
+                logger.warning(f"'{f}' is out of sync" +
+                               (f" with '{self.diverse_file_names[f]}'" if f in self.diverse_file_names else ""))
+                logger.debug(f"Local etag: {local_etag}. Remote etag: {remote_etag}")
+                out_of_sync_file_names.add(f)
+                continue
+            logger.debug(f"'{f}' is in sync" +
+                         (f" with '{self.diverse_file_names[f]}'" if f in self.diverse_file_names else ""))
 
-        files_to_pull = self.unique_remote_file_names | self.out_of_sync_remote_file_names
-
-        if not files_to_pull:
-            return True
-
-        logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
-        downloads = []
-        for file in files_to_pull:
-            remote_file = self.remote_files[file]
-            local_path = path.abspath(path.join(self.local_dir, file))
-
-            downloads.append((remote_file, local_path, download_results, download_errors))
-
-        try:
-            run_tasks_concurrently(download_file, downloads, self.concurrent_workers)
-        finally:
-            self._print_sync_status(download_results, download_errors)
-
-        if download_errors:
-            raise Exception("Sync did not finish successfully")
+        return out_of_sync_file_names
 
     def _handle_unique_local_files(self):
+        """
+        Handles local files that do not exist on the Cloudinary server.
+        User can decide to keep them or to delete. Optionally user can abort the operation.
+
+        :return: True if successful, otherwise False
+        """
         handled = self._handle_files_deletion(len(self.unique_local_file_names), "local")
         if handled is not None:
             return handled

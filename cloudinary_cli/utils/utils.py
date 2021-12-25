@@ -260,3 +260,23 @@ def normalize_list_params(params):
             normalized_params.append(f)
 
     return normalized_params
+
+
+def chunker(seq, size):
+    """
+    Iterates a sequence in chunks of a given size.
+
+    >>> for group in chunker(['cat', 'dog', 'rabbit', 'duck', 'bird', 'cow', 'gnu', 'fish'], 3):
+    >>>    print(group)
+
+    Produces:
+
+    ['cat', 'dog', 'rabbit']
+    ['duck', 'bird', 'cow']
+    ['gnu', 'fish']
+
+    :param seq: The sequence to iterate.
+    :param size: The size of a single chunk.
+    :return: a single chunk
+    """
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
