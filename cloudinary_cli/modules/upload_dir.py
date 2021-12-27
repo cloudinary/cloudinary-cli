@@ -21,7 +21,7 @@ from cloudinary_cli.utils.file_utils import get_destination_folder
              "You can specify a whole path, for example folder1/folder2/folder3. "
              "Any folders that do not exist are automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
-@option("-w", "--concurrent_workers", type=int, default=30, help="Specify number of concurrent network threads.")
+@option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
 def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset,
                concurrent_workers):
     items, skipped = {}, {}

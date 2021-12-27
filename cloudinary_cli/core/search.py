@@ -1,7 +1,5 @@
-from webbrowser import open as open_url
-
 import cloudinary
-from click import command, argument, option
+from click import command, argument, option, launch
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.json_utils import write_json_to_file, print_json
@@ -35,7 +33,7 @@ e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
            auto_paginate, force, filter_fields, json, csv, doc):
     if doc:
-        return open_url("https://cloudinary.com/documentation/search_api")
+        return launch("https://cloudinary.com/documentation/search_api")
 
     fields_to_keep = []
     if filter_fields:

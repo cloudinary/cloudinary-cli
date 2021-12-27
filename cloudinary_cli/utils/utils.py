@@ -8,14 +8,15 @@ from hashlib import md5
 from inspect import signature, getfullargspec
 from multiprocessing import pool
 
+import click
 import cloudinary
-from jinja2 import Environment
+from jinja2 import Environment, FileSystemLoader
 
 from cloudinary_cli.defaults import logger, TEMPLATE_FOLDER
 
 not_callable = ('is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api',
-                'call_metadata_api', 'call_json_api', 'only', 'transformation_string'
-                'account_config', 'reset_config', 'upload_large_part', 'upload_image', 'upload_resource')
+                'call_metadata_api', 'call_json_api', 'only', 'transformation_string', 'account_config',
+                'reset_config', 'upload_large_part', 'upload_image', 'upload_resource')
 
 BLOCK_SIZE = 65536
 
@@ -56,7 +57,7 @@ def get_help_str(module, block_list=(), allow_list=()):
     return '\n'.join([template.format(f, ", ".join(list(signature(module.__dict__[f]).parameters))) for f in funcs])
 
 
-def print_help(api, block_list=not_callable, allow_list=()):
+def print_api_help(api, block_list=not_callable, allow_list=()):
     logger.info(get_help_str(api, block_list=block_list, allow_list=allow_list))
 
 
@@ -70,11 +71,17 @@ def load_template(language, template_name):
     filepath = os.path.join(TEMPLATE_FOLDER, language, template_name)
     try:
         with open(filepath) as f:
-            template = Environment().from_string(f.read())
+            template = Environment(loader=FileSystemLoader(TEMPLATE_FOLDER)).from_string(f.read())
     except IOError:
         logger.error(f"Failed loading template: '{template_name}' for language: '{language}'")
         raise
-    return template.render(**cloudinary.config().__dict__)
+    try:
+        result = template.render(**cloudinary.config().__dict__)
+    except Exception:
+        logger.error(f"Failed rendering template: '{template_name}' for language: '{language}'")
+        raise
+
+    return result
 
 
 def parse_option_value(value):
@@ -198,6 +205,15 @@ def get_command_params(
     }
 
     return func, args, kwargs
+
+
+def print_help_and_exit():
+    """
+    Prints help for the current command and exits.
+    """
+    ctx = click.get_current_context()
+    click.echo(ctx.get_help())
+    ctx.exit()
 
 
 def whitelist_keys(data, keys):

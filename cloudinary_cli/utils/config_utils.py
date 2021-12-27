@@ -53,9 +53,17 @@ def verify_cloudinary_url(cloudinary_url):
 
 
 def show_cloudinary_config(cloudinary_config):
-    obfuscated_config = {k: v if k != "api_secret" else "***************{}".format(v[-4:])
-                         for k, v in cloudinary_config.__dict__.items() if not k.startswith("_")}
-    echo('\n'.join(["{}:\t{}".format(k, v) for k, v in obfuscated_config.items()]))
+    obfuscated_config = {k: v for k, v in cloudinary_config.__dict__.items() if not k.startswith("_")}
+    if "api_secret" in obfuscated_config:
+        api_secret = obfuscated_config["api_secret"]
+        obfuscated_config["api_secret"] = "*" * (len(api_secret) - 4) + f"{api_secret[-4:]}"
+
+    # omit default signature algorithm
+    if obfuscated_config.get("signature_algorithm", None) == cloudinary.utils.SIGNATURE_SHA1:
+        obfuscated_config.pop("signature_algorithm")
+
+    template = "{0:" + str(len(max(obfuscated_config, key=len)) + 1) + "} {1}"  # Gets the maximal length of the keys.
+    echo('\n'.join([template.format(f"{k}:", v) for k, v in obfuscated_config.items()]))
 
 
 def migrate_old_config():
