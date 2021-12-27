@@ -36,3 +36,11 @@ class TestCLI(unittest.TestCase):
 
         self.assertEqual(0, result.exit_code)
         self.assertIn('Usage:', result.output)
+
+    def test_cli_version(self):
+        result = self.runner.invoke(cli, ['--version'])
+
+        self.assertEqual(0, result.exit_code)
+        self.assertIn('Cloudinary CLI', result.output)
+        self.assertIn('Cloudinary SDK', result.output)
+        self.assertIn('Python', result.output)

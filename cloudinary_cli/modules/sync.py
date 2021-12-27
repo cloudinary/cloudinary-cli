@@ -79,12 +79,12 @@ class SyncDir:
         Cloudinary is a very permissive service. When uploading files that contain invalid characters, 
         unicode characters, etc, Cloudinary does the best effort to store those files. 
         
-        Usually Cloudinary sanitizes those file names and strips invalid characters. Although it is good best effort for
-        a general use case, when syncing local folder with Cloudinary, it is not the best option, since directories will
-        be always out-of-sync.
+        Usually Cloudinary sanitizes those file names and strips invalid characters. Although it is a good best effort 
+        for a general use case, when syncing local folder with Cloudinary, it is not the best option, since directories 
+        will be always out-of-sync.
          
         To overcome this limitation, cloudinary-cli keeps .cld-sync hidden file in the sync directory that contains a 
-        mapping of the diverse file names. This file keeps tracking on the files and allows syncing in both directions.
+        mapping of the diverse file names. This file keeps tracking of the files and allows syncing in both directions.
         """
         diverse_file_names = read_json_from_file(self.sync_meta_file, does_not_exist_ok=True)
         self.diverse_file_names = dict(

@@ -3,7 +3,7 @@
 {% block content %}
 from cloudinary import uploader
 
-res = uploader.explcit("sample", **{
+res = uploader.explicit("sample", **{
     "eager": "w_2000"
 })
 

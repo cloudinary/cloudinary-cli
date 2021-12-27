@@ -1,7 +1,5 @@
-from webbrowser import open as open_url
-
 import cloudinary
-from click import command, argument, option
+from click import command, argument, option, launch
 from cloudinary.utils import cloudinary_url
 
 
@@ -31,7 +29,7 @@ def _handle_sample_command(source, transformation=None, open_in_browser=False, r
     res = cloudinary_url(source, raw_transformation=transformation, resource_type=resource_type)
     print(res)
     if open_in_browser:
-        open_url(res)
+        launch(res)
 
 
 commands = [

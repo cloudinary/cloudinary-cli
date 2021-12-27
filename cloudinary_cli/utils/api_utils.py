@@ -1,19 +1,17 @@
 import logging
 from os import path, makedirs
-from webbrowser import open as open_url
 
-import cloudinary
 import requests
-from click import style
+from click import style, launch
 from cloudinary import Search, uploader
 from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
+from cloudinary_cli.utils.config_utils import is_valid_cloudinary_config
 from cloudinary_cli.utils.file_utils import normalize_file_extension, posix_rel_path
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
-from cloudinary_cli.utils.utils import print_help, log_exception, confirm_action, \
-    get_command_params, merge_responses, normalize_list_params, ConfigurationError
-from cloudinary_cli.utils.config_utils import is_valid_cloudinary_config
+from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
+    normalize_list_params, ConfigurationError, print_api_help
 
 PAGINATION_MAX_RESULTS = 500
 
@@ -154,10 +152,10 @@ def handle_api_command(
     Used by Admin and Upload API commands
     """
     if doc:
-        return open_url(doc_url)
+        return launch(doc_url)
 
     if ls or len(params) < 1:
-        return print_help(api_instance)
+        return print_api_help(api_instance)
 
     func, args, kwargs = get_command_params(
         params,

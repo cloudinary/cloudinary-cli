@@ -13,7 +13,7 @@ upload_api.upload = upload
 \b
 Run any methods that can be called through the upload API.
 Format: cld <cli options> uploader <command options> <method> <method parameters>
-\te.g. cld uploader upload http://res.cloudinary.com/demo/image/upload/sample public_id=flowers invalidate=True
+\te.g. cld uploader upload https://res.cloudinary.com/demo/image/upload/sample public_id=flowers invalidate=True
 \b
 \te.g. cld uploader rename flowers secret_flowers to_type=private
 \t      OR

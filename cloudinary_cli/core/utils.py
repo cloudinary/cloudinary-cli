@@ -1,11 +1,9 @@
-from webbrowser import open as open_url
-
-from click import command, argument, option, Choice, echo
+from click import command, argument, option, Choice, echo, launch
 from cloudinary import utils as cld_utils
 
 from cloudinary_cli.core.overrides import cloudinary_url
 from cloudinary_cli.utils.api_utils import handle_command
-from cloudinary_cli.utils.utils import print_help
+from cloudinary_cli.utils.utils import print_api_help
 
 cld_utils.cloudinary_url = cloudinary_url
 
@@ -22,7 +20,7 @@ utils_list = ["api_sign_request", "cloudinary_url", "download_archive_url", "dow
 @option("-ls", "--ls", is_flag=True, help="List all available utility methods.")
 def utils(params, optional_parameter, optional_parameter_parsed, ls):
     if ls or len(params) < 1:
-        return print_help(cld_utils, allow_list=utils_list)
+        return print_api_help(cld_utils, allow_list=utils_list)
 
     echo(handle_command(params, optional_parameter, optional_parameter_parsed, cld_utils, "Utils"))
 
@@ -47,4 +45,4 @@ def url(public_id, transformation, resource_type, delivery_type, open_in_browser
     echo(res)
 
     if open_in_browser:
-        open_url(res)
+        launch(res)
