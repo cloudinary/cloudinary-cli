@@ -1,15 +1,20 @@
+import glob
 from os import getcwd, walk
 from os.path import dirname, split, join as path_join, abspath
+from pathlib import Path
 
 from click import command, argument, option, style
 
 from cloudinary_cli.utils.api_utils import upload_file
 from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_concurrently
-from cloudinary_cli.utils.file_utils import get_destination_folder
+from cloudinary_cli.utils.file_utils import get_destination_folder, is_hidden_path
 
 
 @command("upload_dir", help="""Upload a folder of assets, maintaining the folder structure.""")
 @argument("directory", default=".")
+@option("-g", "--glob-pattern", default="**/*", help="The glob pattern. "
+                                                     "For example use '**/*.jpg' to upload only jpg files.")
+@option("-H", "--include-hidden", is_flag=True, help="Include hidden files.")
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed",
         multiple=True,
@@ -22,10 +27,11 @@ from cloudinary_cli.utils.file_utils import get_destination_folder
              "Any folders that do not exist are automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
-def upload_dir(directory, optional_parameter, optional_parameter_parsed, transformation, folder, preset,
-               concurrent_workers):
+def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, optional_parameter_parsed, transformation,
+               folder, preset, concurrent_workers):
     items, skipped = {}, {}
-    dir_to_upload = abspath(path_join(getcwd(), directory))
+
+    dir_to_upload = Path(path_join(getcwd(), directory))
     logger.info("Uploading directory '{}'".format(dir_to_upload))
     parent = dirname(dir_to_upload)
     options = {
@@ -41,14 +47,12 @@ def upload_dir(directory, optional_parameter, optional_parameter_parsed, transfo
 
     uploads = []
 
-    for root, _, files in walk(dir_to_upload):
-        for fi in files:
-            file_path = abspath(path_join(dir_to_upload, root, fi))
-
-            if split(file_path)[1][0] == ".":
+    for file_path in dir_to_upload.glob(glob_pattern):
+        if file_path.is_file():
+            if not include_hidden and is_hidden_path(file_path):
                 continue
 
-            options = {**options, "folder": get_destination_folder(folder, file_path, parent=parent)}
+            options = {**options, "folder": get_destination_folder(folder, str(file_path), parent=parent)}
             uploads.append((file_path, options, items, skipped))
 
     run_tasks_concurrently(upload_file, uploads, concurrent_workers)

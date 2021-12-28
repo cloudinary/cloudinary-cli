@@ -21,7 +21,18 @@ class TestCLIUploadDir(unittest.TestCase):
         time.sleep(1)
 
     def test_cli_upload_dir(self):
-        result = self.runner.invoke(cli, ['upload_dir', TEST_FILES_DIR, '-f', self.CLD_UPLOAD_DIR])
+        result = self.runner.invoke(cli, ["upload_dir", TEST_FILES_DIR, "-f", self.CLD_UPLOAD_DIR])
 
         self.assertEqual(0, result.exit_code)
         self.assertIn("12 resources uploaded", result.output)
+
+    def test_cli_upload_dir_glob(self):
+        result = self.runner.invoke(cli, ["upload_dir", TEST_FILES_DIR, "-g", "**/*.png", "-f", self.CLD_UPLOAD_DIR])
+
+        self.assertEqual(0, result.exit_code)
+        self.assertIn("1 resources uploaded", result.output)
+
+        result = self.runner.invoke(cli, ["upload_dir", TEST_FILES_DIR, "-g", "**/*.jpg", "-f", self.CLD_UPLOAD_DIR])
+
+        self.assertEqual(0, result.exit_code)
+        self.assertIn("11 resources uploaded", result.output)
