@@ -2,6 +2,7 @@
 import builtins
 import json
 import os
+from collections import OrderedDict
 from csv import DictWriter
 from functools import reduce
 from hashlib import md5
@@ -11,7 +12,7 @@ from multiprocessing import pool
 import click
 import cloudinary
 from jinja2 import Environment, FileSystemLoader
-
+from docstring_parser import parse
 from cloudinary_cli.defaults import logger, TEMPLATE_FOLDER
 
 not_callable = ('is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api',
@@ -41,20 +42,25 @@ def is_builtin_class_instance(obj):
 
 
 def get_help_str(module, block_list=(), allow_list=()):
-    funcs = list(filter(
-        lambda f:
-        callable(module.__dict__[f])
-        and not is_builtin_class_instance(module.__dict__[f])
-        and f[0].islower()
-        and (f not in block_list and block_list)
-        and (f in allow_list or not allow_list),
-        module.__dict__.keys()))
+    funcs = {}
+    for f in module.__dict__.keys():
+        if callable(module.__dict__[f]) \
+                and not is_builtin_class_instance(module.__dict__[f]) \
+                and f[0].islower() \
+                and (f not in block_list and block_list) \
+                and (f in allow_list or not allow_list):
+            funcs[f] = {"params": ", ".join(signature(module.__dict__[f]).parameters),
+                        "desc": parse(module.__dict__[f].__doc__).short_description}
 
-    funcs.sort()
+    funcs = OrderedDict(sorted(funcs.items()))
 
-    template = "{0:" + str(len(max(funcs, key=len)) + 1) + "}({1})"  # Gets the maximal length of the functions' names
+    template = "{0:" + str(len(max(funcs.keys(), key=len)) + 1) + "}({1:30} {2}"  # Gets the max length of the functions' names
 
-    return '\n'.join([template.format(f, ", ".join(list(signature(module.__dict__[f]).parameters))) for f in funcs])
+    return '\n'.join(
+        [
+            template.format(f, p["params"] + ")", p["desc"] if p["desc"] is not None else "")
+            for f, p in funcs.items()
+        ])
 
 
 def print_api_help(api, block_list=not_callable, allow_list=()):

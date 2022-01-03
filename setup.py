@@ -41,7 +41,8 @@ setuptools.setup(
         "jinja2",
         "click",
         "click-log",
-        "requests"
+        "requests",
+        "docstring-parser"
     ],
     include_package_data=True,
     zip_safe=False
