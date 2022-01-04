@@ -1,13 +1,14 @@
 import os
 
-from click import command, argument, echo, option
+from click import argument, echo, option
 
+from cloudinary_cli.cli_group import cli
 from cloudinary_cli.defaults import TEMPLATE_EXTS, TEMPLATE_FOLDER
 from cloudinary_cli.utils.utils import load_template, print_help_and_exit
 
 
-@command("make", short_help="Return template code for implementing the specified Cloudinary widget.",
-         help="""\b
+@cli.command("make", short_help="Return template code for implementing the specified Cloudinary widget.",
+             help="""\b
 Return template code for implementing the specified Cloudinary widget.
 e.g. cld make media library widget
      cld make python find all empty folders
@@ -37,7 +38,14 @@ def make(template, list_languages, list_templates):
                     echo(template_file.name.replace("_", " "))
         return True
 
-    echo(load_template(language, '_'.join(template)))
+    template_result = load_template(language, '_'.join(template))
+
+    if not template_result:
+        return False
+
+    echo(template_result)
+
+    return True
 
 
 def _handle_language_and_template(language_and_template):

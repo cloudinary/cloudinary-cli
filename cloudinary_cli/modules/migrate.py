@@ -1,11 +1,13 @@
+import os
 from os.path import join
 
 from click import command, argument, option
 from cloudinary import api
+from cloudinary.exceptions import Error
 from cloudinary.utils import cloudinary_url
 from requests import head
 
-from cloudinary_cli.utils.utils import logger
+from cloudinary_cli.utils.utils import logger, log_exception
 
 
 @command("migrate",
@@ -17,14 +19,39 @@ from cloudinary_cli.utils.utils import logger
 @option("-d", "--delimiter", default="\n", help="The separator used between the URLs. Default: New line")
 @option("-v", "--verbose", is_flag=True)
 def migrate(upload_mapping, file, delimiter, verbose):
-    with open(file) as f:
-        items = f.read().split(delimiter)
-    mapping = api.upload_mapping(upload_mapping)
-    items = map(lambda x: cloudinary_url(join(mapping['folder'], x[len(mapping['template']):])),
-                filter(lambda x: x != '', items))
-    for i in items:
-        res = head(i)
+    if not os.path.exists(file):
+        logger.error(f"Migration file: '{file}' does not exist")
+        return False
+
+    try:
+        with open(file) as f:
+            migration_files = f.read().split(delimiter)
+    except IOError as e:
+        log_exception(e, f"Failed reading migration file: '{file}'")
+        return False
+
+    try:
+        mapping = api.upload_mapping(upload_mapping)
+    except Error as e:
+        log_exception(e, f"Failed retrieving upload mapping: '{upload_mapping}'")
+        return False
+
+    exit_status = True
+    migration_urls = []
+
+    for migration_file in filter(None, migration_files):  # omit empty lines
+        if not migration_file.startswith(mapping['template']):
+            logger.error(f"Skipping '{migration_file}', it does not belong to the upload mapping")
+            exit_status = False
+            continue
+
+        migration_urls.append(cloudinary_url(join(mapping['folder'], migration_file[len(mapping['template']):])))
+
+    for migration_url in migration_urls:
+        res = head(migration_url)
         if res.status_code != 200:
-            logger.error("Failed uploading asset: " + res.__dict__['headers']['X-Cld-Error'])
+            logger.error(f"Failed uploading {migration_url}: {res.__dict__['headers']['X-Cld-Error']}")
         elif verbose:
-            logger.info("Uploaded {}".format(i))
+            logger.info(f"Uploaded {migration_url}")
+
+    return exit_status

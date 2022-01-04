@@ -75,6 +75,9 @@ def log_exception(e, message=None):
 
 def load_template(language, template_name):
     filepath = os.path.join(TEMPLATE_FOLDER, language, template_name)
+    if not os.path.exists(filepath):
+        logger.error(f"Template: '{template_name}' for language: '{language}' does not exist")
+        return False
     try:
         with open(filepath) as f:
             template = Environment(loader=FileSystemLoader(TEMPLATE_FOLDER)).from_string(f.read())

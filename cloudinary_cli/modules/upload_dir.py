@@ -1,13 +1,12 @@
-import glob
-from os import getcwd, walk
-from os.path import dirname, split, join as path_join, abspath
+from os import getcwd
+from os.path import dirname, join as path_join
 from pathlib import Path
 
 from click import command, argument, option, style
 
 from cloudinary_cli.utils.api_utils import upload_file
-from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_concurrently
 from cloudinary_cli.utils.file_utils import get_destination_folder, is_hidden_path
+from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_concurrently
 
 
 @command("upload_dir", help="""Upload a folder of assets, maintaining the folder structure.""")
@@ -32,7 +31,11 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
     items, skipped = {}, {}
 
     dir_to_upload = Path(path_join(getcwd(), directory))
-    logger.info("Uploading directory '{}'".format(dir_to_upload))
+    if not dir_to_upload.exists():
+        logger.error(f"Directory: {dir_to_upload} does not exist")
+        return False
+
+    logger.info(f"Uploading directory '{dir_to_upload}'")
     parent = dirname(dir_to_upload)
     options = {
         **{k: v for k, v in optional_parameter},
@@ -58,5 +61,9 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
     run_tasks_concurrently(upload_file, uploads, concurrent_workers)
 
     logger.info(style("{} resources uploaded".format(len(items)), fg="green"))
+
     if skipped:
         logger.warn("{} items skipped".format(len(skipped)))
+        return False
+
+    return True
