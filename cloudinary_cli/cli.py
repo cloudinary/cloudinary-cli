@@ -1,51 +1,14 @@
 #!/usr/bin/env python3
-import platform
-import shutil
 import sys
 
-import click
-import click_log
-import cloudinary
+from click import ClickException
 
 import cloudinary_cli.core
 import cloudinary_cli.modules
 import cloudinary_cli.samples
-from cloudinary_cli.defaults import logger
-from cloudinary_cli.utils.config_utils import initialize, load_config, refresh_cloudinary_config, \
-    is_valid_cloudinary_config
+from cloudinary_cli.cli_group import cli
+from cloudinary_cli.utils.config_utils import initialize
 from cloudinary_cli.utils.utils import log_exception, ConfigurationError
-from cloudinary_cli.version import __version__ as cli_version
-
-CONTEXT_SETTINGS = dict(max_content_width=shutil.get_terminal_size()[0], terminal_width=shutil.get_terminal_size()[0])
-
-
-@click.group(context_settings=CONTEXT_SETTINGS)
-@click.help_option()
-@click.version_option(cli_version, prog_name="Cloudinary CLI",
-                      message=f"%(prog)s, version %(version)s\n"
-                              f"Cloudinary SDK, version {cloudinary.VERSION}\n"
-                              f"Python, version {platform.python_version()}")
-@click.option("-c", "--config",
-              help="""Tell the CLI which account to run the command on by specifying an account environment variable."""
-              )
-@click.option("-C", "--config_saved",
-              help="""Tell the CLI which account to run the command on by specifying a saved configuration - see 
-              `config` command.""")
-@click_log.simple_verbosity_option(logger)
-def cli(config, config_saved):
-    if config:
-        refresh_cloudinary_config(config)
-    elif config_saved:
-        config = load_config()
-        if config_saved not in config:
-            raise Exception(f"Config {config_saved} does not exist")
-
-        refresh_cloudinary_config(config[config_saved])
-
-    if not is_valid_cloudinary_config():
-        logger.warning("No Cloudinary configuration found.")
-
-    return 0
 
 
 def import_commands(*command_modules):
@@ -62,21 +25,26 @@ import_commands(
 
 
 def main():
+    exit_status = 1  # very optimistic :)
+
     initialize()
+
     try:
-        exit_status = cli()
+        # we don't use standalone mode to get the return value from the command execution
+        exit_status = cli.main(standalone_mode=False)
+    except ClickException as e:
+        # show usage with error message
+        e.show()
     except ConfigurationError as e:
         log_exception(e)
-        exit_status = 1
     except Exception as e:
         # Improve configuration error handling
         if "Must supply cloud_name" in str(e):
             log_exception("No Cloudinary configuration found.")
         else:
             log_exception(e, "Command execution failed")
-        exit_status = 1
 
-    return exit_status
+    return 0 if exit_status or exit_status is None else 1
 
 
 if __name__ == "__main__":

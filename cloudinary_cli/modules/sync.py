@@ -3,7 +3,7 @@ from collections import Counter
 from itertools import groupby
 from os import path, remove
 
-from click import command, argument, option, style
+from click import command, argument, option, style, UsageError
 from cloudinary import api
 
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file
@@ -35,12 +35,12 @@ _SYNC_META_FILE = '.cld-sync'
 def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent_workers, force, keep_unique,
          deletion_batch_size):
     if push == pull:
-        raise Exception("Please use either the '--push' OR '--pull' options")
+        raise UsageError("Please use either the '--push' OR '--pull' options")
 
     sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
                        deletion_batch_size)
 
-    result = 0
+    result = True
     if push:
         result = sync_dir.push()
     elif pull:
