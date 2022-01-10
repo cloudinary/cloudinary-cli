@@ -44,6 +44,9 @@ def main():
         else:
             log_exception(e, "Command execution failed")
 
+    if type(exit_status) == int:
+        return exit_status
+
     return 0 if exit_status or exit_status is None else 1
 
 
