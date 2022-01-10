@@ -118,7 +118,11 @@ def asset_source(asset_details):
 
 
 def call_api(func, args, kwargs):
-    return func(*args, **kwargs)
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        log_exception(e, f"Failed calling '{func.__name__}' with args: {args} and optional args {kwargs}")
+        raise
 
 
 def handle_command(
@@ -127,11 +131,13 @@ def handle_command(
         optional_parameter_parsed,
         module,
         module_name):
-    func, args, kwargs = get_command_params(params,
-                                            optional_parameter,
-                                            optional_parameter_parsed,
-                                            module,
-                                            module_name)
+    try:
+        func, args, kwargs = get_command_params(params, optional_parameter, optional_parameter_parsed, module,
+                                                module_name)
+    except Exception as e:
+        log_exception(e)
+        return False
+
     return call_api(func, args, kwargs)
 
 
@@ -157,17 +163,20 @@ def handle_api_command(
     if ls or len(params) < 1:
         return print_api_help(api_instance)
 
-    func, args, kwargs = get_command_params(
-        params,
-        optional_parameter,
-        optional_parameter_parsed,
-        api_instance,
-        api_name)
+    try:
+        func, args, kwargs = get_command_params(params, optional_parameter, optional_parameter_parsed, api_instance,
+                                                api_name)
+    except Exception as e:
+        log_exception(e)
+        return False
 
     if not is_valid_cloudinary_config():
         raise ConfigurationError("No Cloudinary configuration found.")
 
-    res = call_api(func, args, kwargs)
+    try:
+        res = call_api(func, args, kwargs)
+    except Exception:
+        return False
 
     if auto_paginate:
         res = handle_auto_pagination(res, func, args, kwargs, force, filter_fields)

@@ -54,7 +54,8 @@ def get_help_str(module, block_list=(), allow_list=()):
 
     funcs = OrderedDict(sorted(funcs.items()))
 
-    template = "{0:" + str(len(max(funcs.keys(), key=len)) + 1) + "}({1:30} {2}"  # Gets the max length of the functions' names
+    # Gets the max length of the functions' names
+    template = "{0:" + str(len(max(funcs.keys(), key=len)) + 1) + "}({1:30} {2}"
 
     return '\n'.join(
         [
@@ -115,7 +116,8 @@ def parse_args_kwargs(func, params):
 
     n_req = n_args - n_defaults
     if len(params) < n_req:
-        raise Exception("Function '{}' requires {} arguments".format(func.__name__, n_req))
+        func_sig = signature(func)
+        raise Exception(f"Function '{func.__name__}{func_sig}' requires {n_req} positional arguments")
     # consume required args
     args = [parse_option_value(p) for p in params[:n_req]]
     kwargs = {}
@@ -205,7 +207,7 @@ def get_command_params(
     if not callable(func):
         raise Exception(f"{params[0]} is not callable.")
 
-    args, kwargs = parse_args_kwargs(func, params[1:]) if len(params) > 1 else ([], {})
+    args, kwargs = parse_args_kwargs(func, params[1:])
 
     kwargs = {
         **kwargs,

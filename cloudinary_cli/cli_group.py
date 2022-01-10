@@ -40,4 +40,4 @@ def cli(config, config_saved):
     if not is_valid_cloudinary_config():
         logger.warning("No Cloudinary configuration found.")
 
-    return 0
+    return True

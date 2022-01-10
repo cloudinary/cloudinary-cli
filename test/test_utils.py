@@ -30,7 +30,7 @@ class UtilsTest(unittest.TestCase):
         self.assertListEqual(["a1", "a2"], args)
         self.assertEqual(0, len(kwargs))
 
-        with self.assertRaisesRegex(Exception, "requires 2 arguments"):
+        with self.assertRaisesRegex(Exception, "requires 2 positional arguments"):
             parse_args_kwargs(_only_args_test_func, ["a1"])
 
         args, kwargs = parse_args_kwargs(_args_kwargs_test_func, ["a1", 'arg2=a2'])

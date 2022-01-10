@@ -22,7 +22,13 @@ def utils(params, optional_parameter, optional_parameter_parsed, ls):
     if ls or len(params) < 1:
         return print_api_help(cld_utils, allow_list=utils_list)
 
-    echo(handle_command(params, optional_parameter, optional_parameter_parsed, cld_utils, "Utils"))
+    res = handle_command(params, optional_parameter, optional_parameter_parsed, cld_utils, "Utils")
+    if not res:
+        return False
+
+    echo(res)
+
+    return True
 
 
 @command("url", help="Generate a Cloudinary URL, which you can optionally open in your browser.")
