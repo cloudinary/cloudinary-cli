@@ -1,3 +1,25 @@
+1.5.0 / 2022-01-20
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for glob patterns in `upload_dir`
+  * Bump `pycloudinary` to `1.28.1`
+  * Improve API documentation
+  
+Other Changes
+-------------
+
+  * Improve error handling of the API commands
+  * Improve error handling of CLI commands
+  * Fix deprecation warning
+  * Improve error handling of missing configuration
+  * Refactor `sync` command
+  * Sort commands in help strings
+  * Normalize CLI options
+  * Add unit tests
+
 1.4.6 / 2021-11-18
 ==================
 
