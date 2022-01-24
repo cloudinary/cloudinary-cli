@@ -21,7 +21,7 @@ def config(new, ls, show, rm, from_url):
         config_name, cloudinary_url = new or [None, from_url]
 
         if not verify_cloudinary_url(cloudinary_url):
-            return 1
+            return False
 
         config_name = config_name or cloudinary.config().cloud_name
 
@@ -44,6 +44,7 @@ def config(new, ls, show, rm, from_url):
         config_obj = cloudinary.Config()
         # noinspection PyProtectedMember
         config_obj._setup_from_parsed_url(config_obj._parse_cloudinary_url(load_config()[show]))
-        show_cloudinary_config(config_obj)
+
+        return show_cloudinary_config(config_obj)
     else:
-        show_cloudinary_config(cloudinary.config())
+        return show_cloudinary_config(cloudinary.config())
