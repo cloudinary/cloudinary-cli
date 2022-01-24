@@ -23,6 +23,7 @@ class TestCLIConfig(unittest.TestCase):
     TEST_CLOUD_NAME = 'test_cloud'
     TEST_CLOUDINARY_URL = 'cloudinary://key:secret@' + TEST_CLOUD_NAME
     INVALID_CLOUDINARY_URL = 'cloudinary://key:secret@'
+    EMPTY_CLOUDINARY_URL = 'cloudinary://'
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -84,6 +85,16 @@ class TestCLIConfig(unittest.TestCase):
 
         for value in ['cloud_name', 'api_key', 'api_secret', self.REAL_CLOUD_NAME]:
             self.assertIn(value, result.output)
+
+    @unittest.skipUnless(cloudinary.config().api_secret, "Requires api_key/api_secret")
+    def test_cli_config_show_default_no_config(self):
+        self.runner.invoke(cli, ['config', '--from_url', self.EMPTY_CLOUDINARY_URL])
+
+        result = self.runner.invoke(cli, ['config'])
+
+        self.assertEqual(1, result.exit_code)
+
+        self.assertIn("No Cloudinary configuration found", result.output)
 
     def test_cli_config_show_non_existent(self):
         result = self.runner.invoke(cli, ['config', '--show', self.TEST_CLOUD_NAME])
