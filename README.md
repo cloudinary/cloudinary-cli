@@ -1,3 +1,7 @@
+[![Build Status](https://app.travis-ci.com/cloudinary/cloudinary-cli.svg)](https://app.travis-ci.com/cloudinary/cloudinary-cli)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/cloudinary-cli.svg)](https://pypistats.org/packages/cloudinary-cli)
+[![PyPI License](https://img.shields.io/pypi/l/cloudinary-cli.svg)](LICENSE)
+
 # Cloudinary CLI
 
 ## Features
