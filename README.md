@@ -32,6 +32,8 @@ _**Note:** you can copy and paste your account environment variable from the Acc
     api_secret:     ***************<LAST_4_DIGITS>
     private_cdn:    <True|False>
     ```
+    
+    If you get an error message when running `cld config`, you may need to add your Python installation to your $PATH. To do so, you can run `PATH="$PATH:/Library/Python/Versions/3.8/bin"` in your terminal, and add `export PATH="$PATH:/Library/Python/Versions/3.8/bin"` to your `/.bash_profile` or `~/.zshrc`.
 
 ## Quickstart
 
