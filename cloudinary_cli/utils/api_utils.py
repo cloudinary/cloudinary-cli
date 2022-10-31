@@ -4,7 +4,6 @@ from os import path, makedirs
 import requests
 from click import style, launch
 from cloudinary import Search, uploader
-from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.config_utils import is_valid_cloudinary_config
@@ -39,6 +38,7 @@ def query_cld_folder(folder):
                 "format": asset['format'],
                 "etag": asset.get('etag', '0'),
                 "relative_path": rel_path,  # save for inner use
+                "secure_url": asset['secure_url']
             }
         # use := when switch to python 3.8
         next_cursor = res.get('next_cursor')
@@ -72,11 +72,7 @@ def download_file(remote_file, local_path, downloaded=None, failed=None):
     failed = failed if failed is not None else {}
     makedirs(path.dirname(local_path), exist_ok=True)
 
-    sign_url = True if remote_file['type'] in ("private", "authenticated") else False
-
-    download_url = cloudinary_url(asset_source(remote_file), resource_type=remote_file['resource_type'],
-                                  type=remote_file['type'], sign_url=sign_url)[0]
-
+    download_url = remote_file['secure_url']
     result = requests.get(download_url)
 
     if result.status_code != 200:
