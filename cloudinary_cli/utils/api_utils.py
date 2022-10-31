@@ -73,7 +73,10 @@ def download_file(remote_file, local_path, downloaded=None, failed=None):
     failed = failed if failed is not None else {}
     makedirs(path.dirname(local_path), exist_ok=True)
 
-    sign_url = True if remote_file['type'] in ("private", "authenticated") or remote_file["access_mode"] == "authenticated" else False
+    if remote_file['type'] in ("private", "authenticated") or remote_file['access_mode'] == "authenticated":
+        sign_url = True
+    else:
+        sign_url = False
 
     download_url = cloudinary_url(asset_source(remote_file), resource_type=remote_file['resource_type'],
                                   type=remote_file['type'], sign_url=sign_url)[0]
