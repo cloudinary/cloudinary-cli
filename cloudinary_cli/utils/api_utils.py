@@ -39,6 +39,7 @@ def query_cld_folder(folder):
                 "format": asset['format'],
                 "etag": asset.get('etag', '0'),
                 "relative_path": rel_path,  # save for inner use
+                "access_mode": asset.get('access_mode', 'public'),
             }
         # use := when switch to python 3.8
         next_cursor = res.get('next_cursor')
@@ -72,7 +73,10 @@ def download_file(remote_file, local_path, downloaded=None, failed=None):
     failed = failed if failed is not None else {}
     makedirs(path.dirname(local_path), exist_ok=True)
 
-    sign_url = True if remote_file['type'] in ("private", "authenticated") else False
+    if remote_file['type'] in ("private", "authenticated") or remote_file['access_mode'] == "authenticated":
+        sign_url = True
+    else:
+        sign_url = False
 
     download_url = cloudinary_url(asset_source(remote_file), resource_type=remote_file['resource_type'],
                                   type=remote_file['type'], sign_url=sign_url)[0]
