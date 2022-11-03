@@ -1,3 +1,9 @@
+1.5.1 / 2022-11-03
+==================
+
+  * Fix `sync` for files with `authenticated` access mode
+  * Fix no configuration error message
+
 1.5.0 / 2022-01-20
 ==================
 
