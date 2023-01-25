@@ -25,12 +25,14 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
              "You can specify a whole path, for example folder1/folder2/folder3. "
              "Any folders that do not exist are automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
-@option("-c", "--directory-contents-only", is_flag=True, help="Avoid creating the directory as a subfolder of the "
-                                                              "--(f)older in Cloudinary. This will only upload the "
-                                                              "contents of the directory argument.")
+@option(" /-P", "--use-parent-dir/--dont-use-parent-dir",
+        default=True,
+        help="If \"--use-parent-dir\" is set, default behavior, the parent directory would be created as a subfolder of"
+             "the --(f)older in Cloudinary. "
+             "If \"--dont-use-parent-dir\" is set, only upload the contents of the directory argument.")
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
 def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, optional_parameter_parsed, transformation,
-               folder, preset, concurrent_workers, directory_contents_only):
+               folder, preset, concurrent_workers, use_parent_dir):
     items, skipped = {}, {}
 
     dir_to_upload = Path(path_join(getcwd(), directory))
@@ -58,10 +60,10 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
             if not include_hidden and is_hidden_path(file_path):
                 continue
 
-            if directory_contents_only:
-                destination_folder = get_destination_folder(folder, str(file_path))
-            else:
+            if use_parent_dir:
                 destination_folder = get_destination_folder(folder, str(file_path), parent=parent)
+            else:
+                destination_folder = get_destination_folder(folder, str(file_path))
 
             options = {**options, "folder": destination_folder}
             uploads.append((file_path, options, items, skipped))
