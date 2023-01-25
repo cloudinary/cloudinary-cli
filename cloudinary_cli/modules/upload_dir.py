@@ -40,8 +40,13 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
         logger.error(f"Directory: {dir_to_upload} does not exist")
         return False
 
-    logger.info(f"Uploading directory '{dir_to_upload}'")
-    parent = dirname(dir_to_upload)
+    if use_parent_dir:
+        logger.info(f"Uploading directory '{dir_to_upload}'")
+        parent = dirname(dir_to_upload)
+    else:
+        logger.info(f"Uploading contents of directory '{dir_to_upload}'")
+        parent = dir_to_upload
+
     options = {
         **{k: v for k, v in optional_parameter},
         **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
@@ -60,10 +65,7 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
             if not include_hidden and is_hidden_path(file_path):
                 continue
 
-            if use_parent_dir:
-                destination_folder = get_destination_folder(folder, str(file_path), parent=parent)
-            else:
-                destination_folder = get_destination_folder(folder, str(file_path))
+            destination_folder = get_destination_folder(folder, str(file_path), parent=parent)
 
             options = {**options, "folder": destination_folder}
             uploads.append((file_path, options, items, skipped))
