@@ -65,9 +65,7 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
             if not include_hidden and is_hidden_path(file_path):
                 continue
 
-            destination_folder = get_destination_folder(folder, str(file_path), parent=parent)
-
-            options = {**options, "folder": destination_folder}
+            options = {**options, "folder": get_destination_folder(folder, str(file_path), parent=parent)}
             uploads.append((file_path, options, items, skipped))
 
     run_tasks_concurrently(upload_file, uploads, concurrent_workers)
