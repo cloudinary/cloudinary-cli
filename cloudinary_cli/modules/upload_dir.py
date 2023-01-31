@@ -25,14 +25,13 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
              "You can specify a whole path, for example folder1/folder2/folder3. "
              "Any folders that do not exist are automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
-@option(" /-P", "--use-parent-dir/--dont-use-parent-dir",
-        default=True,
-        help="If \"--use-parent-dir\" is set, default behavior, the parent directory would be created as a subfolder of"
-             "the --(f)older in Cloudinary. "
-             "If \"--dont-use-parent-dir\" is set, only upload the contents of the directory argument.")
+@option("-e", "--exclude-dir-name", is_flag=True, default=False,
+        help="Exclude the directory name from the folder structure in Cloudinary. "
+             "This avoids creating the parent directory as a sub-folder of the --(f)older in Cloudinary. "
+             "When this option is used the contents of the directory is uploaded instead of the directory itself. ")
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
 def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, optional_parameter_parsed, transformation,
-               folder, preset, concurrent_workers, use_parent_dir):
+               folder, preset, concurrent_workers, exclude_dir_name):
     items, skipped = {}, {}
 
     dir_to_upload = Path(path_join(getcwd(), directory))
@@ -40,12 +39,12 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
         logger.error(f"Directory: {dir_to_upload} does not exist")
         return False
 
-    if use_parent_dir:
-        logger.info(f"Uploading directory '{dir_to_upload}'")
-        parent = dirname(dir_to_upload)
-    else:
+    if exclude_dir_name:
         logger.info(f"Uploading contents of directory '{dir_to_upload}'")
         parent = dir_to_upload
+    else:
+        logger.info(f"Uploading directory '{dir_to_upload}'")
+        parent = dirname(dir_to_upload)
 
     options = {
         **{k: v for k, v in optional_parameter},
