@@ -23,11 +23,11 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
 @option("-f", "--folder", default="",
         help="The Cloudinary folder where you want to upload the assets. "
              "You can specify a whole path, for example folder1/folder2/folder3. "
-             "Any folders that do not exist are automatically created.")
+             "If your product environment uses fixed folder mode, then any folders that do not exist are automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
 @option("-e", "--exclude-dir-name", is_flag=True, default=False,
-        help="Exclude the directory name from the folder structure in Cloudinary. "
-             "This avoids creating the parent directory as a sub-folder of the --(f)older in Cloudinary. "
+        help="Don't include the selected parent directory name in the public ID path of the uploaded files."
+             "This ensures that the public ID paths of the uploaded assets will be directly under the specified --(f)older, avoiding an extraneous level in the path."
              "When this option is used the contents of the directory is uploaded instead of the directory itself. ")
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
 def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, optional_parameter_parsed, transformation,
