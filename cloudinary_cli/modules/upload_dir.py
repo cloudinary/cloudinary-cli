@@ -23,11 +23,15 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
 @option("-f", "--folder", default="",
         help="The Cloudinary folder where you want to upload the assets. "
              "You can specify a whole path, for example folder1/folder2/folder3. "
-             "Any folders that do not exist are automatically created.")
+             "If your product environment uses fixed folder mode, then any folders that do not exist are automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
+@option("-e", "--exclude-dir-name", is_flag=True, default=False,
+        help="Don't include the selected parent directory name in the public ID path of the uploaded files."
+             "This ensures that the public ID paths of the uploaded assets will be directly under the specified --(f)older, avoiding an extraneous level in the path."
+             "When this option is used, the contents of the parent directory are uploaded instead of the parent directory itself and thus the name of the specified parent directory is not included in the pubic ID path of the uploaded assets.")
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
 def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, optional_parameter_parsed, transformation,
-               folder, preset, concurrent_workers):
+               folder, preset, concurrent_workers, exclude_dir_name):
     items, skipped = {}, {}
 
     dir_to_upload = Path(path_join(getcwd(), directory))
@@ -35,8 +39,13 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
         logger.error(f"Directory: {dir_to_upload} does not exist")
         return False
 
-    logger.info(f"Uploading directory '{dir_to_upload}'")
-    parent = dirname(dir_to_upload)
+    if exclude_dir_name:
+        logger.info(f"Uploading contents of directory '{dir_to_upload}'")
+        parent = dir_to_upload
+    else:
+        logger.info(f"Uploading directory '{dir_to_upload}'")
+        parent = dirname(dir_to_upload)
+
     options = {
         **{k: v for k, v in optional_parameter},
         **{k: parse_option_value(v) for k, v in optional_parameter_parsed},

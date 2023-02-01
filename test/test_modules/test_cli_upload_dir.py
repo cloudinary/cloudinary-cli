@@ -36,3 +36,18 @@ class TestCLIUploadDir(unittest.TestCase):
 
         self.assertEqual(0, result.exit_code)
         self.assertIn("11 resources uploaded", result.output)
+
+    def test_upload_dir_without_exclude_dir_name_option(self):
+        result = self.runner.invoke(cli, ["upload_dir", TEST_FILES_DIR, "-f", self.CLD_UPLOAD_DIR])
+
+        self.assertEqual(0, result.exit_code)
+        self.assertIn("12 resources uploaded", result.output)
+        self.assertIn("as " + self.CLD_UPLOAD_DIR + "/test_sync/", result.output)
+
+    def test_upload_dir_with_exclude_dir_name_option(self):
+        result = self.runner.invoke(cli, ["upload_dir", TEST_FILES_DIR, "-e", "-f", self.CLD_UPLOAD_DIR])
+
+        self.assertEqual(0, result.exit_code)
+        self.assertIn("12 resources uploaded", result.output)
+        self.assertIn("as " + self.CLD_UPLOAD_DIR, result.output)
+        self.assertNotIn("as " + self.CLD_UPLOAD_DIR + "/test_sync/", result.output)
