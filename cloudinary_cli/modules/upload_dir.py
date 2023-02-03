@@ -2,7 +2,7 @@ from os import getcwd
 from os.path import dirname, join as path_join
 from pathlib import Path
 
-from click import command, argument, option, style
+from click import command, argument, option, style, launch
 
 from cloudinary_cli.utils.api_utils import upload_file
 from cloudinary_cli.utils.file_utils import get_destination_folder, is_hidden_path
@@ -21,18 +21,24 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
         help="Pass optional parameters as interpreted strings.")
 @option("-t", "--transformation", help="The transformation to apply on all uploads.")
 @option("-f", "--folder", default="",
-        help="The Cloudinary folder where you want to upload the assets. "
-             "You can specify a whole path, for example folder1/folder2/folder3. "
-             "If your product environment uses fixed folder mode, then any folders that do not exist are automatically created.")
+        help="The path where you want to upload the assets. "
+             "The path you specify will be pre-pended to the public IDs of the uploaded assets. "
+             "You can specify a whole path, for example path1/path2/path3. "
+             "If your product environment uses fixed folder mode, then any folders that do not exist are "
+             "automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
 @option("-e", "--exclude-dir-name", is_flag=True, default=False,
-        help="Don't include the selected parent directory name in the public ID path of the uploaded files."
-             "This ensures that the public ID paths of the uploaded assets will be directly under the specified --(f)older, avoiding an extraneous level in the path."
-             "When this option is used, the contents of the parent directory are uploaded instead of the parent directory itself and thus the name of the specified parent directory is not included in the pubic ID path of the uploaded assets.")
+        help="When this option is used, the contents of the parent directory are uploaded instead of the parent "
+             "directory itself and thus the name of the specified parent directory is not included "
+             "in the pubic ID path of the uploaded assets.")
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
+@option("-d", "--doc", is_flag=True, help="Open upload_dir command documentation page.")
 def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, optional_parameter_parsed, transformation,
-               folder, preset, concurrent_workers, exclude_dir_name):
+               folder, preset, concurrent_workers, exclude_dir_name, doc):
     items, skipped = {}, {}
+
+    if doc:
+        return launch("https://cloudinary.com/documentation/cloudinary_cli#upload_dir")
 
     dir_to_upload = Path(path_join(getcwd(), directory))
     if not dir_to_upload.exists():
