@@ -28,8 +28,8 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
              "automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
 @option("-e", "--exclude-dir-name", is_flag=True, default=False,
-        help="When this option is used, the contents of the parent directory are uploaded instead of the parent "
-             "directory itself and thus the name of the specified parent directory is not included "
+        help="When this option is used, the contents of the parent directory are uploaded but not the parent "
+             "directory itself. Thus, the name of the specified parent directory is not included "
              "in the pubic ID path of the uploaded assets.")
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
 @option("-d", "--doc", is_flag=True, help="Open upload_dir command documentation page.")
