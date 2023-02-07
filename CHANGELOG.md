@@ -1,3 +1,11 @@
+1.6.0 / 2023-02-07
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for `--exclude-dir-name` option in `upload_dir`
+
 1.5.1 / 2022-11-03
 ==================
 
