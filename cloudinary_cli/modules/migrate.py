@@ -1,5 +1,4 @@
 import os
-from os.path import join
 
 from click import command, argument, option
 from cloudinary import api
@@ -45,7 +44,7 @@ def migrate(upload_mapping, file, delimiter, verbose):
             exit_status = False
             continue
 
-        migration_urls.append(cloudinary_url(join(mapping['folder'], migration_file[len(mapping['template']):])))
+        migration_urls.append(cloudinary_url('/'.join([mapping['folder'], migration_file[len(mapping['template']):]])))
 
     for migration_url in migration_urls:
         res = head(migration_url)
