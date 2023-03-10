@@ -24,8 +24,7 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
         help="The path where you want to upload the assets. "
              "The path you specify will be pre-pended to the public IDs of the uploaded assets. "
              "You can specify a whole path, for example path1/path2/path3. "
-             "If your product environment uses fixed folder mode, then any folders that do not exist are "
-             "automatically created.")
+             "Any folders that do not exist are automatically created.")
 @option("-p", "--preset", help="The upload preset to use.")
 @option("-e", "--exclude-dir-name", is_flag=True, default=False,
         help="When this option is used, the contents of the parent directory are uploaded but not the parent "
