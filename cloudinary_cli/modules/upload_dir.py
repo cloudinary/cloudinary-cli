@@ -51,15 +51,19 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
         logger.info(f"Uploading directory '{dir_to_upload}'")
         parent = dirname(dir_to_upload)
 
-    options = {
-        **{k: v for k, v in optional_parameter},
-        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
+    defaults = {
         "resource_type": "auto",
         "invalidate": True,
         "unique_filename": False,
         "use_filename": True,
         "raw_transformation": transformation,
         "upload_preset": preset
+    }
+
+    options = {
+        **defaults,
+        **{k: v for k, v in optional_parameter},
+        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
     }
 
     uploads = []
@@ -77,7 +81,7 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
     logger.info(style("{} resources uploaded".format(len(items)), fg="green"))
 
     if skipped:
-        logger.warn("{} items skipped".format(len(skipped)))
+        logger.warning("{} items skipped".format(len(skipped)))
         return False
 
     return True
