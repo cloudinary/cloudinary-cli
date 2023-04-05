@@ -1,3 +1,8 @@
+1.6.2 / 2023-04-05
+==================
+
+  * Fix optional parameters handling in `upload_dir`
+
 1.6.1 / 2023-02-23
 ==================
 
