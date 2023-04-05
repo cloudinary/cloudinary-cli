@@ -157,8 +157,8 @@ def write_json_list_to_csv(json_list, filename, fields_to_keep=()):
 
 
 def run_tasks_concurrently(func, tasks, concurrent_workers):
-    thread_pool = pool.ThreadPool(concurrent_workers)
-    thread_pool.starmap(func, tasks)
+    with pool.ThreadPool(concurrent_workers) as thread_pool:
+        thread_pool.starmap(func, tasks)
 
 
 def confirm_action(message="Continue? (y/N)"):

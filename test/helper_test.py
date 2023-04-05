@@ -1,5 +1,6 @@
 import os
 import random
+import re
 import time
 from functools import wraps
 from pathlib import Path
@@ -37,7 +38,45 @@ def api_response_mock():
 
 
 def uploader_response_mock():
-    return http_response_mock('{"foo":"bar"}')
+    return http_response_mock('''{
+      "public_id": "mocked_file_id.bin",
+      "resource_type": "raw",
+      "type": "upload",
+      "format":"bin",
+      "foo": "bar"
+    }''')
+
+
+def get_request_url(mocker):
+    return mocker.call_args[0][1]
+
+
+def get_params(mocker):
+    """
+    Extracts query parameters from mocked urllib3.request `fields` param.
+    Supports both list and dict values of `fields`. Returns params as dictionary.
+    Supports two list params formats:
+      - {"urls[0]": "http://host1", "urls[1]": "http://host2"}
+      - [("urls[]", "http://host1"), ("urls[]", "http://host2")]
+    In both cases the result would be {"urls": ["http://host1", "http://host2"]}
+    """
+
+    args = mocker.call_args[0]
+    if not args or not args[2]:
+        return {}
+    params = {}
+    reg = re.compile(r'^(.*)\[\d*]$')
+    fields = args[2].items() if isinstance(args[2], dict) else args[2]
+    for k, v in fields:
+        match = reg.match(k)
+        if match:
+            name = match.group(1)
+            if name not in params:
+                params[name] = []
+            params[name].append(v)
+        else:
+            params[k] = v
+    return params
 
 
 def retry_assertion(num_tries=3, delay=3):
