@@ -1,7 +1,7 @@
 import unittest
 
 from cloudinary_cli.utils.utils import parse_option_value, parse_args_kwargs, whitelist_keys, merge_responses, \
-    normalize_list_params, chunker
+    normalize_list_params, chunker, group_params
 
 
 class UtilsTest(unittest.TestCase):
@@ -13,8 +13,14 @@ class UtilsTest(unittest.TestCase):
         self.assertListEqual(["test", "123"], parse_option_value('["test","123"]'))
         self.assertDictEqual({"foo": "bar"}, parse_option_value('{"foo":"bar"}'))
         self.assertDictEqual({"an": "object", "or": "dict"}, parse_option_value('{"an":"object","or":"dict"}'))
-        self.assertListEqual(["this", "will", "be", "read", "as",
-                              "a", "list"], parse_option_value('["this","will","be","read","as","a","list"]'))
+        self.assertListEqual(
+            ["this", "will", "be", "read", "as","a", "list"],
+            parse_option_value('["this","will","be","read","as","a","list"]')
+        )
+        self.assertListEqual(
+            [True, False, 123, '0', ['test', '123']],
+            parse_option_value(["True", "false", "123", "0", '["test","123"]'])
+        )
 
     def test_parse_option_value_converts_int_to_str(self):
         """ should convert a parsed 0 to a str """
@@ -46,6 +52,25 @@ class UtilsTest(unittest.TestCase):
         args, kwargs = parse_args_kwargs(_args_kwargs_test_func, ["a1", "a2"])
         self.assertListEqual(["a1", "a2"], args)
         self.assertEqual(0, len(kwargs))
+
+        # should allow passing positional as optional
+        args, kwargs = parse_args_kwargs(_only_args_test_func, ["a1"], {"arg2": "a2"})
+        self.assertListEqual(["a1"], args)
+        self.assertDictEqual({"arg2": "a2"}, kwargs)
+
+        args, kwargs = parse_args_kwargs(_only_args_test_func, [], {"arg1": "a1", "arg2": "a2"})
+        self.assertEqual(0, len(args))
+        self.assertDictEqual({"arg1": "a1", "arg2": "a2"}, kwargs)
+
+    def test_group_params(self):
+        self.assertDictEqual({}, group_params([]))
+        self.assertDictEqual({"k1": "v1", "k2": "v2"}, group_params([("k1", "v1"), ("k2", "v2")]))
+        self.assertDictEqual({"k1": ["v1", "v2"]}, group_params([("k1", "v1"), ("k1", "v2")]))
+        self.assertDictEqual({"k1": "v1", "k2": ["v2", "v3"]}, group_params([("k1", "v1"), ("k2", "v2"), ("k2", "v3")]))
+        self.assertDictEqual(
+            {"k1": ["v1", "v2", "v3"]},
+            group_params([("k1", "v1")], [("k1", "v2")], [("k1", "v3")])
+        )
 
     def test_whitelist_keys(self):
         """ should whitelist keys correctly """
