@@ -6,7 +6,7 @@ from click import command, argument, option, style, launch
 
 from cloudinary_cli.utils.api_utils import upload_file
 from cloudinary_cli.utils.file_utils import get_destination_folder, is_hidden_path
-from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_concurrently
+from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_concurrently, group_params
 
 
 @command("upload_dir", help="""Upload a folder of assets, maintaining the folder structure.""")
@@ -62,8 +62,7 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
 
     options = {
         **defaults,
-        **{k: v for k, v in optional_parameter},
-        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
+        **group_params(optional_parameter, ((k, parse_option_value(v)) for k, v in optional_parameter_parsed)),
     }
 
     uploads = []

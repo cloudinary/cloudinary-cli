@@ -95,6 +95,9 @@ def load_template(language, template_name):
 
 
 def parse_option_value(value):
+    if isinstance(value, list):
+        return list(map(parse_option_value, value))
+
     if value == "True" or value == "true":
         return True
     elif value == "False" or value == "false":
@@ -109,20 +112,27 @@ def parse_option_value(value):
     return value
 
 
-def parse_args_kwargs(func, params):
+def parse_args_kwargs(func, params=None, kwargs=None):
+    if params is None:
+        params = []
+    if kwargs is None:
+        kwargs = {}
+
     spec = getfullargspec(func)
-    n_args = len(spec.args) if spec.args else 0
-    n_defaults = len(spec.defaults) if spec.defaults else 0
 
-    n_req = n_args - n_defaults
-    if len(params) < n_req:
+    num_args = len(spec.args) if spec.args else 0
+    num_defaults = len(spec.defaults) if spec.defaults else 0
+
+    num_req = num_args - num_defaults
+    num_provided_args = len(params)
+    num_overall_provided = num_provided_args + len([p for p in kwargs.keys() if p in spec.args[num_provided_args:]])
+    if num_overall_provided < num_req:
         func_sig = signature(func)
-        raise Exception(f"Function '{func.__name__}{func_sig}' requires {n_req} positional arguments")
+        raise Exception(f"Function '{func.__name__}{func_sig}' requires {num_req} positional arguments")
     # consume required args
-    args = [parse_option_value(p) for p in params[:n_req]]
-    kwargs = {}
+    args = [parse_option_value(p) for p in params[:num_req]]
 
-    for p in params[n_req:]:
+    for p in params[num_req:]:
         if '=' not in p:
             # named/positional with default value args passed as positional
             args.append(parse_option_value(p))
@@ -207,15 +217,29 @@ def get_command_params(
     if not callable(func):
         raise Exception(f"{params[0]} is not callable.")
 
-    args, kwargs = parse_args_kwargs(func, params[1:])
+    kwargs = group_params(optional_parameter, ((k, parse_option_value(v)) for k, v in optional_parameter_parsed))
 
-    kwargs = {
-        **kwargs,
-        **{k: v for k, v in optional_parameter},
-        **{k: parse_option_value(v) for k, v in optional_parameter_parsed},
-    }
+    args, kwargs = parse_args_kwargs(func, params[1:], kwargs)
 
     return func, args, kwargs
+
+
+def group_params(*params):
+    """
+    Groups parameters (which are passed as list of tuples) by keys. Duplicate keys' values are combined into lists.
+
+    :param params: the list of parameters to group
+    :return: dict
+    """
+    res = {}
+    for param in params:
+        for k, v in param:
+            if k in res:
+                res[k] = (res[k] if isinstance(res[k], list) else [res[k]]) + [v]
+                continue
+            res[k] = v
+
+    return res
 
 
 def print_help_and_exit():
