@@ -27,11 +27,13 @@ e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 @option("-A", "--auto_paginate", is_flag=True, help="Return all results. Will call Admin API multiple times.")
 @option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate.")
 @option("-ff", "--filter_fields", multiple=True, help="Filter fields to return.")
+@option("-t", "--ttl", nargs=1, help="Search URL TTL in seconds.")
+@option("-u", "--url", is_flag=True, help="Build a signed search URL.")
 @option("--json", nargs=1, help="Save JSON output to a file. Usage: --json <filename>")
 @option("--csv", nargs=1, help="Save CSV output to a file. Usage: --csv <filename>")
 @option("-d", "--doc", is_flag=True, help="Open Search API documentation page.")
 def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
-           auto_paginate, force, filter_fields, json, csv, doc):
+           auto_paginate, force, filter_fields, ttl, url, json, csv, doc):
     if doc:
         return launch("https://cloudinary.com/documentation/search_api")
 
@@ -39,26 +41,32 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
     if filter_fields:
         fields_to_keep = tuple(normalize_list_params(filter_fields)) + with_field
 
-    expression = cloudinary.search.Search().expression(" ".join(query))
+    search = cloudinary.search.Search().expression(" ".join(query))
 
     if auto_paginate:
         max_results = DEFAULT_MAX_RESULTS
     if with_field:
         for f in with_field:
-            expression.with_field(f)
+            search.with_field(f)
     if sort_by:
-        expression.sort_by(*sort_by)
+        search.sort_by(*sort_by)
     if aggregate:
-        expression.aggregate(aggregate)
+        search.aggregate(aggregate)
     if next_cursor:
-        expression.next_cursor(next_cursor)
+        search.next_cursor(next_cursor)
+    if ttl:
+        search.ttl(ttl)
 
-    expression.max_results(max_results)
+    search.max_results(max_results)
 
-    res = execute_single_request(expression, fields_to_keep)
+    if url:
+        print(search.to_url())
+        return True
+
+    res = execute_single_request(search, fields_to_keep)
 
     if auto_paginate:
-        res = handle_auto_pagination(res, expression, force, fields_to_keep)
+        res = handle_auto_pagination(res, search, force, fields_to_keep)
 
     print_json(res)
 
