@@ -27,7 +27,7 @@ e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 @option("-A", "--auto_paginate", is_flag=True, help="Return all results. Will call Admin API multiple times.")
 @option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate.")
 @option("-ff", "--filter_fields", multiple=True, help="Filter fields to return.")
-@option("-t", "--ttl", nargs=1, help="Search URL TTL in seconds.")
+@option("-t", "--ttl", nargs=1, default=300, help="Set the Search URL TTL in seconds. Default: 300.")
 @option("-u", "--url", is_flag=True, help="Build a signed search URL.")
 @option("--json", nargs=1, help="Save JSON output to a file. Usage: --json <filename>")
 @option("--csv", nargs=1, help="Save CSV output to a file. Usage: --csv <filename>")
