@@ -1,1 +1,2 @@
 recursive-include cloudinary_cli/templates *
+include requirements.txt
