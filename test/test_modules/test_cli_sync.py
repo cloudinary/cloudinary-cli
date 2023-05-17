@@ -3,11 +3,10 @@ import time
 import unittest
 from pathlib import Path
 
-import cloudinary.api
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
-from test.helper_test import unique_suffix, RESOURCES_DIR, TEST_FILES_DIR, delete_cld_folder_if_exists
+from test.helper_test import unique_suffix, RESOURCES_DIR, TEST_FILES_DIR, delete_cld_folder_if_exists, retry_assertion
 
 
 class TestCLISync(unittest.TestCase):
@@ -75,6 +74,7 @@ class TestCLISync(unittest.TestCase):
         self.assertIn("Synced | 12", result.output)
         self.assertIn("Done!", result.output)
 
+    @retry_assertion
     def test_cli_sync_pull_twice(self):
         self._upload_sync_files(TEST_FILES_DIR)
 
