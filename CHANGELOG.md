@@ -1,3 +1,17 @@
+1.7.0 / 2023-05-17
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for Search URL
+
+Other Changes
+-------------
+
+  * Bump `pycloudinary` to `1.33.0`
+  * Allow passing positional parameters as optional
+
 1.6.2 / 2023-04-05
 ==================
 
