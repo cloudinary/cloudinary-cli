@@ -27,6 +27,7 @@ class TestCLISync(unittest.TestCase):
         time.sleep(1)
         shutil.rmtree(self.LOCAL_SYNC_PULL_DIR, ignore_errors=True)
 
+    @retry_assertion
     def test_cli_sync_push(self):
         result = self.runner.invoke(cli, ['sync', '--push', '-F', TEST_FILES_DIR, self.CLD_SYNC_DIR])
 
@@ -34,6 +35,7 @@ class TestCLISync(unittest.TestCase):
         self.assertIn("Synced | 12", result.output)
         self.assertIn("Done!", result.output)
 
+    @retry_assertion
     def test_cli_sync_push_twice(self):
         self._upload_sync_files(TEST_FILES_DIR)
 
@@ -46,6 +48,7 @@ class TestCLISync(unittest.TestCase):
         self.assertIn("Skipping 12 items", result.output)
         self.assertIn("Done!", result.output)
 
+    @retry_assertion
     def test_cli_sync_push_out_of_sync(self):
         self._upload_sync_files(TEST_FILES_DIR)
 
@@ -62,6 +65,7 @@ class TestCLISync(unittest.TestCase):
         self.assertIn("Synced | 1", result.output)
         self.assertIn("Done!", result.output)
 
+    @retry_assertion
     def test_cli_sync_pull(self):
         self._upload_sync_files(TEST_FILES_DIR)
 
@@ -92,6 +96,7 @@ class TestCLISync(unittest.TestCase):
         self.assertIn("Skipping 12 items", result.output)
         self.assertIn("Done!", result.output)
 
+    @retry_assertion
     def test_cli_sync_pull_out_of_sync(self):
         self._upload_sync_files(TEST_FILES_DIR)
 
