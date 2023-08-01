@@ -145,6 +145,29 @@ def handle_command(
     return call_api(func, args, kwargs)
 
 
+def handle_module_command(params, optional_parameter,
+                          optional_parameter_parsed, api_instance,
+                          api_name, auto_paginate, force):
+    try:
+        func, args, kwargs = get_command_params(params, optional_parameter,
+                                                optional_parameter_parsed,
+                                                api_instance, api_name)
+    except Exception as e:
+        log_exception(e)
+        return False
+
+    try:
+        res = call_api(func, args, kwargs)
+    except Exception:
+        return False
+
+    if auto_paginate:
+        res = handle_auto_pagination(res, func, args, kwargs,
+                                     force=force, filter_fields=None)
+
+    return res
+
+
 def handle_api_command(
         params,
         optional_parameter,
