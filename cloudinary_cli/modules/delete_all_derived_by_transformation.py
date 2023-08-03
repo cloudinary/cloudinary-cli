@@ -11,19 +11,19 @@ from datetime import datetime
 DEFAULT_MAX_RESULTS = 500
 
 curr_dt = datetime.today().strftime('%Y-%m-%d')
-filename = f'delete_derived_public_ids_{curr_dt}.log'
+filename = f'regenerate_derived_public_ids_{curr_dt}.log'
 logging.basicConfig(filename=filename,
                     level=logging.INFO,
                     format='%(asctime)s %(levelname)s - %(message)s')
 
 
-@command("delete_all_derived_by_transformation",
-         short_help="""Delete all derived of a transformation.""",
+@command("regenerate_all_derived_by_transformation",
+         short_help="""Regenerate all derived of a transformation.""",
          help="""
 \b
-Delete all derived versions of a named transformations.
-Format: cld delete_all_derived_by_transformation <transformation_name> <command options>
-e.g. cld delete_all_derived_by_transformation t_named -A -ea -enu http://mywebhook.com
+Regenerate all derived versions of a named transformations.
+Format: cld regenerate_all_derived_by_transformation <transformation_name> <command options>
+e.g. cld regenerate_all_derived_by_transformation t_named -A -ea -enu http://mywebhook.com
 """)
 @argument("trans_str")
 @option("-enu", "--eager_notification_url", help="Webhook notification URL.")
@@ -38,7 +38,7 @@ e.g. cld delete_all_derived_by_transformation t_named -A -ea -enu http://mywebho
 @option("-n", "--max_results", nargs=1, default=10,
         help="""The maximum number of derived results to return.
               Default: 10, maximum: 500.""")
-def delete_all_derived_by_transformation(trans_str, eager_notification_url,
+def regenerate_all_derived_by_transformation(trans_str, eager_notification_url,
                                          eager_async, auto_paginate, force,
                                          force_initial, max_results):
     if not any(trans_str):
@@ -48,7 +48,7 @@ def delete_all_derived_by_transformation(trans_str, eager_notification_url,
         if not confirm_action(
             f"Running this module will explicity "
             f"re-generate all the derived versions "
-            f"which will cause an increase in your trasnformation costs "
+            f"which will cause an increase in your transformation costs "
             f"based on the number of derived re-generated.\n"
             f"Continue? (y/N)"):
             logger.info("Stopping.")
@@ -86,7 +86,7 @@ def delete_all_derived_by_transformation(trans_str, eager_notification_url,
 
             try:
                 exp_res = handle_command(params, (), (), module=upload_api,
-                                         module_name="delete_all_derived_by_transformation")
+                                         module_name="regenerate_all_derived_by_transformation")
             except Exception as e:
                 error_data = (f'public_id={public_id}, type={delivery_type}, '
                               f'resource_type={res_type}: {e}')
