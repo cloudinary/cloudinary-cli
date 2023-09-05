@@ -55,16 +55,17 @@ def regen_derived(trans_str, eager_notification_url,
         force = True
 
     params = ('transformation', trans_str, f'max_results={max_results}')
-    res = handle_api_command(params, (), (), None, None, None, doc_url="",
-                             api_instance=api, api_name="admin",
-                             auto_paginate=auto_paginate, force=force,
-                             return_data=True)
-    derived_resources = res.get('derived')
+    trans_details = handle_api_command(params, (), (), None, None, None,
+                                       doc_url="", api_instance=api,
+                                       api_name="admin",
+                                       auto_paginate=auto_paginate,
+                                       force=force, return_data=True)
+    derived_resources = trans_details.get('derived')
     if not derived_resources:
         logger.info("No derived resources using this transformation.")
         exit()
 
-    is_named = res.get('named')
+    is_named = trans_details.get('named')
     if is_named:
         eager_trans = normalise_trans_name(trans_str)
 
