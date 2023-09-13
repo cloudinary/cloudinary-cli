@@ -7,6 +7,7 @@ from cloudinary_cli.defaults import logger
 
 DEFAULT_MAX_RESULTS = 500
 
+
 @command("regen_derived",
          short_help="""Regenerate all derived of a transformation.""",
          help="""
@@ -22,7 +23,7 @@ e.g. cld regen_derived t_named -A -ea -enu http://mywebhook.com
 @option("-A", "--auto_paginate", is_flag=True, default=False,
         help="Will auto paginate Admin API calls.")
 @option("-F", "--force", is_flag=True,
-        help="Skip confirmation when running --auto-paginate/-A.")
+        help="Skip initial and auto_paginate confirmation.")
 @option("-n", "--max_results", nargs=1, default=10,
         help="""The maximum number of derived results to return.
               Default: 10, maximum: 500.""")
@@ -66,38 +67,31 @@ def regen_derived(trans_str, eager_notification_url,
         exit()
 
     is_named = trans_details.get('named')
-    if is_named:
-        eager_trans = normalise_trans_name(trans_str)
+    eager_trans = normalise_trans_name(trans_str) if is_named else trans_str
 
     progress_msg = f"Regenerating {len(derived_resources)} derived version(s)"
     if eager_async:
-        logger.info(f"{progress_msg} "
-                    f"with eager_async={eager_async}...")
-    else:
-        logger.info(f"{progress_msg}...")
+        progress_msg += f" with eager_async={eager_async}"
+    logger.info(f"{progress_msg}...")
 
     regen_conc_list = []
     for derived in derived_resources:
         public_id = derived.get('public_id')
         delivery_type = derived.get('type')
         res_type = derived.get('resource_type')
-        options = {"type": delivery_type, "resource_type": res_type,
-                   "eager": eager_trans, "eager_async": eager_async,
-                   "eager_notification_url": eager_notification_url,
-                   "overwrite": True, "invalidate": True}
-        regen_conc_list.append((public_id, options))
+        regen_conc_list.append((public_id, delivery_type, res_type,
+                                eager_trans, eager_async,
+                                eager_notification_url))
 
     run_tasks_concurrently(regen_derived_version, regen_conc_list,
                            concurrent_workers)
-
-    logger.info("Regen complete. It may take up to 10 mins "
+    complete_msg = ('All derived sent for processing' 
+                    if eager_async else 'Regen complete')
+    logger.info(f"{complete_msg}. It may take up to 10 mins "
                 "to see the changes. Please contact support "
                 "if you still see the old media.")
     return True
 
 
 def normalise_trans_name(trans_name):
-    normalised_trans_name = trans_name
-    if not normalised_trans_name.startswith('t_'):
-        normalised_trans_name = 't_' + normalised_trans_name
-    return normalised_trans_name
+    return trans_name if trans_name.startswith('t_') else 't_' + trans_name

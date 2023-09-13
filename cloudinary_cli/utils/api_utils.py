@@ -48,14 +48,17 @@ def query_cld_folder(folder):
     return files
 
 
-def regen_derived_version(public_id, options):
+def regen_derived_version(public_id, delivery_type, res_type,
+                          eager_trans, eager_async,
+                          eager_notification_url):
+    options = {"type": delivery_type, "resource_type": res_type,
+                "eager": eager_trans, "eager_async": eager_async,
+                "eager_notification_url": eager_notification_url,
+                "overwrite": True, "invalidate": True}
     try:
         exp_res = uploader.explicit(public_id, **options)
         derived_url = f'{exp_res.get("eager")[0].get("secure_url")}'
-        if (options.get('eager_async')):
-            msg = f'Processing {derived_url}'
-        else:
-            msg = f'Regenerated {derived_url}'
+        msg = ('Processing' if options.get('eager_async') else 'Regenerated') + f' {derived_url}'
         logger.info(style(msg, fg="green"))
     except Exception as e:
         error_msg = (f"Failed to regenerate {public_id} of type: "
@@ -205,8 +208,8 @@ def handle_api_command(
 
     if return_data:
         return res
-    else:
-        print_json(res)
+
+    print_json(res)
 
     if save:
         write_json_to_file(res, save)
