@@ -9,11 +9,13 @@ DEFAULT_MAX_RESULTS = 500
 
 
 @command("regen_derived",
-         short_help="""Regenerate all derived of a transformation.""",
+         short_help="""Regenerate all derived assets pertaining \
+         to a named transformation, or transformation string.""",
          help="""
 \b
-Regenerate all derived versions of a named transformations.
-Format: cld regen_dervied <transformation_name> <command options>
+Regenerate all derived assets pertaining to a specific named transformation, or transformation string.
+Use this after updating a named transformation to invalidate and repopulate the cache with up-to-date versions of the assets.
+Format: cld regen_derived <transformation_name> <command options>
 e.g. cld regen_derived t_named -A -ea -enu http://mywebhook.com
 """)
 @argument("trans_str")
@@ -21,11 +23,11 @@ e.g. cld regen_derived t_named -A -ea -enu http://mywebhook.com
 @option("-ea", "--eager_async", is_flag=True, default=False,
         help="Generate asynchronously.")
 @option("-A", "--auto_paginate", is_flag=True, default=False,
-        help="Will auto paginate Admin API calls.")
+        help="Auto-paginate Admin API calls.")
 @option("-F", "--force", is_flag=True,
-        help="Skip initial and auto_paginate confirmation.")
+        help="Skip initial and auto-paginate confirmation.")
 @option("-n", "--max_results", nargs=1, default=10,
-        help="""The maximum number of derived results to return.
+        help="""The maximum number of results to return.
               Default: 10, maximum: 500.""")
 @option("-w", "--concurrent_workers", type=int, default=30,
         help="Specify the number of concurrent network threads.")
@@ -39,11 +41,11 @@ def regen_derived(trans_str, eager_notification_url,
     if not force:
         if not confirm_action(
             f"Running this module will explicity "
-            f"re-generate all the related derived versions "
+            f"re-generate all the related derived assets "
             f"which will cause an increase in your transformation costs "
-            f"based on the number of derived re-generated.\n"
-            f"If running in auto_paginate (-A) mode, "
-            f"multiple Admin API (rate-limited) calls will be used as well.\n"
+            f"based on the number of derived assets re-generated.\n"
+            f"If running in auto-paginate (-A) mode, "
+            f"multiple Admin API (rate-limited) calls will be made.\n"
             f"Continue? (y/N)"):
             logger.info("Stopping.")
             exit()
@@ -63,13 +65,13 @@ def regen_derived(trans_str, eager_notification_url,
                                        force=force, return_data=True)
     derived_resources = trans_details.get('derived')
     if not derived_resources:
-        logger.info("No derived resources using this transformation.")
+        logger.info("No derived assets are using this transformation.")
         exit()
 
     is_named = trans_details.get('named')
     eager_trans = normalise_trans_name(trans_str) if is_named else trans_str
 
-    progress_msg = f"Regenerating {len(derived_resources)} derived version(s)"
+    progress_msg = f"Regenerating {len(derived_resources)} derived asset(s)"
     if eager_async:
         progress_msg += f" with eager_async={eager_async}"
     logger.info(f"{progress_msg}...")
@@ -85,8 +87,8 @@ def regen_derived(trans_str, eager_notification_url,
 
     run_tasks_concurrently(regen_derived_version, regen_conc_list,
                            concurrent_workers)
-    complete_msg = ('All derived sent for processing' 
-                    if eager_async else 'Regen complete')
+    complete_msg = ('Regeneration in progress'
+                    if eager_async else 'Regeneration complete')
     logger.info(f"{complete_msg}. It may take up to 10 mins "
                 "to see the changes. Please contact support "
                 "if you still see the old media.")
