@@ -1,3 +1,11 @@
+1.8.1 / 2023-09-19
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for `regen_derived` command
+
 1.7.1 / 2023-05-17
 ==================
 
