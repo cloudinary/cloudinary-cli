@@ -48,6 +48,25 @@ def query_cld_folder(folder):
     return files
 
 
+def regen_derived_version(public_id, delivery_type, res_type,
+                          eager_trans, eager_async,
+                          eager_notification_url):
+    options = {"type": delivery_type, "resource_type": res_type,
+                "eager": eager_trans, "eager_async": eager_async,
+                "eager_notification_url": eager_notification_url,
+                "overwrite": True, "invalidate": True}
+    try:
+        exp_res = uploader.explicit(public_id, **options)
+        derived_url = f'{exp_res.get("eager")[0].get("secure_url")}'
+        msg = ('Processing' if options.get('eager_async') else 'Regenerated') + f' {derived_url}'
+        logger.info(style(msg, fg="green"))
+    except Exception as e:
+        error_msg = (f"Failed to regenerate {public_id} of type: "
+                     f"{options.get('type')} and resource_type: "
+                     f"{options.get('resource_type')}")
+        log_exception(e, error_msg)
+
+
 def upload_file(file_path, options, uploaded=None, failed=None):
     uploaded = uploaded if uploaded is not None else {}
     failed = failed if failed is not None else {}
@@ -157,10 +176,12 @@ def handle_api_command(
         api_name,
         auto_paginate=False,
         force=False,
-        filter_fields=None):
+        filter_fields=None,
+        return_data=False):
     """
     Used by Admin and Upload API commands
     """
+
     if doc:
         return launch(doc_url)
 
@@ -184,6 +205,9 @@ def handle_api_command(
 
     if auto_paginate:
         res = handle_auto_pagination(res, func, args, kwargs, force, filter_fields)
+
+    if return_data:
+        return res
 
     print_json(res)
 
