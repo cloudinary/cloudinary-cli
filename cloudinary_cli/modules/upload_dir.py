@@ -27,7 +27,7 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
              "You can specify a whole path, for example path1/path2/path3. "
              "Any folders that do not exist are automatically created.")
 @option("-fm", "--folder-mode", type=Choice(['fixed', 'dynamic'], case_sensitive=False),
-        help="Specify folder mode explicitly. By default uses cloud mode configured in your cloud.")
+        help="Specify folder mode explicitly. By default uses cloud mode configured in your cloud.", hidden=True)
 @option("-p", "--preset", help="The upload preset to use.")
 @option("-e", "--exclude-dir-name", is_flag=True, default=False,
         help="When this option is used, the contents of the parent directory are uploaded but not the parent "

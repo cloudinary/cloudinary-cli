@@ -34,7 +34,7 @@ _SYNC_META_FILE = '.cld-sync'
 @option("-D", "--deletion-batch-size", type=int, default=_DEFAULT_DELETION_BATCH_SIZE,
         help="Specify the batch size for deleting remote assets.")
 @option("-fm", "--folder-mode", type=Choice(['fixed', 'dynamic'], case_sensitive=False),
-        help="Specify folder mode explicitly. By default uses cloud mode configured in your cloud.")
+        help="Specify folder mode explicitly. By default uses cloud mode configured in your cloud.", hidden=True)
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
         help="Pass optional parameters as interpreted strings.")
