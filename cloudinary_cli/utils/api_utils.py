@@ -3,7 +3,7 @@ from os import path, makedirs
 
 import requests
 from click import style, launch
-from cloudinary import Search, uploader
+from cloudinary import Search, uploader, api
 from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
@@ -18,7 +18,7 @@ PAGINATION_MAX_RESULTS = 500
 _cursor_fields = {"resource": "derived_next_cursor"}
 
 
-def query_cld_folder(folder):
+def query_cld_folder(folder, folder_mode):
     files = {}
 
     folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
@@ -31,8 +31,10 @@ def query_cld_folder(folder):
         res = expression.execute()
 
         for asset in res['resources']:
-            rel_path = posix_rel_path(asset_source(asset), folder)
-            files[normalize_file_extension(rel_path)] = {
+            rel_path = _relative_path(asset, folder)
+            rel_display_path = _relative_display_path(asset, folder)
+            path_key = rel_display_path if folder_mode == "dynamic" else rel_path
+            files[normalize_file_extension(path_key)] = {
                 "type": asset['type'],
                 "resource_type": asset['resource_type'],
                 "public_id": asset['public_id'],
@@ -40,12 +42,38 @@ def query_cld_folder(folder):
                 "etag": asset.get('etag', '0'),
                 "relative_path": rel_path,  # save for inner use
                 "access_mode": asset.get('access_mode', 'public'),
+                # dynamic folder mode fields
+                "asset_folder": asset.get('asset_folder'),
+                "display_name": asset.get('display_name'),
+                "relative_display_path": rel_display_path
             }
         # use := when switch to python 3.8
         next_cursor = res.get('next_cursor')
         expression.next_cursor(next_cursor)
 
     return files
+
+
+def _display_path(asset):
+    if asset.get("display_name") is None:
+        return ""
+
+    return "/".join([asset["asset_folder"], ".".join([asset["display_name"], asset["format"]])])
+
+
+def _relative_display_path(asset, folder):
+    if asset.get("display_name") is None:
+        return ""
+
+    return posix_rel_path(_display_path(asset), folder)
+
+
+def _relative_path(asset, folder):
+    source = asset_source(asset)
+    if not source.startswith(folder):
+        return source
+
+    return posix_rel_path(asset_source(asset), folder)
 
 
 def regen_derived_version(public_id, delivery_type, res_type,
@@ -78,10 +106,13 @@ def upload_file(file_path, options, uploaded=None, failed=None):
         if size > 20000000:
             upload_func = uploader.upload_large
         result = upload_func(file_path, **options)
-        logger.info(style(f"Successfully uploaded {file_path} as {result['public_id']}", fg="green"))
+        disp_path = _display_path(result)
+        disp_str = f"as {result['public_id']}" if not disp_path \
+            else f"as {disp_path} with public_id: {result['public_id']}"
+        logger.info(style(f"Successfully uploaded {file_path} {disp_str}", fg="green"))
         if verbose:
             print_json(result)
-        uploaded[file_path] = asset_source(result)
+        uploaded[file_path] = {"path": asset_source(result), "display_path": disp_path}
     except Exception as e:
         log_exception(e, f"Failed uploading {file_path}")
         failed[file_path] = str(e)
@@ -134,10 +165,27 @@ def asset_source(asset_details):
     :return:
     """
     base_name = asset_details['public_id']
+
     if asset_details['resource_type'] == 'raw' or asset_details['type'] == 'fetch':
         return base_name
 
     return base_name + '.' + asset_details['format']
+
+
+def get_folder_mode():
+    """
+    Returns folder mode of the cloud.
+
+    :return: String representing folder mode. Can be "fixed" or "dynamic".
+    """
+    try:
+        config_res = api.config(settings="true")
+        mode = config_res["settings"]["folder_mode"]
+    except Exception as e:
+        log_exception(e, f"Failed getting cloud configuration")
+        raise
+
+    return mode
 
 
 def call_api(func, args, kwargs):
