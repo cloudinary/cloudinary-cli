@@ -8,7 +8,7 @@ from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.config_utils import is_valid_cloudinary_config
-from cloudinary_cli.utils.file_utils import normalize_file_extension, posix_rel_path
+from cloudinary_cli.utils.file_utils import normalize_file_extension, posix_rel_path, get_destination_folder
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
     normalize_list_params, ConfigurationError, print_api_help
@@ -116,6 +116,37 @@ def upload_file(file_path, options, uploaded=None, failed=None):
     except Exception as e:
         log_exception(e, f"Failed uploading {file_path}")
         failed[file_path] = str(e)
+
+
+def get_default_upload_options(folder_mode):
+    options = {
+        'resource_type': 'auto'
+    }
+
+    if folder_mode == 'fixed':
+        options = {
+            **options,
+            'use_filename': True,
+            'unique_filename': False,
+            'invalidate': True,
+        }
+
+    if folder_mode == 'dynamic':
+        options = {
+            **options,
+            'use_filename_as_display_name': True,
+        }
+
+    return options
+
+
+def get_destination_folder_options(file, remote_dir, folder_mode, parent=None):
+    destination_folder = get_destination_folder(remote_dir, file, parent)
+
+    if folder_mode == "dynamic":
+        return {"asset_folder": destination_folder}
+
+    return {"folder": destination_folder}
 
 
 def download_file(remote_file, local_path, downloaded=None, failed=None):

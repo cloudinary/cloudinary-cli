@@ -6,9 +6,9 @@ from os import path, remove
 from click import command, argument, option, style, UsageError, Choice
 from cloudinary import api
 
-from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file, get_folder_mode
-from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_destination_folder, \
-    normalize_file_extension, posix_rel_path
+from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file, get_folder_mode, \
+    get_default_upload_options, get_destination_folder_options
+from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, normalize_file_extension, posix_rel_path
 from cloudinary_cli.utils.json_utils import print_json, read_json_from_file, write_json_to_file
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict, chunker, \
     group_params, parse_option_value
@@ -134,13 +134,18 @@ class SyncDir:
 
         logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}'")
 
-        options = self.get_upload_options()
+        options = {
+            **get_default_upload_options(self.folder_mode),
+            **group_params(
+                self.optional_parameter,
+                ((k, parse_option_value(v)) for k, v in self.optional_parameter_parsed))
+        }
 
         upload_results = {}
         upload_errors = {}
         uploads = []
         for file in files_to_push:
-            folder_options = self.get_destination_folder_options(file)
+            folder_options = get_destination_folder_options(file, self.remote_dir, self.folder_mode)
 
             uploads.append(
                 (self.local_files[file]['path'], {**options, **folder_options}, upload_results, upload_errors))
@@ -153,43 +158,6 @@ class SyncDir:
 
         if upload_errors:
             raise Exception("Sync did not finish successfully")
-
-    def get_destination_folder_options(self, file):
-        destination_folder = get_destination_folder(self.remote_dir, file)
-
-        if self.folder_mode == "dynamic":
-            return {"asset_folder": destination_folder}
-
-        return {"folder": destination_folder}
-
-    def get_upload_options(self):
-        options = {
-            'resource_type': 'auto'
-        }
-
-        if self.folder_mode == 'fixed':
-            options = {
-                **options,
-                'use_filename': True,
-                'unique_filename': False,
-                'invalidate': True,
-            }
-
-        if self.folder_mode == 'dynamic':
-            options = {
-                **options,
-                'use_filename_as_display_name': True,
-            }
-
-        options = {
-            **options,
-            **group_params(
-                self.optional_parameter,
-                ((k, parse_option_value(v)) for k, v in self.optional_parameter_parsed)
-            ),
-        }
-
-        return options
 
     def pull(self):
         """
