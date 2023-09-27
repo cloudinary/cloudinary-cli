@@ -1,3 +1,11 @@
+1.9.0 / 2023-09-27
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for dynamic folders mode in `sync` and `upload_dir` commands
+
 1.8.1 / 2023-09-19
 ==================
 
