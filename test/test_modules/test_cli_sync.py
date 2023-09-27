@@ -2,11 +2,14 @@ import shutil
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
-from test.helper_test import unique_suffix, RESOURCES_DIR, TEST_FILES_DIR, delete_cld_folder_if_exists, retry_assertion
+from test.helper_test import unique_suffix, RESOURCES_DIR, TEST_FILES_DIR, delete_cld_folder_if_exists, retry_assertion, \
+    get_request_url, get_params
+from test.test_modules.test_cli_upload_dir import UPLOAD_MOCK_RESPONSE
 
 
 class TestCLISync(unittest.TestCase):
@@ -122,3 +125,15 @@ class TestCLISync(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
         self.assertIn("Synced | 12", result.output)
         self.assertIn("Done!", result.output)
+
+    @patch('urllib3.request.RequestMethods.request')
+    def test_sync_override_defaults(self, mocker):
+        mocker.return_value = UPLOAD_MOCK_RESPONSE
+
+        result = self.runner.invoke(cli, ['sync', '--push', '-fm', 'fixed', '-F', TEST_FILES_DIR, self.CLD_SYNC_DIR,
+                                          "-o", "resource_type", "raw", "-O", "unique_filename", "True"])
+
+        self.assertEqual(0, result.exit_code)
+
+        self.assertIn("raw/upload", get_request_url(mocker))
+        self.assertTrue(get_params(mocker)['unique_filename'])

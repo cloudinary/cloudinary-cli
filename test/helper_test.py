@@ -43,7 +43,8 @@ def uploader_response_mock():
       "resource_type": "raw",
       "type": "upload",
       "format":"bin",
-      "foo": "bar"
+      "foo": "bar",
+      "resources": []
     }''')
 
 

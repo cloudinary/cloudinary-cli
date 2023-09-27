@@ -2,9 +2,10 @@ from os import getcwd
 from os.path import dirname, join as path_join
 from pathlib import Path
 
-from click import command, argument, option, style, launch
+from click import command, argument, option, style, launch, Choice
 
-from cloudinary_cli.utils.api_utils import upload_file
+from cloudinary_cli.utils.api_utils import upload_file, get_default_upload_options, get_folder_mode, \
+    get_destination_folder_options
 from cloudinary_cli.utils.file_utils import get_destination_folder, is_hidden_path
 from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_concurrently, group_params
 
@@ -25,6 +26,8 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
              "The path you specify will be pre-pended to the public IDs of the uploaded assets. "
              "You can specify a whole path, for example path1/path2/path3. "
              "Any folders that do not exist are automatically created.")
+@option("-fm", "--folder-mode", type=Choice(['fixed', 'dynamic'], case_sensitive=False),
+        help="Specify folder mode explicitly. By default uses cloud mode configured in your cloud.", hidden=True)
 @option("-p", "--preset", help="The upload preset to use.")
 @option("-e", "--exclude-dir-name", is_flag=True, default=False,
         help="When this option is used, the contents of the parent directory are uploaded but not the parent "
@@ -33,7 +36,7 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
 @option("-d", "--doc", is_flag=True, help="Open upload_dir command documentation page.")
 def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, optional_parameter_parsed, transformation,
-               folder, preset, concurrent_workers, exclude_dir_name, doc):
+               folder, folder_mode, preset, concurrent_workers, exclude_dir_name, doc):
     items, skipped = {}, {}
 
     if doc:
@@ -44,24 +47,27 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
         logger.error(f"Directory: {dir_to_upload} does not exist")
         return False
 
+    folder_mode = folder_mode or get_folder_mode()
+
     if exclude_dir_name:
-        logger.info(f"Uploading contents of directory '{dir_to_upload}'")
+        contents_str = "contents of"
         parent = dir_to_upload
     else:
-        logger.info(f"Uploading directory '{dir_to_upload}'")
+        contents_str = ""
         parent = dirname(dir_to_upload)
 
-    defaults = {
-        "resource_type": "auto",
-        "invalidate": True,
-        "unique_filename": False,
-        "use_filename": True,
+    logger.info(f"Uploading {contents_str} directory '{dir_to_upload}' ({folder_mode} folder mode)")
+
+    defaults = get_default_upload_options(folder_mode)
+
+    upload_dir_options = {
         "raw_transformation": transformation,
         "upload_preset": preset
     }
 
     options = {
         **defaults,
+        **upload_dir_options,
         **group_params(optional_parameter, ((k, parse_option_value(v)) for k, v in optional_parameter_parsed)),
     }
 
@@ -72,8 +78,8 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
             if not include_hidden and is_hidden_path(file_path):
                 continue
 
-            options = {**options, "folder": get_destination_folder(folder, str(file_path), parent=parent)}
-            uploads.append((file_path, options, items, skipped))
+            folder_options = get_destination_folder_options(str(file_path), folder, folder_mode, parent)
+            uploads.append((file_path, {**options, **folder_options}, items, skipped))
 
     run_tasks_concurrently(upload_file, uploads, concurrent_workers)
 

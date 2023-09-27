@@ -3,14 +3,15 @@ from collections import Counter
 from itertools import groupby
 from os import path, remove
 
-from click import command, argument, option, style, UsageError
+from click import command, argument, option, style, UsageError, Choice
 from cloudinary import api
 
-from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file
-from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, get_destination_folder, \
-    normalize_file_extension, posix_rel_path
+from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file, get_folder_mode, \
+    get_default_upload_options, get_destination_folder_options
+from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, normalize_file_extension, posix_rel_path
 from cloudinary_cli.utils.json_utils import print_json, read_json_from_file, write_json_to_file
-from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict, chunker
+from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict, chunker, \
+    group_params, parse_option_value
 
 _DEFAULT_DELETION_BATCH_SIZE = 30
 _DEFAULT_CONCURRENT_WORKERS = 30
@@ -32,13 +33,18 @@ _SYNC_META_FILE = '.cld-sync'
 @option("-K", "--keep-unique", is_flag=True, help="Keep unique files in the destination folder.")
 @option("-D", "--deletion-batch-size", type=int, default=_DEFAULT_DELETION_BATCH_SIZE,
         help="Specify the batch size for deleting remote assets.")
+@option("-fm", "--folder-mode", type=Choice(['fixed', 'dynamic'], case_sensitive=False),
+        help="Specify folder mode explicitly. By default uses cloud mode configured in your cloud.", hidden=True)
+@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
+@option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
+        help="Pass optional parameters as interpreted strings.")
 def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent_workers, force, keep_unique,
-         deletion_batch_size):
+         deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed):
     if push == pull:
         raise UsageError("Please use either the '--push' OR '--pull' options")
 
     sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
-                       deletion_batch_size)
+                       deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed)
 
     result = True
     if push:
@@ -53,7 +59,7 @@ def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent
 
 class SyncDir:
     def __init__(self, local_dir, remote_dir, include_hidden, concurrent_workers, force, keep_deleted,
-                 deletion_batch_size):
+                 deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed):
         self.local_dir = local_dir
         self.remote_dir = remote_dir.strip('/')
         self.user_friendly_remote_dir = self.remote_dir if self.remote_dir else '/'
@@ -63,6 +69,11 @@ class SyncDir:
         self.keep_unique = keep_deleted
         self.deletion_batch_size = deletion_batch_size
 
+        self.folder_mode = folder_mode or get_folder_mode()
+
+        self.optional_parameter = optional_parameter
+        self.optional_parameter_parsed = optional_parameter_parsed
+
         self.sync_meta_file = path.join(self.local_dir, _SYNC_META_FILE)
 
         self.verbose = logger.getEffectiveLevel() < logging.INFO
@@ -70,8 +81,9 @@ class SyncDir:
         self.local_files = walk_dir(path.abspath(self.local_dir), include_hidden)
         logger.info(f"Found {len(self.local_files)} items in local folder '{local_dir}'")
 
-        self.remote_files = query_cld_folder(self.remote_dir)
-        logger.info(f"Found {len(self.remote_files)} items in Cloudinary folder '{self.user_friendly_remote_dir}'")
+        self.remote_files = query_cld_folder(self.remote_dir, self.folder_mode)
+        logger.info(f"Found {len(self.remote_files)} items in Cloudinary folder '{self.user_friendly_remote_dir}' "
+                    f"({self.folder_mode} folder mode)")
 
         local_file_names = self.local_files.keys()
         remote_file_names = self.remote_files.keys()
@@ -123,19 +135,20 @@ class SyncDir:
         logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}'")
 
         options = {
-            'use_filename': True,
-            'unique_filename': False,
-            'invalidate': True,
-            'resource_type': 'auto'
+            **get_default_upload_options(self.folder_mode),
+            **group_params(
+                self.optional_parameter,
+                ((k, parse_option_value(v)) for k, v in self.optional_parameter_parsed))
         }
+
         upload_results = {}
         upload_errors = {}
         uploads = []
         for file in files_to_push:
-            folder = get_destination_folder(self.remote_dir, file)
+            folder_options = get_destination_folder_options(file, self.remote_dir, self.folder_mode)
 
             uploads.append(
-                (self.local_files[file]['path'], {**options, 'folder': folder}, upload_results, upload_errors))
+                (self.local_files[file]['path'], {**options, **folder_options}, upload_results, upload_errors))
 
         try:
             run_tasks_concurrently(upload_file, uploads, self.concurrent_workers)
@@ -186,7 +199,8 @@ class SyncDir:
 
     def _save_sync_meta_file(self, upload_results):
         diverse_filenames = {}
-        for local_path, remote_path in upload_results.items():
+        for local_path, remote_res in upload_results.items():
+            remote_path = remote_res["display_path"] if self.folder_mode == "dynamic" else remote_res["path"]
             local = normalize_file_extension(posix_rel_path(local_path, self.local_dir))
             remote = normalize_file_extension(posix_rel_path(remote_path, self.remote_dir))
             if local != remote:
@@ -254,7 +268,10 @@ class SyncDir:
                 out_of_sync_file_names.add(f)
                 continue
             logger.debug(f"'{f}' is in sync" +
-                         (f" with '{self.diverse_file_names[f]}'" if f in self.diverse_file_names else ""))
+                         (f" with '{self.diverse_file_names[f]}'" if f in self.diverse_file_names else "") +
+                         (f". Public ID: {self.recovered_remote_files[f]['public_id']}"
+                          if self.folder_mode == "dynamic" else "")
+                         )
 
         return out_of_sync_file_names
 
