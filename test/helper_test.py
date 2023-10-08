@@ -15,6 +15,14 @@ SUFFIX = os.environ.get('TRAVIS_JOB_ID') or random.randint(10000, 99999)
 RESOURCES_DIR = Path.joinpath(Path(__file__).resolve().parent, "resources")
 TEST_FILES_DIR = str(Path.joinpath(RESOURCES_DIR, "test_sync"))
 
+try:
+    # urllib3 2.x support
+    # noinspection PyProtectedMember
+    import urllib3._request_methods
+    URLLIB3_REQUEST = "urllib3._request_methods.RequestMethods.request"
+except ImportError:
+    URLLIB3_REQUEST = "urllib3.request.RequestMethods.request"
+
 disable_warnings()
 
 
@@ -49,7 +57,7 @@ def uploader_response_mock():
 
 
 def get_request_url(mocker):
-    return mocker.call_args[0][1]
+    return mocker.call_args[1]["url"]
 
 
 def get_params(mocker):
@@ -62,12 +70,12 @@ def get_params(mocker):
     In both cases the result would be {"urls": ["http://host1", "http://host2"]}
     """
 
-    args = mocker.call_args[0]
-    if not args or not args[2]:
+    if not mocker.call_args[1].get("fields"):
         return {}
     params = {}
     reg = re.compile(r'^(.*)\[\d*]$')
-    fields = args[2].items() if isinstance(args[2], dict) else args[2]
+    fields = mocker.call_args[1].get("fields")
+    fields = fields.items() if isinstance(fields, dict) else fields
     for k, v in fields:
         match = reg.match(k)
         if match:
