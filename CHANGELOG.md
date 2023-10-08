@@ -1,3 +1,9 @@
+1.9.1 / 2023-10-08
+==================
+
+  * Fix `sync` error when `asset_folder` does not exist
+  * Bump `pycloudinary` to `1.36.0`
+
 1.9.0 / 2023-09-27
 ==================
 
