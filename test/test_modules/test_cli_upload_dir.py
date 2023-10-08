@@ -6,7 +6,7 @@ from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
 from test.helper_test import unique_suffix, TEST_FILES_DIR, delete_cld_folder_if_exists, uploader_response_mock, \
-    get_request_url, get_params
+    get_request_url, get_params, URLLIB3_REQUEST
 
 UPLOAD_MOCK_RESPONSE = uploader_response_mock()
 
@@ -58,7 +58,7 @@ class TestCLIUploadDir(unittest.TestCase):
         self.assertIn("as " + self.CLD_UPLOAD_DIR, result.output)
         self.assertNotIn("as " + self.CLD_UPLOAD_DIR + "/test_sync/", result.output)
 
-    @patch('urllib3.request.RequestMethods.request')
+    @patch(URLLIB3_REQUEST)
     def test_upload_dir_override_defaults(self, mocker):
         mocker.return_value = UPLOAD_MOCK_RESPONSE
 

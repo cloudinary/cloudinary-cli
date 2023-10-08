@@ -8,7 +8,7 @@ from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
 from test.helper_test import unique_suffix, RESOURCES_DIR, TEST_FILES_DIR, delete_cld_folder_if_exists, retry_assertion, \
-    get_request_url, get_params
+    get_request_url, get_params, URLLIB3_REQUEST
 from test.test_modules.test_cli_upload_dir import UPLOAD_MOCK_RESPONSE
 
 
@@ -126,7 +126,7 @@ class TestCLISync(unittest.TestCase):
         self.assertIn("Synced | 12", result.output)
         self.assertIn("Done!", result.output)
 
-    @patch('urllib3.request.RequestMethods.request')
+    @patch(URLLIB3_REQUEST)
     def test_sync_override_defaults(self, mocker):
         mocker.return_value = UPLOAD_MOCK_RESPONSE
 

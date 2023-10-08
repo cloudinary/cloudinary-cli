@@ -4,7 +4,7 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
-from test.helper_test import api_response_mock, uploader_response_mock
+from test.helper_test import api_response_mock, uploader_response_mock, URLLIB3_REQUEST
 
 API_MOCK_RESPONSE = api_response_mock()
 UPLOAD_MOCK_RESPONSE = uploader_response_mock()
@@ -13,7 +13,7 @@ UPLOAD_MOCK_RESPONSE = uploader_response_mock()
 class TestCLISearchApi(unittest.TestCase):
     runner = CliRunner()
 
-    @patch('urllib3.request.RequestMethods.request')
+    @patch(URLLIB3_REQUEST)
     def test_search(self, mocker):
         mocker.return_value = API_MOCK_RESPONSE
         result = self.runner.invoke(cli, ['search', 'cat'])
