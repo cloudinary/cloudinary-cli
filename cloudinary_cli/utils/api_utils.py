@@ -58,7 +58,7 @@ def _display_path(asset):
     if asset.get("display_name") is None:
         return ""
 
-    return "/".join([asset["asset_folder"], ".".join([asset["display_name"], asset["format"]])])
+    return "/".join([asset.get("asset_folder", ""), ".".join([asset["display_name"], asset["format"]])])
 
 
 def _relative_display_path(asset, folder):
@@ -212,6 +212,7 @@ def get_folder_mode():
     try:
         config_res = api.config(settings="true")
         mode = config_res["settings"]["folder_mode"]
+        logger.debug(f"Using {mode} folder mode")
     except Exception as e:
         log_exception(e, f"Failed getting cloud configuration")
         raise
