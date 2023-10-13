@@ -36,7 +36,7 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
 @option("-d", "--doc", is_flag=True, help="Open upload_dir command documentation page.")
 def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, optional_parameter_parsed, transformation,
-               folder, folder_mode, preset, concurrent_workers, exclude_dir_name, doc):
+               folder, folder_mode, preset, concurrent_workers, exclude_dir_name, doc, **ctx):
     items, skipped = {}, {}
 
     if doc:
