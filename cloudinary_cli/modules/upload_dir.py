@@ -22,8 +22,7 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
         help="Pass optional parameters as interpreted strings.")
 @option("-t", "--transformation", help="The transformation to apply on all uploads.")
 @option("-f", "--folder", default="",
-        help="The path where you want to upload the assets. "
-             "The path you specify will be pre-pended to the public IDs of the uploaded assets. "
+        help="The full path where you want to upload the assets. "
              "You can specify a whole path, for example path1/path2/path3. "
              "Any folders that do not exist are automatically created.")
 @option("-fm", "--folder-mode", type=Choice(['fixed', 'dynamic'], case_sensitive=False),
@@ -31,8 +30,7 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
 @option("-p", "--preset", help="The upload preset to use.")
 @option("-e", "--exclude-dir-name", is_flag=True, default=False,
         help="When this option is used, the contents of the parent directory are uploaded but not the parent "
-             "directory itself. Thus, the name of the specified parent directory is not included "
-             "in the pubic ID path of the uploaded assets.")
+             "directory itself.")
 @option("-w", "--concurrent_workers", type=int, default=30, help="Specify the number of concurrent network threads.")
 @option("-d", "--doc", is_flag=True, help="Open upload_dir command documentation page.")
 def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, optional_parameter_parsed, transformation,
