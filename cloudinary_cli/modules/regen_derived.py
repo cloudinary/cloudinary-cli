@@ -24,7 +24,7 @@ e.g. cld regen_derived t_named -A -ea -enu http://mywebhook.com
 @option("-A", "--auto_paginate", is_flag=True, default=False,
         help="Auto-paginate Admin API calls.")
 @option("-F", "--force", is_flag=True,
-        help="Skip initial confirmation.")
+        help="Skip confirmation.")
 @option("-n", "--max_results", nargs=1, default=10,
         help="""The maximum number of results to return.
               Default: 10, maximum: 500.""")
@@ -63,7 +63,7 @@ def regen_derived(trans_str, eager_notification_url,
                                        auto_paginate=auto_paginate,
                                        force=force, return_data=True)
     if trans_details is False:
-        exit()
+        return False
 
     derived_resources = trans_details.get('derived')
     if not derived_resources:
