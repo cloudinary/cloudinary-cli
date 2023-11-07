@@ -9,8 +9,7 @@ DEFAULT_MAX_RESULTS = 500
 
 
 @command("regen_derived",
-         short_help="""Regenerate all derived assets pertaining \
-         to a named transformation, or transformation string.""",
+         short_help="""Regenerate all derived assets pertaining to a named transformation, or transformation string.""",
          help="""
 \b
 Regenerate all derived assets pertaining to a specific named transformation, or transformation string.
@@ -25,7 +24,7 @@ e.g. cld regen_derived t_named -A -ea -enu http://mywebhook.com
 @option("-A", "--auto_paginate", is_flag=True, default=False,
         help="Auto-paginate Admin API calls.")
 @option("-F", "--force", is_flag=True,
-        help="Skip initial and auto-paginate confirmation.")
+        help="Skip initial confirmation.")
 @option("-n", "--max_results", nargs=1, default=10,
         help="""The maximum number of results to return.
               Default: 10, maximum: 500.""")
@@ -63,6 +62,9 @@ def regen_derived(trans_str, eager_notification_url,
                                        api_name="admin",
                                        auto_paginate=auto_paginate,
                                        force=force, return_data=True)
+    if trans_details is False:
+        exit()
+
     derived_resources = trans_details.get('derived')
     if not derived_resources:
         logger.info("No derived assets are using this transformation.")
