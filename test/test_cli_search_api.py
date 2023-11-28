@@ -21,6 +21,12 @@ class TestCLISearchApi(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
         self.assertIn('"foo": "bar"', result.output)
 
+    def test_search_fields(self):
+        result = self.runner.invoke(cli, ['search', 'cat', '-if', 'url,tags', '-if', 'context', '--search-query'])
+
+        self.assertEqual(0, result.exit_code)
+        self.assertIn('"fields": [\n    "url",\n    "tags",\n    "context"\n  ]', result.output)
+
     def test_search_url(self):
         result = self.runner.invoke(cli, ['search', 'cat', '-c', 'NEXT_CURSOR', '--ttl', '1000', '--url'])
 

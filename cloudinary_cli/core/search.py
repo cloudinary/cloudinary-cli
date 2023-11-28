@@ -17,7 +17,8 @@ Format: cld <cli options> search <command options> <Lucene query syntax string>
 e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 """)
 @argument("query", nargs=-1)
-@option("-f", "--with_field", multiple=True, help="Specify which asset attribute to include in the result.")
+@option("-f", "--with_field", multiple=True, help="Specify which asset attribute to add in the result.")
+@option("-if", "--fields", multiple=True, help="Specify which asset attribute to include in the result.")
 @option("-s", "--sort_by", nargs=2, help="Sort search results by (field, <asc|desc>).")
 @option("-a", "--aggregate", nargs=1,
         help="Specify the attribute for which an aggregation count should be calculated and returned.")
@@ -29,25 +30,27 @@ e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 @option("-ff", "--filter_fields", multiple=True, help="Filter fields to return.")
 @option("-t", "--ttl", nargs=1, default=300, help="Set the Search URL TTL in seconds. Default: 300.")
 @option("-u", "--url", is_flag=True, help="Build a signed search URL.")
+@option("-sq", "--search-query", is_flag=True, help="Show the search request query.", hidden=True)
 @option("--json", nargs=1, help="Save JSON output to a file. Usage: --json <filename>")
 @option("--csv", nargs=1, help="Save CSV output to a file. Usage: --csv <filename>")
 @option("-d", "--doc", is_flag=True, help="Open Search API documentation page.")
-def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
-           auto_paginate, force, filter_fields, ttl, url, json, csv, doc):
+def search(query, with_field, fields, sort_by, aggregate, max_results, next_cursor,
+           auto_paginate, force, filter_fields, ttl, url, search_query, json, csv, doc):
     if doc:
         return launch("https://cloudinary.com/documentation/search_api")
 
     fields_to_keep = []
     if filter_fields:
-        fields_to_keep = tuple(normalize_list_params(filter_fields)) + with_field
+        fields_to_keep = tuple(normalize_list_params(filter_fields)) + tuple(normalize_list_params(with_field))
 
     search = cloudinary.search.Search().expression(" ".join(query))
 
     if auto_paginate:
         max_results = DEFAULT_MAX_RESULTS
     if with_field:
-        for f in with_field:
-            search.with_field(f)
+        search.with_field(normalize_list_params(with_field))
+    if fields:
+        search.fields(normalize_list_params(fields))
     if sort_by:
         search.sort_by(*sort_by)
     if aggregate:
@@ -61,6 +64,10 @@ def search(query, with_field, sort_by, aggregate, max_results, next_cursor,
 
     if url:
         print(search.to_url())
+        return True
+
+    if search_query:
+        print_json(search.as_dict())
         return True
 
     res = execute_single_request(search, fields_to_keep)
