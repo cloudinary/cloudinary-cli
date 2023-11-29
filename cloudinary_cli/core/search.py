@@ -17,7 +17,7 @@ Format: cld <cli options> search <command options> <Lucene query syntax string>
 e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 """)
 @argument("query", nargs=-1)
-@option("-f", "--with_field", multiple=True, help="Specify which asset attribute to add in the result.")
+@option("-f", "--with_field", multiple=True, help="Specify which non-default asset attributes to include in the result. You can include more than one of these options, for example, -f tags -f context.")
 @option("-if", "--fields", multiple=True, help="Specify which asset attribute to include in the result.")
 @option("-s", "--sort_by", nargs=2, help="Sort search results by (field, <asc|desc>).")
 @option("-a", "--aggregate", nargs=1,
