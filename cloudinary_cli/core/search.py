@@ -18,10 +18,10 @@ e.g. cld search cat AND tags:kitten -s public_id desc -f context -f tags -n 10
 """)
 @argument("query", nargs=-1)
 @option("-f", "--with_field", multiple=True, help="Specify which non-default asset attributes to include "
-                                                  "in the result. You can include more than one of these options, "
-                                                  "for example, -f tags -f context.")
+                                                  "in the result as a comma separated list. "
+                                                  )
 @option("-fi", "--fields", multiple=True, help="Specify which asset attributes to include in the result "
-                                               "(together with the default attributes) as a comma separated list. "
+                                               "(together with a subset of the default attributes) as a comma separated list. "
                                                "This overrides any value specified for with_field.")
 @option("-s", "--sort_by", nargs=2, help="Sort search results by (field, <asc|desc>).")
 @option("-a", "--aggregate", nargs=1,
