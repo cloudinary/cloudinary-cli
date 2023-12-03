@@ -1,3 +1,18 @@
+1.10.0 / 2023-12-03
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for `--fields` parameter in `search` command
+
+Other Changes
+-------------
+
+  * Bump `pycloudinary` to `1.37.0`
+  * Improve error handling in `regen_derived` command
+  * Update `upload_dir` parameters description
+
 1.9.1 / 2023-10-08
 ==================
 
