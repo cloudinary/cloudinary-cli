@@ -1,4 +1,4 @@
-cloudinary>=1.36.0
+cloudinary>=1.37.0
 pygments
 jinja2
 click
