@@ -1,4 +1,5 @@
 import logging
+import re
 from collections import Counter
 from itertools import groupby
 from os import path, remove
@@ -7,11 +8,12 @@ from click import command, argument, option, style, UsageError, Choice
 from cloudinary import api
 
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file, get_folder_mode, \
-    get_default_upload_options, get_destination_folder_options
-from cloudinary_cli.utils.file_utils import walk_dir, delete_empty_dirs, normalize_file_extension, posix_rel_path
+    get_default_upload_options, get_destination_folder_options, cld_folder_exists
+from cloudinary_cli.utils.file_utils import (walk_dir, delete_empty_dirs, normalize_file_extension, posix_rel_path,
+                                             populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, read_json_from_file, write_json_to_file
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict, chunker, \
-    group_params, parse_option_value
+    group_params, parse_option_value, duplicate_values
 
 _DEFAULT_DELETION_BATCH_SIZE = 30
 _DEFAULT_CONCURRENT_WORKERS = 30
@@ -42,6 +44,10 @@ def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent
          deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed):
     if push == pull:
         raise UsageError("Please use either the '--push' OR '--pull' options")
+
+    if pull and not cld_folder_exists(cloudinary_folder):
+        logger.error(f"Cloudinary folder '{cloudinary_folder}' does not exist. Aborting...")
+        return False
 
     sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
                        deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed)
@@ -81,9 +87,12 @@ class SyncDir:
         self.local_files = walk_dir(path.abspath(self.local_dir), include_hidden)
         logger.info(f"Found {len(self.local_files)} items in local folder '{local_dir}'")
 
-        self.remote_files = query_cld_folder(self.remote_dir, self.folder_mode)
-        logger.info(f"Found {len(self.remote_files)} items in Cloudinary folder '{self.user_friendly_remote_dir}' "
+        raw_remote_files = query_cld_folder(self.remote_dir, self.folder_mode)
+        logger.info(f"Found {len(raw_remote_files)} items in Cloudinary folder '{self.user_friendly_remote_dir}' "
                     f"({self.folder_mode} folder mode)")
+        self.remote_files = self._normalize_remote_file_names(raw_remote_files, self.local_files)
+        self.remote_duplicate_names = duplicate_values(self.remote_files, "normalized_path", "asset_id")
+        self._print_duplicate_file_names()
 
         local_file_names = self.local_files.keys()
         remote_file_names = self.remote_files.keys()
@@ -94,10 +103,14 @@ class SyncDir:
         Usually Cloudinary sanitizes those file names and strips invalid characters. Although it is a good best effort 
         for a general use case, when syncing local folder with Cloudinary, it is not the best option, since directories 
         will be always out-of-sync.
+        
+        In addition in dynamic folder mode Cloudinary allows having identical display names for differrent files.
          
         To overcome this limitation, cloudinary-cli keeps .cld-sync hidden file in the sync directory that contains a 
         mapping of the diverse file names. This file keeps tracking of the files and allows syncing in both directions.
         """
+
+        # handle fixed folder mode public_id differences
         diverse_file_names = read_json_from_file(self.sync_meta_file, does_not_exist_ok=True)
         self.diverse_file_names = dict(
             (normalize_file_extension(k), normalize_file_extension(v)) for k, v in diverse_file_names.items())
@@ -188,6 +201,70 @@ class SyncDir:
 
         if download_errors:
             raise Exception("Sync did not finish successfully")
+
+    def _normalize_remote_file_names(self, remote_files, local_files):
+        """
+        When multiple remote files have duplicate display name, we save them locally by appending index at the end
+        of the base name, e.g. Image (1).jpg, Image (2).jpg, etc.
+
+        For consistency, we sort files by `created_at` date.
+
+        For partially synced files, when a remote file in the middle was deleted, we want to avoid resync
+        of the remaining files.
+
+        For example, if we had: Image (1), Image (2),..., Image(5), Image (10) on Cloudinary.
+        If we delete "Image (2)" and resync - that would cause all files from Image (3) to Image (10) to be resynced.
+        (Image (3) would become Image (2), ... Image (10) -> Image (9))
+
+        Instead, since those indexes are arbitrary, we map local files to the remote files by etag (md5sum).
+        Synced files will keep their indexes, out-of-sync files will be synced.
+
+        :param remote_files: Remote files.
+        :param local_files: Local files.
+        :return:
+        """
+        duplicate_ids = duplicate_values(remote_files, "normalized_path")
+        for duplicate_name, asset_ids in duplicate_ids.items():
+            duplicate_dts = sorted([remote_files[asset_id] for asset_id in asset_ids], key=lambda f: f['created_at'])
+            local_candidates = self._local_candidates(duplicate_name)
+            remainng_duplicate_dts = []
+            for duplicate_dt in duplicate_dts:
+                matched_name = next((f for f in local_candidates.keys() if local_candidates[f] == duplicate_dt["etag"]),
+                                    None)
+                if matched_name is None:
+                    remainng_duplicate_dts.append(duplicate_dt)
+                    continue
+                # found local synced file.
+                remote_files[duplicate_dt["asset_id"]]["normalized_unique_path"] = matched_name
+                local_candidates.pop(matched_name)
+
+            unique_paths = {v["normalized_unique_path"] for v in remote_files.values()}
+            curr_index = 0
+            for dup in remainng_duplicate_dts:
+                # here we check for collisions with other existing files.
+                # remote file can have both "Image.jpg" and "Image (1).jpg", which are valid names, skip those.
+                candidate_path = populate_duplicate_name(dup['normalized_path'], curr_index)
+                while candidate_path in unique_paths:
+                    curr_index += 1
+                    candidate_path = populate_duplicate_name(dup['normalized_path'], curr_index)
+                remote_files[dup["asset_id"]]["normalized_unique_path"] = candidate_path
+                curr_index += 1
+
+        return {dt["normalized_unique_path"]: dt for dt in remote_files.values()}
+
+    def _local_candidates(self, candidate_path):
+        filename, extension = path.splitext(candidate_path)
+        r = re.compile(f"({candidate_path}|{filename} \(\d+\){extension})")
+        # sort local files by base name (without ext) for accurate results.
+        return dict(sorted({f: self.local_files[f]["etag"] for f in filter(r.match, self.local_files.keys())}.items(),
+                           key=lambda f: path.splitext(f[0])[0]))
+
+    def _print_duplicate_file_names(self):
+        if (len(self.remote_duplicate_names) > 0):
+            logger.warning(f"Cloudinary folder '{self.user_friendly_remote_dir}' "
+                           f"contains {len(self.remote_duplicate_names)} duplicate asset names")
+            for normalized_path, asset_ids in self.remote_duplicate_names.items():
+                logger.debug(f"Duplicate name: '{normalized_path}', asset ids: {', '.join(asset_ids)}")
 
     def _print_sync_status(self, success, errors):
         logger.info("==Sync Status==")

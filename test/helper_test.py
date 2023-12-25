@@ -7,6 +7,7 @@ from pathlib import Path
 
 import cloudinary.api
 from cloudinary import logger
+from cloudinary_cli.utils.api_utils import query_cld_folder
 from urllib3 import HTTPResponse, disable_warnings
 from urllib3._collections import HTTPHeaderDict
 
@@ -116,8 +117,14 @@ def retry_assertion(num_tries=3, delay=3):
     return retry_decorator
 
 
-def delete_cld_folder_if_exists(folder):
-    cloudinary.api.delete_resources_by_prefix(folder)
+def delete_cld_folder_if_exists(folder, folder_mode = "fixed"):
+    if folder_mode == "fixed":
+        cloudinary.api.delete_resources_by_prefix(folder)
+    else:
+        assets = query_cld_folder(folder, folder_mode)
+        if (len(assets)):
+            cloudinary.api.delete_resources([f["public_id"] for f in assets.values()])
+
     try:
         cloudinary.api.delete_folder(folder)
     except cloudinary.exceptions.NotFound:

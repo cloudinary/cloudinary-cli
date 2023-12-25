@@ -333,3 +333,19 @@ def chunker(seq, size):
     :return: a single chunk
     """
     return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+
+def duplicate_values(items, value_key, key_of_interest=None):
+    """
+    Finds duplicate values in a dictionary of objects.
+
+    :param items: All items.
+    :param value_key: The duplicate value key to search.
+    :param key_of_interest: The key to add to the resulting list.
+    :return:
+    """
+    rev_multidict = {}
+    for key, value in items.items():
+        rev_multidict.setdefault(value[value_key], set()).add(value[key_of_interest] if key_of_interest is not None else key)
+
+    return {key: values for key, values in rev_multidict.items() if len(values) > 1}
