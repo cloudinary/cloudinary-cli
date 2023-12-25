@@ -3,15 +3,16 @@ from os import path, makedirs
 
 import requests
 from click import style, launch
-from cloudinary import Search, uploader, api
+from cloudinary import Search, SearchFolders, uploader, api
 from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.config_utils import is_valid_cloudinary_config
-from cloudinary_cli.utils.file_utils import normalize_file_extension, posix_rel_path, get_destination_folder
+from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel_path, get_destination_folder,
+                                             populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
-    normalize_list_params, ConfigurationError, print_api_help
+    normalize_list_params, ConfigurationError, print_api_help, duplicate_values
 
 PAGINATION_MAX_RESULTS = 500
 
@@ -34,7 +35,11 @@ def query_cld_folder(folder, folder_mode):
             rel_path = _relative_path(asset, folder)
             rel_display_path = _relative_display_path(asset, folder)
             path_key = rel_display_path if folder_mode == "dynamic" else rel_path
-            files[normalize_file_extension(path_key)] = {
+            normalized_path_key = normalize_file_extension(path_key)
+            files[asset["asset_id"]] = {
+                "asset_id": asset['asset_id'],
+                "normalized_path": normalized_path_key,
+                "normalized_unique_path": normalized_path_key,
                 "type": asset['type'],
                 "resource_type": asset['resource_type'],
                 "public_id": asset['public_id'],
@@ -42,6 +47,7 @@ def query_cld_folder(folder, folder_mode):
                 "etag": asset.get('etag', '0'),
                 "relative_path": rel_path,  # save for inner use
                 "access_mode": asset.get('access_mode', 'public'),
+                "created_at": asset.get('created_at'),
                 # dynamic folder mode fields
                 "asset_folder": asset.get('asset_folder'),
                 "display_name": asset.get('display_name'),
@@ -53,6 +59,15 @@ def query_cld_folder(folder, folder_mode):
 
     return files
 
+def cld_folder_exists(folder):
+    folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
+
+    if not folder:
+        return True # root folder
+
+    res = SearchFolders().expression(f"name=\"{folder}\"").execute()
+
+    return res.get("total_count", 0) > 0
 
 def _display_path(asset):
     if asset.get("display_name") is None:
@@ -80,9 +95,9 @@ def regen_derived_version(public_id, delivery_type, res_type,
                           eager_trans, eager_async,
                           eager_notification_url):
     options = {"type": delivery_type, "resource_type": res_type,
-                "eager": eager_trans, "eager_async": eager_async,
-                "eager_notification_url": eager_notification_url,
-                "overwrite": True, "invalidate": True}
+               "eager": eager_trans, "eager_async": eager_async,
+               "eager_notification_url": eager_notification_url,
+               "overwrite": True, "invalidate": True}
     try:
         exp_res = uploader.explicit(public_id, **options)
         derived_url = f'{exp_res.get("eager")[0].get("secure_url")}'
