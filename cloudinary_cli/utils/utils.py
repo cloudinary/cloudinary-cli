@@ -68,9 +68,10 @@ def print_api_help(api, block_list=not_callable, allow_list=()):
     logger.info(get_help_str(api, block_list=block_list, allow_list=allow_list))
 
 
-def log_exception(e, message=None):
+def log_exception(e, message=None, debug_message=None):
     message = f"{message}, error: {str(e)}" if message is not None else str(e)
-    logger.debug(message, exc_info=True)
+    debug_message = debug_message or message
+    logger.debug(debug_message, exc_info=True)
     logger.error(message)
 
 

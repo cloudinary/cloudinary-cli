@@ -239,7 +239,7 @@ def call_api(func, args, kwargs):
     try:
         return func(*args, **kwargs)
     except Exception as e:
-        log_exception(e, f"Failed calling '{func.__name__}' with args: {args} and optional args {kwargs}")
+        log_exception(e, debug_message=f"Failed calling '{func.__name__}' with args: {args} and optional args {kwargs}")
         raise
 
 
