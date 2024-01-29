@@ -1,3 +1,9 @@
+1.10.1 / 2024-01-29
+==================
+
+  * Fix `sync` with duplicate `display_name` in dynamic folders mode
+  * Improve error messages
+
 1.10.0 / 2023-12-03
 ==================
 
