@@ -44,6 +44,13 @@ class TestCLISync(unittest.TestCase):
         self.assertIn("Synced | 12", result.output)
         self.assertIn("Done!", result.output)
 
+    def test_cli_sync_push_non_existing_folder(self):
+        non_existing_dir = self.LOCAL_SYNC_PULL_DIR + "non_existing"
+        result = self.runner.invoke(cli, ['sync', '--push', non_existing_dir, self.CLD_SYNC_DIR])
+
+        self.assertIn(f"Cannot push a non-existent local folder '{non_existing_dir}'", result.output)
+        self.assertIn("Aborting...", result.output)
+
     @retry_assertion
     def test_cli_sync_push_twice(self):
         self._upload_sync_files(TEST_FILES_DIR)
@@ -92,7 +99,7 @@ class TestCLISync(unittest.TestCase):
         non_existing_dir = self.CLD_SYNC_DIR + "non_existing"
         result = self.runner.invoke(cli, ['sync', '--pull', self.LOCAL_SYNC_PULL_DIR, non_existing_dir])
 
-        self.assertIn(f"error: Cloudinary folder '{non_existing_dir}' does not exist.", result.output)
+        self.assertIn(f"Cannot pull from a non-existent Cloudinary folder '{non_existing_dir}'", result.output)
         self.assertIn("Aborting...", result.output)
 
     @retry_assertion

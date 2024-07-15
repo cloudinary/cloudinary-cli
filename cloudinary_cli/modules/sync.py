@@ -1,4 +1,5 @@
 import logging
+import os.path
 import re
 from collections import Counter
 from itertools import groupby
@@ -45,10 +46,6 @@ def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent
     if push == pull:
         raise UsageError("Please use either the '--push' OR '--pull' options")
 
-    if pull and not cld_folder_exists(cloudinary_folder):
-        logger.error(f"Cloudinary folder '{cloudinary_folder}' does not exist. Aborting...")
-        return False
-
     sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
                        deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed)
 
@@ -58,7 +55,8 @@ def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent
     elif pull:
         result = sync_dir.pull()
 
-    logger.info("Done!")
+    if result:
+        logger.info("Done!")
 
     return result
 
@@ -84,12 +82,32 @@ class SyncDir:
 
         self.verbose = logger.getEffectiveLevel() < logging.INFO
 
-        self.local_files = walk_dir(path.abspath(self.local_dir), include_hidden)
-        logger.info(f"Found {len(self.local_files)} items in local folder '{local_dir}'")
+        self.local_files = {}
+        self.local_folder_exists = os.path.isdir(path.abspath(self.local_dir))
+        if not self.local_folder_exists:
+            logger.info(f"Local folder '{self.local_dir}' does not exist.")
+        else:
+            self.local_files = walk_dir(path.abspath(self.local_dir), include_hidden)
+            if len(self.local_files):
+                logger.info(f"Found {len(self.local_files)} items in local folder '{self.local_dir}'")
+            else:
+                logger.info(f"Local folder '{self.local_dir}' is empty.")
 
-        raw_remote_files = query_cld_folder(self.remote_dir, self.folder_mode)
-        logger.info(f"Found {len(raw_remote_files)} items in Cloudinary folder '{self.user_friendly_remote_dir}' "
-                    f"({self.folder_mode} folder mode)")
+        raw_remote_files = {}
+        self.cld_folder_exists = cld_folder_exists(self.remote_dir)
+        if not self.cld_folder_exists:
+            logger.info(f"Cloudinary folder '{self.user_friendly_remote_dir}' does not exist "
+                           f"({self.folder_mode} folder mode).")
+        else:
+            raw_remote_files = query_cld_folder(self.remote_dir, self.folder_mode)
+            if len(raw_remote_files):
+                logger.info(
+                    f"Found {len(raw_remote_files)} items in Cloudinary folder '{self.user_friendly_remote_dir}' "
+                    f"({self.folder_mode} folder mode).")
+            else:
+                logger.info(f"Cloudinary folder '{self.user_friendly_remote_dir}' is empty. "
+                            f"({self.folder_mode} folder mode)")
+
         self.remote_files = self._normalize_remote_file_names(raw_remote_files, self.local_files)
         self.remote_duplicate_names = duplicate_values(self.remote_files, "normalized_path", "asset_id")
         self._print_duplicate_file_names()
@@ -137,6 +155,11 @@ class SyncDir:
         """
         Pushes changes from the local folder to the Cloudinary folder.
         """
+
+        if not self.local_folder_exists:
+            logger.error(f"Cannot push a non-existent local folder '{self.local_dir}'. Aborting...")
+            return False
+
         if not self._handle_unique_remote_files():
             logger.info("Aborting...")
             return False
@@ -176,6 +199,12 @@ class SyncDir:
         """
         Pulls changes from the Cloudinary folder to the local folder.
         """
+
+        if not self.cld_folder_exists:
+            logger.error(f"Cannot pull from a non-existent Cloudinary folder '{self.user_friendly_remote_dir}' "
+                         f"({self.folder_mode} folder mode). Aborting...")
+            return False
+
         download_results = {}
         download_errors = {}
         if not self._handle_unique_local_files():

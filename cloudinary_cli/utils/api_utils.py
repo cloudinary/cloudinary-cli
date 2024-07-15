@@ -59,21 +59,23 @@ def query_cld_folder(folder, folder_mode):
 
     return files
 
+
 def cld_folder_exists(folder):
     folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
 
     if not folder:
-        return True # root folder
+        return True  # root folder
 
-    res = SearchFolders().expression(f"name=\"{folder}\"").execute()
+    res = SearchFolders().expression(f"path=\"{folder}\"").execute()
 
     return res.get("total_count", 0) > 0
+
 
 def _display_path(asset):
     if asset.get("display_name") is None:
         return ""
 
-    return "/".join([asset.get("asset_folder", ""), ".".join([asset["display_name"], asset["format"]])])
+    return "/".join([asset.get("asset_folder", ""), ".".join(filter(None, [asset["display_name"], asset.get("format", None)]))])
 
 
 def _relative_display_path(asset, folder):
