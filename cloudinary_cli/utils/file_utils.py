@@ -129,6 +129,7 @@ def normalize_file_extension(filename: str) -> str:
 
     return ".".join([p for p in [filename, extension_alias] if p])
 
+
 def populate_duplicate_name(filename, index=0):
     """
     Adds index to the filename in order to avoid duplicates.
@@ -142,6 +143,7 @@ def populate_duplicate_name(filename, index=0):
         filename = f"{filename} ({index})"
 
     return ".".join([p for p in [filename, extension[1:]] if p])
+
 
 def posix_rel_path(end, start) -> str:
     """
