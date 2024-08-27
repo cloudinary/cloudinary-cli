@@ -20,7 +20,6 @@ _DEFAULT_CONCURRENT_WORKERS = 30
 
 _SYNC_META_FILE = '.cld-sync'
 
-
 @command("sync",
          short_help="Synchronize between a local directory and a Cloudinary folder.",
          help="Synchronize between a local directory and a Cloudinary folder, maintaining the folder structure.")
@@ -40,32 +39,37 @@ _SYNC_META_FILE = '.cld-sync'
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
         help="Pass optional parameters as interpreted strings.")
+@option("-se", "--is_search_expression", is_flag=True, default=False, help="Use cloudinary_folder as a search expression term.")
 def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent_workers, force, keep_unique,
-         deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed):
+         deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, is_search_expression):
     if push == pull:
         raise UsageError("Please use either the '--push' OR '--pull' options")
 
-    if pull and not cld_folder_exists(cloudinary_folder):
+    if (pull and not cld_folder_exists(cloudinary_folder)) and not is_search_expression:
         logger.error(f"Cloudinary folder '{cloudinary_folder}' does not exist. Aborting...")
         return False
-
+    resources_data = {}
     sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
-                       deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed)
+                       deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, is_search_expression,
+                       resources_data)
 
     result = True
     if push:
         result = sync_dir.push()
     elif pull:
         result = sync_dir.pull()
+        return True
 
-    logger.info("Done!")
+    if local_folder != "from_copy_module":
+        logger.info("Done!")
 
     return result
 
 
 class SyncDir:
     def __init__(self, local_dir, remote_dir, include_hidden, concurrent_workers, force, keep_deleted,
-                 deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed):
+                 deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, is_search_expression,
+                 resources_data):
         self.local_dir = local_dir
         self.remote_dir = remote_dir.strip('/')
         self.user_friendly_remote_dir = self.remote_dir if self.remote_dir else '/'
@@ -79,16 +83,24 @@ class SyncDir:
 
         self.optional_parameter = optional_parameter
         self.optional_parameter_parsed = optional_parameter_parsed
+        self.is_search_expression = is_search_expression
+        self.resources_data = resources_data
 
         self.sync_meta_file = path.join(self.local_dir, _SYNC_META_FILE)
 
         self.verbose = logger.getEffectiveLevel() < logging.INFO
 
         self.local_files = walk_dir(path.abspath(self.local_dir), include_hidden)
-        logger.info(f"Found {len(self.local_files)} items in local folder '{local_dir}'")
+        if local_dir != "from_copy_module":
+            logger.info(f"Found {len(self.local_files)} items in local folder '{local_dir}'")
 
-        raw_remote_files = query_cld_folder(self.remote_dir, self.folder_mode)
-        logger.info(f"Found {len(raw_remote_files)} items in Cloudinary folder '{self.user_friendly_remote_dir}' "
+        raw_remote_files = query_cld_folder(self.remote_dir, self.folder_mode, self.is_search_expression)
+        if local_dir == "from_copy_module":
+            self.resources_data = raw_remote_files
+            folder_or_search_e = "with search expression"
+        else:
+            folder_or_search_e = "in Cloudinary folder"
+        logger.info(f"Found {len(raw_remote_files)} items {folder_or_search_e} '{self.user_friendly_remote_dir}' "
                     f"({self.folder_mode} folder mode)")
         self.remote_files = self._normalize_remote_file_names(raw_remote_files, self.local_files)
         self.remote_duplicate_names = duplicate_values(self.remote_files, "normalized_path", "asset_id")
@@ -130,7 +142,7 @@ class SyncDir:
 
         self.synced_files_count = len(common_file_names) - len(self.out_of_sync_local_file_names)
 
-        if self.synced_files_count:
+        if self.synced_files_count and local_dir != "from_copy_module":
             logger.info(f"Skipping {self.synced_files_count} items")
 
     def push(self):
@@ -176,6 +188,12 @@ class SyncDir:
         """
         Pulls changes from the Cloudinary folder to the local folder.
         """
+        if self.local_dir == "from_copy_module":
+            flattened_val = []
+            for key, value in self.resources_data.items():
+                flattened_val.append(value)
+            write_json_to_file(flattened_val, "assets_to_copy.json")
+            return True
         download_results = {}
         download_errors = {}
         if not self._handle_unique_local_files():
@@ -185,7 +203,6 @@ class SyncDir:
 
         if not files_to_pull:
             return True
-
         logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
         downloads = []
         for file in files_to_pull:
@@ -193,7 +210,6 @@ class SyncDir:
             local_path = path.abspath(path.join(self.local_dir, file))
 
             downloads.append((remote_file, local_path, download_results, download_errors))
-
         try:
             run_tasks_concurrently(download_file, downloads, self.concurrent_workers)
         finally:

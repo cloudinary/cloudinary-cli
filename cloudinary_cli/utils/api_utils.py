@@ -1,4 +1,5 @@
 import logging
+import re
 from os import path, makedirs
 
 import requests
@@ -19,13 +20,16 @@ PAGINATION_MAX_RESULTS = 500
 _cursor_fields = {"resource": "derived_next_cursor"}
 
 
-def query_cld_folder(folder, folder_mode):
+def query_cld_folder(folder, folder_mode, is_search_expression=False):
     files = {}
 
-    folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
-    folder_query = f"{folder}/*" if folder else "*"
-
-    expression = Search().expression(f"folder:\"{folder_query}\"").with_field("image_analysis").max_results(500)
+    if is_search_expression:
+        search_e = folder
+        expression = Search().expression(f'{search_e}').with_field(['tags', 'metadata', 'context']).max_results(500)
+    else:
+        folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
+        folder_query = f"{folder}/*" if folder else "*"
+        expression = Search().expression(f"folder:\"{folder_query}\"").with_field("image_analysis").max_results(500)
 
     next_cursor = True
     while next_cursor:
@@ -48,10 +52,17 @@ def query_cld_folder(folder, folder_mode):
                 "relative_path": rel_path,  # save for inner use
                 "access_mode": asset.get('access_mode', 'public'),
                 "created_at": asset.get('created_at'),
+                "folder": asset.get('folder'),
                 # dynamic folder mode fields
                 "asset_folder": asset.get('asset_folder'),
                 "display_name": asset.get('display_name'),
-                "relative_display_path": rel_display_path
+                "relative_display_path": rel_display_path,
+                "tags": asset.get('tags'),
+                "context": asset.get('context'),
+                "metadata": asset.get('metadata'),
+                "access_control": asset.get('access_control'),
+                "access_mode": asset.get('access_mode'),
+                "secure_url": asset.get('secure_url')
             }
         # use := when switch to python 3.8
         next_cursor = res.get('next_cursor')
@@ -72,7 +83,8 @@ def cld_folder_exists(folder):
 def _display_path(asset):
     if asset.get("display_name") is None:
         return ""
-
+    if asset.get("resource_type") == "raw":
+        return "/".join([asset.get("asset_folder", ""), ".".join([asset["display_name"]])])
     return "/".join([asset.get("asset_folder", ""), ".".join([asset["display_name"], asset["format"]])])
 
 
@@ -114,12 +126,12 @@ def upload_file(file_path, options, uploaded=None, failed=None):
     uploaded = uploaded if uploaded is not None else {}
     failed = failed if failed is not None else {}
     verbose = logger.getEffectiveLevel() < logging.INFO
-
     try:
-        size = path.getsize(file_path)
         upload_func = uploader.upload
-        if size > 20000000:
-            upload_func = uploader.upload_large
+        if not re.match(r'^https?://', file_path):
+            size = path.getsize(file_path)
+            if size > 20000000:
+                upload_func = uploader.upload_large
         result = upload_func(file_path, **options)
         disp_path = _display_path(result)
         disp_str = f"as {result['public_id']}" if not disp_path \
