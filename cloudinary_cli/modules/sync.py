@@ -41,14 +41,14 @@ _SYNC_META_FILE = '.cld-sync'
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
         help="Pass optional parameters as interpreted strings.")
+@option("--dry-run", is_flag=True, help="Simulate the sync operation without making any changes.")
 def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent_workers, force, keep_unique,
-         deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed):
+         deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, dry_run):
     if push == pull:
         raise UsageError("Please use either the '--push' OR '--pull' options")
 
     sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
-                       deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed)
-
+                       deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, dry_run)
     result = True
     if push:
         result = sync_dir.push()
@@ -63,7 +63,7 @@ def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent
 
 class SyncDir:
     def __init__(self, local_dir, remote_dir, include_hidden, concurrent_workers, force, keep_deleted,
-                 deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed):
+                 deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, dry_run):
         self.local_dir = local_dir
         self.remote_dir = remote_dir.strip('/')
         self.user_friendly_remote_dir = self.remote_dir if self.remote_dir else '/'
@@ -72,6 +72,7 @@ class SyncDir:
         self.force = force
         self.keep_unique = keep_deleted
         self.deletion_batch_size = deletion_batch_size
+        self.dry_run = dry_run
 
         self.folder_mode = folder_mode or get_folder_mode()
 
@@ -168,6 +169,13 @@ class SyncDir:
         if not files_to_push:
             return True
 
+        if self.dry_run:
+            logger.info("Dry run mode enabled. The following files would be uploaded:")
+            for file in files_to_push:
+                logger.info(f"{file} -> {self.remote_files[file]['normalized_path']}")
+            return True
+
+
         logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}'")
 
         options = {
@@ -213,6 +221,14 @@ class SyncDir:
         files_to_pull = self.unique_remote_file_names | self.out_of_sync_remote_file_names
 
         if not files_to_pull:
+            return True
+        
+        logger.info(f"Preparing to download {len(files_to_pull)} items from Cloudinary folder ")
+
+        if self.dry_run:
+            logger.info("Dry run mode enabled. The following files would be downloaded:")
+            for file in files_to_pull:
+                logger.info(f"{self.remote_files[file]['normalized_path']} -> {file}")
             return True
 
         logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
