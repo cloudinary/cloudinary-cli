@@ -1,6 +1,5 @@
-import os
-from typing import Tuple, List, Optional
-from click import argument, echo, option
+from typing import Tuple, List
+from click import argument, option
 from cloudinary_cli.cli_group import cli
 
 @cli.command("make", short_help="Return template code for implementing the specified Cloudinary widget.",
