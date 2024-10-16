@@ -1,4 +1,3 @@
-import cloudinary
 from typing import Optional, Any, Tuple
 from click import command, option
 

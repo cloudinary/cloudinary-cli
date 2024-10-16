@@ -1,6 +1,6 @@
 # cloudinary_cli/stubs/overrides.pyi
 
-from typing import Any, Dict, Tuple, Optional, Callable
+from typing import Any, Tuple, Optional
 from click import Context, Command
 from cloudinary.uploader import UploadResponse
 from cloudinary.utils import CloudinaryUrlResponse
