@@ -1,22 +1,11 @@
-from typing import Tuple, List
-from click import argument, option
-from cloudinary_cli.cli_group import cli
+from typing import Tuple, List, Optional
 
-@cli.command("make", short_help="Return template code for implementing the specified Cloudinary widget.",
-             help="""\b
-Return template code for implementing the specified Cloudinary widget.
-e.g. cld make media library widget
-     cld make python find all empty folders
-""")
-@argument("template", nargs=-1)
-@option("-ll", "--list-languages", is_flag=True, help="List available languages.")
-@option("-lt", "--list-templates", is_flag=True, help="List available templates.")
 def make(
     template: Tuple[str, ...],
-    list_languages: bool,
-    list_templates: bool
-) -> bool:
-    ...
+    list_languages: bool = False,
+    list_templates: bool = False
+) -> bool: ...
 
-def _handle_language_and_template(language_and_template: Tuple[str, ...]) -> Tuple[str, List[str]]:
-    ...
+def _handle_language_and_template(
+    language_and_template: Optional[Tuple[str, ...]]
+) -> Tuple[str, List[str]]: ...
