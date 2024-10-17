@@ -184,3 +184,36 @@ class TestCLISync(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
         self.assertIn("Skipping 12 items", result.output)
         self.assertIn("Done!", result.output)
+
+
+    @retry_assertion
+    def test_cli_sync_push_dry_run(self):
+        self._upload_sync_files(TEST_FILES_DIR)
+
+        # wait for indexing to be updated
+        time.sleep(self.GRACE_PERIOD)
+
+        result = self.runner.invoke(cli, ['sync', '--push', '-F', self.LOCAL_PARTIAL_SYNC_DIR, self.CLD_SYNC_DIR, '--dry-run'])
+
+        # check that no files were uploaded
+        self.assertEqual(0, result.exit_code)
+        self.assertIn("Dry run mode enabled. The following files would be uploaded:", result.output)
+        self.assertIn("Done!", result.output)
+
+
+    @retry_assertion
+    def test_cli_sync_pull_dry_run(self):
+        self._upload_sync_files(TEST_FILES_DIR)
+
+        # wait for indexing to be updated
+        time.sleep(self.GRACE_PERIOD)
+
+        shutil.copytree(self.LOCAL_PARTIAL_SYNC_DIR, self.LOCAL_SYNC_PULL_DIR)
+
+        result = self.runner.invoke(cli, ['sync', '--pull', '-F', self.LOCAL_SYNC_PULL_DIR, self.CLD_SYNC_DIR, '--dry-run'])
+
+        # check that no files were downloaded
+        self.assertEqual(0, result.exit_code)
+        self.assertIn("Dry run mode enabled. The following files would be downloaded:", result.output)
+        self.assertIn("Done!", result.output)
+        
