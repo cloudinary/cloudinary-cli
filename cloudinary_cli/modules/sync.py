@@ -116,16 +116,16 @@ class SyncDir:
         local_file_names = self.local_files.keys()
         remote_file_names = self.remote_files.keys()
         """
-        Cloudinary is a very permissive service. When uploading files that contain invalid characters, 
-        unicode characters, etc, Cloudinary does the best effort to store those files. 
-        
-        Usually Cloudinary sanitizes those file names and strips invalid characters. Although it is a good best effort 
-        for a general use case, when syncing local folder with Cloudinary, it is not the best option, since directories 
+        Cloudinary is a very permissive service. When uploading files that contain invalid characters,
+        unicode characters, etc, Cloudinary does the best effort to store those files.
+
+        Usually Cloudinary sanitizes those file names and strips invalid characters. Although it is a good best effort
+        for a general use case, when syncing local folder with Cloudinary, it is not the best option, since directories
         will be always out-of-sync.
-        
+
         In addition in dynamic folder mode Cloudinary allows having identical display names for differrent files.
-         
-        To overcome this limitation, cloudinary-cli keeps .cld-sync hidden file in the sync directory that contains a 
+
+        To overcome this limitation, cloudinary-cli keeps .cld-sync hidden file in the sync directory that contains a
         mapping of the diverse file names. This file keeps tracking of the files and allows syncing in both directions.
         """
 
@@ -172,7 +172,7 @@ class SyncDir:
         if self.dry_run:
             logger.info("Dry run mode enabled. The following files would be uploaded:")
             for file in files_to_push:
-                logger.info(f"{file} -> {self.remote_files[file]['normalized_path']}")
+                logger.info(f"{file}")
             return True
 
 
@@ -222,13 +222,13 @@ class SyncDir:
 
         if not files_to_pull:
             return True
-        
+
         logger.info(f"Preparing to download {len(files_to_pull)} items from Cloudinary folder ")
 
         if self.dry_run:
             logger.info("Dry run mode enabled. The following files would be downloaded:")
             for file in files_to_pull:
-                logger.info(f"{self.remote_files[file]['normalized_path']} -> {file}")
+                logger.info(f"{file}")
             return True
 
         logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
