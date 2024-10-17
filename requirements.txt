@@ -5,3 +5,4 @@ click
 click-log
 requests
 docstring-parser
+mypy

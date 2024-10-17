@@ -1,3 +1,4 @@
+# type: ignore
 from cloudinary_cli.version import __version__
 
 import cloudinary

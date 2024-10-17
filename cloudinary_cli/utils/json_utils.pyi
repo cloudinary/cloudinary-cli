@@ -1,0 +1,13 @@
+from typing import Any, Dict, Union
+
+def read_json_from_file(filename: str, does_not_exist_ok: bool = False) -> Dict[str, Any]:
+    ...
+
+def write_json_to_file(json_obj: Union[Dict[str, Any], list], filename: str, indent: int = 2, sort_keys: bool = False) -> None:
+    ...
+
+def update_json_file(json_obj: Union[Dict[str, Any], list], filename: str, indent: int = 2, sort_keys: bool = False) -> None:
+    ...
+
+def print_json(res: Union[Dict[str, Any], list]) -> None:
+    ...
