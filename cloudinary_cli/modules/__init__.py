@@ -1,4 +1,3 @@
-# type: ignore
 from .make import make
 from .migrate import migrate
 from .sync import sync
