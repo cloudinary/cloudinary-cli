@@ -175,7 +175,6 @@ class SyncDir:
                 logger.info(f"{file}")
             return True
 
-
         logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}'")
 
         options = {
@@ -364,6 +363,10 @@ class SyncDir:
 
             # Each batch is further chunked by a deletion batch size that can be specified by the user.
             for deletion_batch in chunker(batch, self.deletion_batch_size):
+                if self.dry_run:
+                    logger.info(f"Dry run mode enabled. Would delete {len(deletion_batch)} resources:\n" +
+                                                "\n".join(deletion_batch))
+                    continue
                 res = api.delete_resources(deletion_batch, invalidate=True, resource_type=attrs[0], type=attrs[1])
                 num_deleted = Counter(res['deleted'].values())["deleted"]
                 if self.verbose:
@@ -411,6 +414,9 @@ class SyncDir:
         logger.info(f"Deleting {len(self.unique_local_file_names)} local files...")
         for file in self.unique_local_file_names:
             full_path = path.abspath(self.local_files[file]['path'])
+            if self.dry_run:
+                logger.info(f"Dry run mode enabled. Would delete '{full_path}'")
+                continue
             remove(full_path)
             logger.info(f"Deleted '{full_path}'")
 
