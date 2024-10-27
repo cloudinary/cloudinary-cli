@@ -41,14 +41,14 @@ _SYNC_META_FILE = '.cld-sync'
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
         help="Pass optional parameters as interpreted strings.")
+@option("--dry-run", is_flag=True, help="Simulate the sync operation without making any changes.")
 def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent_workers, force, keep_unique,
-         deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed):
+         deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, dry_run):
     if push == pull:
         raise UsageError("Please use either the '--push' OR '--pull' options")
 
     sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
-                       deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed)
-
+                       deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, dry_run)
     result = True
     if push:
         result = sync_dir.push()
@@ -63,7 +63,7 @@ def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent
 
 class SyncDir:
     def __init__(self, local_dir, remote_dir, include_hidden, concurrent_workers, force, keep_deleted,
-                 deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed):
+                 deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, dry_run):
         self.local_dir = local_dir
         self.remote_dir = remote_dir.strip('/')
         self.user_friendly_remote_dir = self.remote_dir if self.remote_dir else '/'
@@ -72,6 +72,7 @@ class SyncDir:
         self.force = force
         self.keep_unique = keep_deleted
         self.deletion_batch_size = deletion_batch_size
+        self.dry_run = dry_run
 
         self.folder_mode = folder_mode or get_folder_mode()
 
@@ -115,16 +116,16 @@ class SyncDir:
         local_file_names = self.local_files.keys()
         remote_file_names = self.remote_files.keys()
         """
-        Cloudinary is a very permissive service. When uploading files that contain invalid characters, 
-        unicode characters, etc, Cloudinary does the best effort to store those files. 
-        
-        Usually Cloudinary sanitizes those file names and strips invalid characters. Although it is a good best effort 
-        for a general use case, when syncing local folder with Cloudinary, it is not the best option, since directories 
+        Cloudinary is a very permissive service. When uploading files that contain invalid characters,
+        unicode characters, etc, Cloudinary does the best effort to store those files.
+
+        Usually Cloudinary sanitizes those file names and strips invalid characters. Although it is a good best effort
+        for a general use case, when syncing local folder with Cloudinary, it is not the best option, since directories
         will be always out-of-sync.
-        
+
         In addition in dynamic folder mode Cloudinary allows having identical display names for differrent files.
-         
-        To overcome this limitation, cloudinary-cli keeps .cld-sync hidden file in the sync directory that contains a 
+
+        To overcome this limitation, cloudinary-cli keeps .cld-sync hidden file in the sync directory that contains a
         mapping of the diverse file names. This file keeps tracking of the files and allows syncing in both directions.
         """
 
@@ -166,6 +167,12 @@ class SyncDir:
 
         files_to_push = self.unique_local_file_names | self.out_of_sync_local_file_names
         if not files_to_push:
+            return True
+
+        if self.dry_run:
+            logger.info("Dry run mode enabled. The following files would be uploaded:")
+            for file in files_to_push:
+                logger.info(f"{file}")
             return True
 
         logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}'")
@@ -213,6 +220,14 @@ class SyncDir:
         files_to_pull = self.unique_remote_file_names | self.out_of_sync_remote_file_names
 
         if not files_to_pull:
+            return True
+
+        logger.info(f"Preparing to download {len(files_to_pull)} items from Cloudinary folder ")
+
+        if self.dry_run:
+            logger.info("Dry run mode enabled. The following files would be downloaded:")
+            for file in files_to_pull:
+                logger.info(f"{file}")
             return True
 
         logger.info(f"Downloading {len(files_to_pull)} files from Cloudinary")
@@ -348,6 +363,10 @@ class SyncDir:
 
             # Each batch is further chunked by a deletion batch size that can be specified by the user.
             for deletion_batch in chunker(batch, self.deletion_batch_size):
+                if self.dry_run:
+                    logger.info(f"Dry run mode enabled. Would delete {len(deletion_batch)} resources:\n" +
+                                                "\n".join(deletion_batch))
+                    continue
                 res = api.delete_resources(deletion_batch, invalidate=True, resource_type=attrs[0], type=attrs[1])
                 num_deleted = Counter(res['deleted'].values())["deleted"]
                 if self.verbose:
@@ -395,6 +414,9 @@ class SyncDir:
         logger.info(f"Deleting {len(self.unique_local_file_names)} local files...")
         for file in self.unique_local_file_names:
             full_path = path.abspath(self.local_files[file]['path'])
+            if self.dry_run:
+                logger.info(f"Dry run mode enabled. Would delete '{full_path}'")
+                continue
             remove(full_path)
             logger.info(f"Deleted '{full_path}'")
 
