@@ -1,5 +1,4 @@
 import logging
-import re
 from os import path, makedirs
 
 import requests
@@ -14,22 +13,20 @@ from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
     normalize_list_params, ConfigurationError, print_api_help, duplicate_values
+import re
 
 PAGINATION_MAX_RESULTS = 500
 
 _cursor_fields = {"resource": "derived_next_cursor"}
 
 
-def query_cld_folder(folder, folder_mode, is_search_expression=False):
+def query_cld_folder(folder, folder_mode):
     files = {}
 
-    if is_search_expression:
-        search_e = folder
-        expression = Search().expression(f'{search_e}').with_field(['tags', 'metadata', 'context']).max_results(500)
-    else:
-        folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
-        folder_query = f"{folder}/*" if folder else "*"
-        expression = Search().expression(f"folder:\"{folder_query}\"").with_field("image_analysis").max_results(500)
+    folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
+    folder_query = f"{folder}/*" if folder else "*"
+
+    expression = Search().expression(f"folder:\"{folder_query}\"").with_field("image_analysis").max_results(500)
 
     next_cursor = True
     while next_cursor:
@@ -52,17 +49,10 @@ def query_cld_folder(folder, folder_mode, is_search_expression=False):
                 "relative_path": rel_path,  # save for inner use
                 "access_mode": asset.get('access_mode', 'public'),
                 "created_at": asset.get('created_at'),
-                "folder": asset.get('folder'),
                 # dynamic folder mode fields
                 "asset_folder": asset.get('asset_folder'),
                 "display_name": asset.get('display_name'),
-                "relative_display_path": rel_display_path,
-                "tags": asset.get('tags'),
-                "context": asset.get('context'),
-                "metadata": asset.get('metadata'),
-                "access_control": asset.get('access_control'),
-                "access_mode": asset.get('access_mode'),
-                "secure_url": asset.get('secure_url')
+                "relative_display_path": rel_display_path
             }
         # use := when switch to python 3.8
         next_cursor = res.get('next_cursor')
@@ -70,22 +60,23 @@ def query_cld_folder(folder, folder_mode, is_search_expression=False):
 
     return files
 
+
 def cld_folder_exists(folder):
     folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
 
     if not folder:
-        return True # root folder
+        return True  # root folder
 
-    res = SearchFolders().expression(f"name=\"{folder}\"").execute()
+    res = SearchFolders().expression(f"path=\"{folder}\"").execute()
 
     return res.get("total_count", 0) > 0
+
 
 def _display_path(asset):
     if asset.get("display_name") is None:
         return ""
-    if asset.get("resource_type") == "raw":
-        return "/".join([asset.get("asset_folder", ""), ".".join([asset["display_name"]])])
-    return "/".join([asset.get("asset_folder", ""), ".".join([asset["display_name"], asset["format"]])])
+
+    return "/".join([asset.get("asset_folder", ""), ".".join(filter(None, [asset["display_name"], asset.get("format", None)]))])
 
 
 def _relative_display_path(asset, folder):
@@ -126,6 +117,7 @@ def upload_file(file_path, options, uploaded=None, failed=None):
     uploaded = uploaded if uploaded is not None else {}
     failed = failed if failed is not None else {}
     verbose = logger.getEffectiveLevel() < logging.INFO
+
     try:
         upload_func = uploader.upload
         if not re.match(r'^https?://', file_path):
