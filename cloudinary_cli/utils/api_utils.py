@@ -116,7 +116,10 @@ def upload_file(file_path, options, uploaded=None, failed=None):
     verbose = logger.getEffectiveLevel() < logging.INFO
 
     try:
-        size = path.getsize(file_path)
+        if not file_path.startswith('http'):
+            size = path.getsize(file_path)
+        else:
+            size = 0
         upload_func = uploader.upload
         if size > 20000000:
             upload_func = uploader.upload_large
