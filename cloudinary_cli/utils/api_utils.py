@@ -13,7 +13,6 @@ from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
     normalize_list_params, ConfigurationError, print_api_help, duplicate_values
-import re
 
 PAGINATION_MAX_RESULTS = 500
 
@@ -60,23 +59,21 @@ def query_cld_folder(folder, folder_mode):
 
     return files
 
-
 def cld_folder_exists(folder):
     folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
 
     if not folder:
         return True # root folder
 
-    res = SearchFolders().expression(f"path=\"{folder}\"").execute()
+    res = SearchFolders().expression(f"name=\"{folder}\"").execute()
 
     return res.get("total_count", 0) > 0
-
 
 def _display_path(asset):
     if asset.get("display_name") is None:
         return ""
 
-    return "/".join([asset.get("asset_folder", ""), ".".join(filter(None, [asset["display_name"], asset.get("format", None)]))])
+    return "/".join([asset.get("asset_folder", ""), ".".join([asset["display_name"], asset["format"]])])
 
 
 def _relative_display_path(asset, folder):
@@ -119,11 +116,10 @@ def upload_file(file_path, options, uploaded=None, failed=None):
     verbose = logger.getEffectiveLevel() < logging.INFO
 
     try:
+        size = path.getsize(file_path)
         upload_func = uploader.upload
-        if not re.match(r'^https?://', file_path):
-            size = path.getsize(file_path)
-            if size > 20000000:
-                upload_func = uploader.upload_large
+        if size > 20000000:
+            upload_func = uploader.upload_large
         result = upload_func(file_path, **options)
         disp_path = _display_path(result)
         disp_str = f"as {result['public_id']}" if not disp_path \
