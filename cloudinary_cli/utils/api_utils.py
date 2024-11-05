@@ -65,7 +65,7 @@ def cld_folder_exists(folder):
     folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
 
     if not folder:
-        return True  # root folder
+        return True # root folder
 
     res = SearchFolders().expression(f"path=\"{folder}\"").execute()
 
