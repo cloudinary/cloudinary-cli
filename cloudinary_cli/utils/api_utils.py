@@ -13,6 +13,7 @@ from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
     normalize_list_params, ConfigurationError, print_api_help, duplicate_values
+import re
 
 PAGINATION_MAX_RESULTS = 500
 
@@ -116,13 +117,11 @@ def upload_file(file_path, options, uploaded=None, failed=None):
     verbose = logger.getEffectiveLevel() < logging.INFO
 
     try:
-        if not file_path.startswith('http'):
-            size = path.getsize(file_path)
-        else:
-            size = 0
         upload_func = uploader.upload
-        if size > 20000000:
-            upload_func = uploader.upload_large
+        if not re.match(r'^https?://', str(file_path)):
+            size = path.getsize(file_path)
+            if size > 20000000:
+                upload_func = uploader.upload_large
         result = upload_func(file_path, **options)
         disp_path = _display_path(result)
         disp_str = f"as {result['public_id']}" if not disp_path \
