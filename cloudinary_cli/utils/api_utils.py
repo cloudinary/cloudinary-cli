@@ -129,7 +129,8 @@ def upload_file(file_path, options, uploaded=None, failed=None):
         logger.info(style(f"Successfully uploaded {file_path} {disp_str}", fg="green"))
         if verbose:
             print_json(result)
-        uploaded[file_path] = {"path": asset_source(result), "display_path": disp_path}
+        if "async" not in options:
+            uploaded[file_path] = {"path": asset_source(result), "display_path": disp_path}
     except Exception as e:
         log_exception(e, f"Failed uploading {file_path}")
         failed[file_path] = str(e)
@@ -278,7 +279,6 @@ def handle_api_command(
     """
     Used by Admin and Upload API commands
     """
-
     if doc:
         return launch(doc_url)
 

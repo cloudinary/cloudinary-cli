@@ -1,112 +1,91 @@
-from click import command, argument, option, style
-from cloudinary_cli.utils.utils import group_params, parse_option_value, \
-     normalize_list_params
+from click import command, option, style
+from cloudinary_cli.utils.utils import normalize_list_params, \
+     print_help_and_exit
 import cloudinary
-from cloudinary_cli.utils.utils import confirm_action, run_tasks_concurrently
+from cloudinary_cli.utils.utils import run_tasks_concurrently
 from cloudinary_cli.utils.api_utils import upload_file
-from binascii import a2b_hex
 from cloudinary_cli.utils.config_utils import load_config, \
      refresh_cloudinary_config, verify_cloudinary_url
 from cloudinary_cli.defaults import logger
-import copy as deepcopy_module
 from cloudinary_cli.core.search import execute_single_request, \
      handle_auto_pagination
+import os
 
 DEFAULT_MAX_RESULTS = 500
 
 
 @command("clone",
-         short_help="""Clone assets, structured metadata, upload preset or named transformations from one account to another.""",
-         help="tbc")
-@argument("search_exp", nargs=-1)
+         short_help="""Clone assets from one account to another.""",
+         help="""
+\b
+Clone assets from one environment to another with/without tags and context (structured metadata is not currently supported).
+Source will be your `CLOUDINARY_URL` environemnt variable but you also can specify a different source using `-c/-C` option.
+Cloning restricted assets is also not supported currently.
+Format: cld clone -t/-T <target_environemnt> <command options>
+You need to specify the target cloud via `-t` or `-T` (not both)
+e.g. cld clone -t cloudinary://<api_key>:<api_secret>@<cloudname> -f tags,context -O
+""")
 @option("-T", "--target_saved",
         help="Tell the CLI the target environemnt to run the command on by specifying a saved configuration - see `config` command.")
 @option("-t", "--target",
-        help="Tell the CLI the target environemnt to run the command on by specifying an account environment variable.")
+        help="Tell the CLI the target environemnt to run the command on by specifying an environment variable.")
 @option("-A", "--auto_paginate", is_flag=True, default=False,
         help="Auto-paginate Admin API calls.")
 @option("-F", "--force", is_flag=True,
         help="Skip confirmation.")
-@option("-n", "--max_results", nargs=1, default=10,
-        help="""The maximum number of results to return.
-              Default: 10, maximum: 500.""")
-@option("-o", "--optional_parameter", multiple=True, nargs=2,
-        help="Pass optional parameters as raw strings.")
-@option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
-        help="Pass optional parameters as interpreted strings.")
+@option("-O", "--overwrite", is_flag=True, default=False,
+        help="Skip confirmation.")
 @option("-w", "--concurrent_workers", type=int, default=30,
         help="Specify the number of concurrent network threads.")
-@option("--fields", multiple=True, help="Specify whether to copy tags and context")
-@option("-at", "--auth_token", help="Authentication token for base environment. Used for generating a token for assets that have access control.")
-def clone(search_exp, target_saved, target, auto_paginate, force, max_results,
-          optional_parameter, optional_parameter_parsed, concurrent_workers,
-          auth_token, fields):
+@option("-f", "--fields", multiple=True,
+        help="Specify whether to copy tags and context.")
+@option("-se", "--search_exp", default="",
+        help="Define a search expression.")
+@option("--async", "async_", is_flag=True, default=False,
+        help="Generate asynchronously.")
+@option("-nu", "--notification_url",
+        help="Webhook notification URL.")
+def clone(target_saved, target, auto_paginate, force,
+          overwrite, concurrent_workers, fields, search_exp,
+          async_, notification_url):
+    if bool(target) == bool(target_saved):
+        print_help_and_exit()
 
-    if not target and not target_saved:
-        print("Target (-T/-t) is mandatory. ")
-        exit()
-    elif target and target_saved:
-        print("Please pass either -t or -T, not both.")
-        exit()
-
+    base_cloudname_url = os.environ.get('CLOUDINARY_URL')
+    base_cloudname = cloudinary.config().cloud_name
     if target:
         verify_cloudinary_url(target)
     elif target_saved:
         config = load_config()
         if target_saved not in config:
-            raise Exception(f"Config {target_saved} does not exist")
+            logger.error(f"Config {target_saved} does not exist")
+            return False
+        else:
+            refresh_config(target_saved=target_saved)
+    target_cloudname = cloudinary.config().cloud_name
+    if base_cloudname == target_cloudname:
+        logger.info("Target environment cannot be the "
+                    "same as source environment.")
+        return True
+    refresh_config(base_cloudname_url)
 
-    if fields:
-        copy_fields = normalize_list_params(fields)
-    else:
-        copy_fields = ""
-
-    if auth_token:
-        try:
-            a2b_hex(auth_token)
-        except Exception:
-            print('Auth key is not valid. Please double-check.')
-            exit()
-    else:
-        auth_token = ""
-
-    search = cloudinary.search.Search().expression(" ".join(search_exp))
-    if auto_paginate:
-        max_results = DEFAULT_MAX_RESULTS
+    copy_fields = normalize_list_params(fields)
+    search = cloudinary.search.Search().expression(search_exp)
     search.fields(['tags', 'context', 'access_control',
                    'secure_url', 'display_name'])
-    search.max_results(max_results)
+    search.max_results(DEFAULT_MAX_RESULTS)
     res = execute_single_request(search, fields_to_keep="")
     if auto_paginate:
         res = handle_auto_pagination(res, search, force, fields_to_keep="")
 
-    options = {
-        **group_params(optional_parameter,
-                       ((k, parse_option_value(v))
-                        for k, v in optional_parameter_parsed)),
-    }
-
     upload_list = []
     for r in res.get('resources'):
-        updated_options, asset_url = process_metadata(r, auth_token, options,
+        updated_options, asset_url = process_metadata(r, overwrite, async_,
+                                                      notification_url,
                                                       copy_fields)
         upload_list.append((asset_url, {**updated_options}))
 
-    base_cloudname = cloudinary.config().cloud_name
-    if target:
-        refresh_cloudinary_config(target)
-    elif target_saved:
-        refresh_cloudinary_config(load_config()[target_saved])
-    target_cloudname = cloudinary.config().cloud_name
-
-    if base_cloudname == target_cloudname:
-        if not confirm_action(
-                "Target environment is same as base cloud. "
-                "Continue? (y/N)"):
-            logger.info("Stopping.")
-            exit()
-        else:
-            logger.info("Continuing.")
+    refresh_config(target, target_saved)
     logger.info(style(f'Copying {len(upload_list)} asset(s) to '
                       f'{target_cloudname}', fg="blue"))
     run_tasks_concurrently(upload_file, upload_list,
@@ -115,41 +94,32 @@ def clone(search_exp, target_saved, target, auto_paginate, force, max_results,
     return True
 
 
-def process_metadata(res, auth_t, options, copy_fields):
-    cloned_options = deepcopy_module.deepcopy(options)
-    if res.get('access_control'):
-        asset_url = generate_token(res.get('public_id'), res.get('type'),
-                                   res.get('resource_type'), res.get('format'),
-                                   auth_t)
-        cloned_options['access_control'] = res.get('access_control')
-    else:
-        asset_url = res.get('secure_url')
+def refresh_config(target="", target_saved=""):
+    if target:
+        refresh_cloudinary_config(target)
+    elif target_saved:
+        refresh_cloudinary_config(load_config()[target_saved])
+
+
+def process_metadata(res, overwrite, async_, notification_url, copy_fields=""):
+    cloned_options = {}
+    asset_url = res.get('secure_url')
     cloned_options['public_id'] = res.get('public_id')
     cloned_options['type'] = res.get('type')
     cloned_options['resource_type'] = res.get('resource_type')
-    if not cloned_options.get('overwrite'):
-        cloned_options['overwrite'] = True
+    cloned_options['overwrite'] = overwrite
+    cloned_options['async'] = async_
     if "tags" in copy_fields:
         cloned_options['tags'] = res.get('tags')
     if "context" in copy_fields:
         cloned_options['context'] = res.get('context')
-    if res.get('folder') and not cloned_options.get('asset_folder'):
+    if res.get('folder'):
         cloned_options['asset_folder'] = res.get('folder')
-    elif res.get('asset_folder') and not cloned_options.get('asset_folder'):
+    elif res.get('asset_folder'):
         cloned_options['asset_folder'] = res.get('asset_folder')
     if res.get('display_name'):
         cloned_options['display_name'] = res.get('display_name')
+    if notification_url:
+        cloned_options['notification_url'] = notification_url
+
     return cloned_options, asset_url
-
-
-def generate_token(pid, type, r_type, format, auth_t):
-    url = cloudinary.utils.cloudinary_url(
-        f"{pid}.{format}",
-        type=type,
-        resource_type=r_type,
-        auth_token=dict(key=auth_t,
-                        duration=30),
-        secure=True,
-        sign_url=True,
-        force_version=False)
-    return url
