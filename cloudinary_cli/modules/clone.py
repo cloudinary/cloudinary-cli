@@ -111,6 +111,10 @@ def process_metadata(res, overwrite, async_, notification_url, copy_fields=""):
     if "context" in copy_fields:
         cloned_options['context'] = res.get('context')
     if res.get('folder'):
+        # This is required to put the asset in the correct asset_folder
+        # when copying from a fixed to DF (dynamic folder) cloud as if
+        # you just pass a `folder`param to a DF cloud, it will append
+        # this to the `public_id` and we don't want this.
         cloned_options['asset_folder'] = res.get('folder')
     elif res.get('asset_folder'):
         cloned_options['asset_folder'] = res.get('asset_folder')
