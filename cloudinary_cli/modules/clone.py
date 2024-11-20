@@ -16,12 +16,12 @@ DEFAULT_MAX_RESULTS = 500
          short_help="""Clone assets from one account to another.""",
          help="""
 \b
-Clone assets from one environment to another with/without tags and context (structured metadata is not currently supported).
+Clone assets from one environment to another with/without tags and/or context (structured metadata is not currently supported).
 Source will be your `CLOUDINARY_URL` environemnt variable but you also can specify a different source using `-c/-C` option.
 Cloning restricted assets is also not supported currently.
-Format: cld clone -t/-T <target_environemnt> <command options>
-You need to specify the target cloud via `-t` or `-T` (not both)
-e.g. cld clone -t cloudinary://<api_key>:<api_secret>@<cloudname> -f tags,context -O
+Format: cld clone -T <target_environment> <command options>
+`<target_environment>` can be a CLOUDINARY_URL or a saved config (see  `config` command)
+e.g. cld clone -T cloudinary://<api_key>:<api_secret>@<cloudname> -f tags,context
 """)
 @option("-T", "--target",
         help="Tell the CLI the target environemnt to run the command on.")
@@ -113,7 +113,7 @@ def process_metadata(res, overwrite, async_, notification_url, copy_fields=""):
     if res.get('folder'):
         # This is required to put the asset in the correct asset_folder
         # when copying from a fixed to DF (dynamic folder) cloud as if
-        # you just pass a `folder`param to a DF cloud, it will append
+        # you just pass a `folder` param to a DF cloud, it will append
         # this to the `public_id` and we don't want this.
         cloned_options['asset_folder'] = res.get('folder')
     elif res.get('asset_folder'):
