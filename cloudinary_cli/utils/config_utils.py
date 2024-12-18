@@ -44,16 +44,31 @@ def refresh_cloudinary_config(cloudinary_url):
 
 def verify_cloudinary_url(cloudinary_url):
     refresh_cloudinary_config(cloudinary_url)
-    try:
-        api.ping()
-    except Exception as e:
-        log_exception(e, f"Invalid Cloudinary URL: {cloudinary_url}")
-        return False
-    return True
+    return ping_cloudinary()
 
+
+def get_cloudinary_config(target):
+    target_config = cloudinary.Config()
+    if target.startswith("cloudinary://"):
+        parsed_url = target_config._parse_cloudinary_url(target)
+    elif target in load_config():
+        parsed_url = target_config._parse_cloudinary_url(load_config().get(target))
+    else:
+        return False
+
+    target_config._setup_from_parsed_url(parsed_url)
+
+    if not ping_cloudinary(**config_to_dict(target_config)):
+        logger.error(f"Invalid Cloudinary config: {target}")
+        return False
+
+    return target_config
+
+def config_to_dict(config):
+    return {k: v for k, v in config.__dict__.items() if not k.startswith("_")}
 
 def show_cloudinary_config(cloudinary_config):
-    obfuscated_config = {k: v for k, v in cloudinary_config.__dict__.items() if not k.startswith("_")}
+    obfuscated_config = config_to_dict(cloudinary_config)
 
     if "api_secret" in obfuscated_config:
         api_secret = obfuscated_config["api_secret"]
@@ -96,6 +111,14 @@ def is_valid_cloudinary_config():
 def initialize():
     migrate_old_config()
 
+def ping_cloudinary(**options):
+    try:
+        api.ping(**options)
+    except Exception as e:
+        logger.error(f"Failed to ping Cloudinary: {e}")
+        return False
+
+    return True
 
 def _verify_file_path(file):
     os.makedirs(os.path.dirname(file), exist_ok=True)
