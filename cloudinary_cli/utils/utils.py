@@ -7,6 +7,7 @@ from csv import DictWriter
 from functools import reduce
 from hashlib import md5
 from inspect import signature, getfullargspec
+from typing import get_type_hints
 from multiprocessing import pool
 
 import click
@@ -14,6 +15,7 @@ import cloudinary
 from jinja2 import Environment, FileSystemLoader
 from docstring_parser import parse
 from cloudinary_cli.defaults import logger, TEMPLATE_FOLDER
+from cloudinary.utils import build_array
 
 not_callable = ('is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api',
                 'call_metadata_api', 'call_json_api', 'only', 'transformation_string', 'account_config',
@@ -127,9 +129,11 @@ def parse_args_kwargs(func, params=None, kwargs=None):
     num_req = num_args - num_defaults
     num_provided_args = len(params)
     num_overall_provided = num_provided_args + len([p for p in kwargs.keys() if p in spec.args[num_provided_args:]])
+
     if num_overall_provided < num_req:
         func_sig = signature(func)
         raise Exception(f"Function '{func.__name__}{func_sig}' requires {num_req} positional arguments")
+
     # consume required args
     args = [parse_option_value(p) for p in params[:num_req]]
 
@@ -142,8 +146,27 @@ def parse_args_kwargs(func, params=None, kwargs=None):
         k, v = p.split('=', 1)
         kwargs[k] = parse_option_value(v)
 
+    params_specs = parse(func.__doc__).params
+
+    if len(args) > num_req:
+        # Here we comsumed more args than the function can get,
+        # let's see if we have a list arg and pass everything as list.
+        # Otherwise, let's pass everything as is and hope for the best :)
+        last_positional_list_param = next((s for s in reversed(params_specs) if s.arg_name not in kwargs and s.type_name and s.type_name.startswith('list')), None)
+        if last_positional_list_param:
+            pos = get_index_by_name(spec.args, last_positional_list_param.arg_name)
+            args[pos] = [args[pos]] + args[num_args:]
+            args = args[:num_args]
+
+    for s in params_specs:
+        if s.type_name and s.type_name.startswith('list'):
+            pos = get_index_by_name(spec.args, s.arg_name)
+            args[pos] = normalize_list_params(args[pos])
+
     return args, kwargs
 
+def get_index_by_name(lst, name):
+    return next((i for i, item in enumerate(lst) if item == name), -1)
 
 def remove_string_prefix(string, prefix):
     return string[string.startswith(prefix) and len(prefix):]
@@ -297,17 +320,20 @@ def normalize_list_params(params):
     """
     Normalizes parameters that could be provided as strings separated by ','.
 
-    >>> normalize_list_params(["f1,f2", "f3"])
-    ["f1", "f2", "f3"]
+    >>> normalize_list_params(['f1,f2', 'f3'])
+    ['f1', 'f2', 'f3']
+
+    >>> normalize_list_params('f1,f2,f3')
+    ['f1', 'f2', 'f3']
 
     :param params: Params to normalize.
-    :type params: list
+    :type params: list[string] or string
 
     :return: A list of normalized params.
     :rtype list
     """
     normalized_params = []
-    for f in list(params):
+    for f in build_array(params):
         if "," in f:
             normalized_params += f.split(",")
         else:
