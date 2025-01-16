@@ -15,7 +15,7 @@ DEFAULT_MAX_RESULTS = 500
          help="""
 \b
 Clone assets from one product environment to another with/without tags and/or context (structured metadata is not currently supported).
-Source will be your `CLOUDINARY_URL` environemnt variable but you also can specify a different source using `-c/-C` option.
+Source will be your `CLOUDINARY_URL` environment variable but you also can specify a different source using `-c/-C` option.
 Cloning restricted assets is also not supported currently.
 Format: cld clone -T <target_environment> <command options>
 `<target_environment>` can be a CLOUDINARY_URL or a saved config (see  `config` command)
