@@ -22,7 +22,7 @@ Format: cld clone -T <target_environment> <command options>
 e.g. cld clone -T cloudinary://<api_key>:<api_secret>@<cloudname> -f tags,context
 """)
 @option("-t", "--target",
-        help="Tell the CLI the target environemnt to run the command on.")
+        help="Tell the CLI the target environment to run the command on.")
 @option("-f", "--force", is_flag=True,
         help="Skip confirmation.")
 @option("-o", "--overwrite", is_flag=True, default=False,
