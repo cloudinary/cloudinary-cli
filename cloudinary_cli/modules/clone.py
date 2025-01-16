@@ -34,7 +34,7 @@ e.g. cld clone -T cloudinary://<api_key>:<api_secret>@<cloudname> -f tags,contex
 @option("-se", "--search_exp", default="",
         help="Define a search expression to filter the assets to clone.")
 @option("--async", "async_", is_flag=True, default=False,
-        help="Generate asynchronously.")
+        help="Clone the assets asynchronously.")
 @option("-nu", "--notification_url",
         help="Webhook notification URL.")
 def clone(target, force, overwrite, concurrent_workers, fields, search_exp, async_, notification_url):
