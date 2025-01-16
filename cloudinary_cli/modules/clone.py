@@ -1,4 +1,4 @@
-from click import command, option, style
+from click import command, option, style, argument
 from cloudinary_cli.utils.utils import normalize_list_params, print_help_and_exit
 import cloudinary
 from cloudinary_cli.utils.utils import run_tasks_concurrently
@@ -15,22 +15,24 @@ DEFAULT_MAX_RESULTS = 500
          help="""
 \b
 Clone assets from one product environment to another with/without tags and/or context (structured metadata is not currently supported).
-Source will be your `CLOUDINARY_URL` environment variable but you also can specify a different source using `-c/-C` option.
+Source will be your `CLOUDINARY_URL` environment variable but you also can specify a different source using the `-c/-C` option.
 Cloning restricted assets is also not supported currently.
-Format: cld clone -T <target_environment> <command options>
-`<target_environment>` can be a CLOUDINARY_URL or a saved config (see  `config` command)
-e.g. cld clone -T cloudinary://<api_key>:<api_secret>@<cloudname> -f tags,context
+Format: cld clone <target_environment> <command options>
+`<target_environment>` can be a CLOUDINARY_URL or a saved config (see `config` command)
+Example 1 (Copy all assets including tags and context using CLOUDINARY URL):
+    cld clone cloudinary://<api_key>:<api_secret>@<cloudname> -fi tags,context
+Example 2 (Copy all assets with a specific tag via a search expression using a saved config):
+    cld clone <config_name> -se "tags:<tag_name>"
 """)
-@option("-t", "--target",
-        help="Tell the CLI the target environment to run the command on.")
-@option("-f", "--force", is_flag=True,
+@argument("target")
+@option("-F", "--force", is_flag=True,
         help="Skip confirmation.")
-@option("-o", "--overwrite", is_flag=True, default=False,
+@option("-ow", "--overwrite", is_flag=True, default=False,
         help="Specify whether to overwrite existing assets.")
 @option("-w", "--concurrent_workers", type=int, default=30,
         help="Specify the number of concurrent network threads.")
 @option("-fi", "--fields", multiple=True,
-        help="Specify whether to copy tags and context.")
+        help="Specify whether to copy tags and/or context. Valid options: `tags,context`.")
 @option("-se", "--search_exp", default="",
         help="Define a search expression to filter the assets to clone.")
 @option("--async", "async_", is_flag=True, default=False,
