@@ -32,7 +32,7 @@ e.g. cld clone -T cloudinary://<api_key>:<api_secret>@<cloudname> -f tags,contex
 @option("-fi", "--fields", multiple=True,
         help="Specify whether to copy tags and context.")
 @option("-se", "--search_exp", default="",
-        help="Define a search expression.")
+        help="Define a search expression to filter the assets to clone.")
 @option("--async", "async_", is_flag=True, default=False,
         help="Generate asynchronously.")
 @option("-nu", "--notification_url",
