@@ -36,7 +36,11 @@ def utils(params, optional_parameter, optional_parameter_parsed, ls):
 @argument("transformation", default="")
 @option("-rt", "--resource_type", default="image", type=Choice(['image', 'video', 'raw']), help="The asset type")
 @option("-t", "--type", "delivery_type", default="upload",
-        type=Choice(['upload', 'private', 'authenticated', 'fetch', 'list', 'url2png']),
+        type=Choice([
+            'upload', 'private', 'public', 'authenticated', 'fetch', 'list', 'url2png',
+            'sprite', 'text', 'multi', 'facebook', 'twitter', 'twitter_name', 'gravatar',
+            'youtube', 'hulu', 'vimeo', 'animoto', 'worldstarhiphop', 'dailymotion'
+        ]),
         help="The delivery type.")
 @option("-o", "--open", 'open_in_browser', is_flag=True, help="Generate the derived asset and open it in your browser.")
 @option("-s", "--sign", is_flag=True, help="Generate a signed URL.", default=False)
