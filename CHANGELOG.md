@@ -1,3 +1,21 @@
+1.11.0 / 2025-01-20
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for `clone` command
+  * Add support for `search_folders` command
+  * Add support for `--dry-run` option in `sync` command
+
+Other Changes
+-------------
+
+  * Improve list parameters handling
+  * Add `Dockerfile`
+  * Bump `zipp` version to reduce vulnerabilities
+  * Bump `urllib3` version to reduce vulnerabilities
+
 1.10.3 / 2024-07-31
 ==================
 
