@@ -13,6 +13,8 @@ from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
     normalize_list_params, ConfigurationError, print_api_help, duplicate_values
+import re
+from cloudinary.utils import is_remote_url
 
 PAGINATION_MAX_RESULTS = 500
 
@@ -59,21 +61,23 @@ def query_cld_folder(folder, folder_mode):
 
     return files
 
+
 def cld_folder_exists(folder):
     folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
 
     if not folder:
-        return True # root folder
+        return True  # root folder
 
-    res = SearchFolders().expression(f"name=\"{folder}\"").execute()
+    res = SearchFolders().expression(f"path=\"{folder}\"").execute()
 
     return res.get("total_count", 0) > 0
+
 
 def _display_path(asset):
     if asset.get("display_name") is None:
         return ""
 
-    return "/".join([asset.get("asset_folder", ""), ".".join([asset["display_name"], asset["format"]])])
+    return "/".join([asset.get("asset_folder", ""), ".".join(filter(None, [asset["display_name"], asset.get("format", None)]))])
 
 
 def _relative_display_path(asset, folder):
@@ -116,15 +120,20 @@ def upload_file(file_path, options, uploaded=None, failed=None):
     verbose = logger.getEffectiveLevel() < logging.INFO
 
     try:
-        size = path.getsize(file_path)
+        size = 0 if is_remote_url(file_path) else path.getsize(file_path)
         upload_func = uploader.upload
         if size > 20000000:
             upload_func = uploader.upload_large
         result = upload_func(file_path, **options)
         disp_path = _display_path(result)
-        disp_str = f"as {result['public_id']}" if not disp_path \
-            else f"as {disp_path} with public_id: {result['public_id']}"
-        logger.info(style(f"Successfully uploaded {file_path} {disp_str}", fg="green"))
+        if "batch_id" in result:
+            starting_msg = "Uploading"
+            disp_str = f"asynchnously with batch_id: {result['batch_id']}"
+        else:
+            starting_msg = "Successfully uploaded"
+            disp_str = f"as {result['public_id']}" if not disp_path \
+                else f"as {disp_path} with public_id: {result['public_id']}"
+        logger.info(style(f"{starting_msg} {file_path} {disp_str}", fg="green"))
         if verbose:
             print_json(result)
         uploaded[file_path] = {"path": asset_source(result), "display_path": disp_path}
@@ -210,12 +219,15 @@ def asset_source(asset_details):
 
     :return:
     """
-    base_name = asset_details['public_id']
+    base_name = asset_details.get('public_id', '')
+
+    if not base_name:
+        return base_name
 
     if asset_details['resource_type'] == 'raw' or asset_details['type'] == 'fetch':
         return base_name
 
-    return base_name + '.' + asset_details['format']
+    return base_name + '.' + asset_details.get('format', '')
 
 
 def get_folder_mode():
@@ -276,7 +288,6 @@ def handle_api_command(
     """
     Used by Admin and Upload API commands
     """
-
     if doc:
         return launch(doc_url)
 

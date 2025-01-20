@@ -14,7 +14,7 @@ class UtilsTest(unittest.TestCase):
         self.assertDictEqual({"foo": "bar"}, parse_option_value('{"foo":"bar"}'))
         self.assertDictEqual({"an": "object", "or": "dict"}, parse_option_value('{"an":"object","or":"dict"}'))
         self.assertListEqual(
-            ["this", "will", "be", "read", "as","a", "list"],
+            ["this", "will", "be", "read", "as", "a", "list"],
             parse_option_value('["this","will","be","read","as","a","list"]')
         )
         self.assertListEqual(
@@ -61,6 +61,14 @@ class UtilsTest(unittest.TestCase):
         args, kwargs = parse_args_kwargs(_only_args_test_func, [], {"arg1": "a1", "arg2": "a2"})
         self.assertEqual(0, len(args))
         self.assertDictEqual({"arg1": "a1", "arg2": "a2"}, kwargs)
+
+        # should consume list values separated by spaces and commas
+        args, kwargs = parse_args_kwargs(_list_args_test_func, ["l0a0,l0a1,l0a2", "sa0", "l1a0", "sa2", "l1a1,l1a2", "l1a3"])
+        self.assertEqual(4, len(args))
+        self.assertListEqual(["l0a0", "l0a1", "l0a2"], args[0])
+        self.assertEqual("sa0", args[1])
+        self.assertListEqual(["l1a0", "l1a1", "l1a2", "l1a3"], args[2])
+        self.assertEqual("sa2", args[3])
 
     def test_group_params(self):
         self.assertDictEqual({}, group_params([]))
@@ -113,7 +121,9 @@ class UtilsTest(unittest.TestCase):
 
     def test_normalize_list_params(self):
         """ should normalize a list of parameters """
-        self.assertEqual(["f1", "f2", "f3"], normalize_list_params(["f1,f2", "f3"]))
+        self.assertListEqual(["f1"], normalize_list_params("f1"))
+        self.assertListEqual(["f1", "f2", "f3"], normalize_list_params(["f1,f2", "f3"]))
+        self.assertListEqual(["f1", "f2", "f3"], normalize_list_params("f1,f2,f3"))
 
     def test_chunker(self):
         animals = ['cat', 'dog', 'rabbit', 'duck', 'bird', 'cow', 'gnu', 'fish']
@@ -131,3 +141,21 @@ def _only_args_test_func(arg1, arg2):
 
 def _args_kwargs_test_func(arg1, arg2=None):
     return arg1, arg2
+
+
+def _list_args_test_func(fist_list_arg, non_list_arg, list_arg, non_list_arg2):
+    """
+    Function for testing list args.
+
+    :param fist_list_arg: first list argument
+    :type fist_list_arg: list
+    :param non_list_arg: some non-list argument
+    :type non_list_arg: str
+    :param list_arg: some list argument
+    :type list_arg: list
+    :param non_list_arg2: another non-list argument
+    :type non_list_arg2: str
+    :return: tuple of arguments
+    :rtype: tuple
+    """
+    return fist_list_arg, non_list_arg, list_arg, non_list_arg2

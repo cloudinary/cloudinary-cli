@@ -36,3 +36,11 @@ class TestCLISearchApi(unittest.TestCase):
         self.assertIn('eyJleHByZXNzaW9uIjoiY2F0IiwibWF4X3Jlc3VsdHMiOjEwfQ==', result.output)
         self.assertIn('1000', result.output)
         self.assertIn('NEXT_CURSOR', result.output)
+
+    @patch(URLLIB3_REQUEST)
+    def test_search_folders(self, mocker):
+        mocker.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['search_folders', 'cat_folder'])
+
+        self.assertEqual(0, result.exit_code)
+        self.assertIn('"foo": "bar"', result.output)

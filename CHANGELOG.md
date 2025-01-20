@@ -1,3 +1,13 @@
+1.10.3 / 2024-07-31
+==================
+
+  * Add missing delivery types in `url` command
+
+1.10.2 / 2024-07-15
+==================
+
+  * Fix folder existence error in `sync` command
+
 1.10.1 / 2024-01-29
 ==================
 
