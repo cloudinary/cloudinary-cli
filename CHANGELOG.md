@@ -1,3 +1,9 @@
+1.11.1 / 2025-02-05
+==================
+
+  * Fix list parameters handling
+  * Bump `pycloudinary` version
+
 1.11.0 / 2025-01-20
 ==================
 
