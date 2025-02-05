@@ -149,7 +149,7 @@ def parse_args_kwargs(func, params=None, kwargs=None):
     params_specs = parse(func.__doc__).params
 
     if len(args) > num_req:
-        # Here we comsumed more args than the function can get,
+        # Here we consumed more args than the function can get,
         # let's see if we have a list arg and pass everything as list.
         # Otherwise, let's pass everything as is and hope for the best :)
         last_positional_list_param = next((s for s in reversed(params_specs) if s.arg_name not in kwargs and s.type_name and s.type_name.startswith('list')), None)
@@ -161,7 +161,10 @@ def parse_args_kwargs(func, params=None, kwargs=None):
     for s in params_specs:
         if s.type_name and s.type_name.startswith('list'):
             pos = get_index_by_name(spec.args, s.arg_name)
-            args[pos] = normalize_list_params(args[pos])
+            if isinstance(pos, int) and 0 <= pos < len(args):
+                args[pos] = normalize_list_params(args[pos])
+            if s.arg_name in kwargs:
+                kwargs[s.arg_name] = normalize_list_params(kwargs[s.arg_name])
 
     return args, kwargs
 
@@ -334,7 +337,7 @@ def normalize_list_params(params):
     """
     normalized_params = []
     for f in build_array(params):
-        if "," in f:
+        if isinstance(f, str) and "," in f:
             normalized_params += f.split(",")
         else:
             normalized_params.append(f)

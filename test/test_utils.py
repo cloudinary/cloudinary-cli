@@ -70,6 +70,15 @@ class UtilsTest(unittest.TestCase):
         self.assertListEqual(["l1a0", "l1a1", "l1a2", "l1a3"], args[2])
         self.assertEqual("sa2", args[3])
 
+        # should consume list values separated by spaces and commas in kwargs
+        args, kwargs = parse_args_kwargs(_list_args_test_func,
+                                         ["l0a0,l0a1,l0a2", "sa0"], {"list_arg": "l1a0,l1a1", "non_list_arg2": "sa2"})
+        self.assertEqual(2, len(args))
+        self.assertListEqual(["l0a0", "l0a1", "l0a2"], args[0])
+        self.assertEqual("sa0", args[1])
+        self.assertListEqual(["l1a0", "l1a1"], kwargs["list_arg"])
+        self.assertEqual("sa2", kwargs["non_list_arg2"])
+
     def test_group_params(self):
         self.assertDictEqual({}, group_params([]))
         self.assertDictEqual({"k1": "v1", "k2": "v2"}, group_params([("k1", "v1"), ("k2", "v2")]))
@@ -143,7 +152,7 @@ def _args_kwargs_test_func(arg1, arg2=None):
     return arg1, arg2
 
 
-def _list_args_test_func(fist_list_arg, non_list_arg, list_arg, non_list_arg2):
+def _list_args_test_func(fist_list_arg, non_list_arg, list_arg=None, non_list_arg2=None):
     """
     Function for testing list args.
 
