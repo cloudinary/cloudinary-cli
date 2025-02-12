@@ -25,9 +25,10 @@ def query_cld_folder(folder, folder_mode):
     files = {}
 
     folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
+    folder_key = "asset_folder" if folder_mode == "dynamic" else "folder"
     folder_query = f"{folder}/*" if folder else "*"
 
-    expression = Search().expression(f"folder:\"{folder_query}\"").with_field("image_analysis").max_results(500)
+    expression = Search().expression(f"{folder_key}:\"{folder_query}\"").with_field("image_analysis").max_results(500)
 
     next_cursor = True
     while next_cursor:
