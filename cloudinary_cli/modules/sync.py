@@ -38,17 +38,19 @@ _SYNC_META_FILE = '.cld-sync'
         help="Specify the batch size for deleting remote assets.")
 @option("-fm", "--folder-mode", type=Choice(['fixed', 'dynamic'], case_sensitive=False),
         help="Specify folder mode explicitly. By default uses cloud mode configured in your cloud.", hidden=True)
+@option("-st", "--status", type=Choice(['all', 'active', 'pending'], case_sensitive=False),
+        help="Specify asset status. Server default: active.", default=None)
 @option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
         help="Pass optional parameters as interpreted strings.")
 @option("--dry-run", is_flag=True, help="Simulate the sync operation without making any changes.")
 def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent_workers, force, keep_unique,
-         deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, dry_run):
+         deletion_batch_size, folder_mode, status, optional_parameter, optional_parameter_parsed, dry_run):
     if push == pull:
         raise UsageError("Please use either the '--push' OR '--pull' options")
 
     sync_dir = SyncDir(local_folder, cloudinary_folder, include_hidden, concurrent_workers, force, keep_unique,
-                       deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, dry_run)
+                       deletion_batch_size, folder_mode, status, optional_parameter, optional_parameter_parsed, dry_run)
     result = True
     if push:
         result = sync_dir.push()
@@ -63,7 +65,7 @@ def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent
 
 class SyncDir:
     def __init__(self, local_dir, remote_dir, include_hidden, concurrent_workers, force, keep_deleted,
-                 deletion_batch_size, folder_mode, optional_parameter, optional_parameter_parsed, dry_run):
+                 deletion_batch_size, folder_mode, status, optional_parameter, optional_parameter_parsed, dry_run):
         self.local_dir = local_dir
         self.remote_dir = remote_dir.strip('/')
         self.user_friendly_remote_dir = self.remote_dir if self.remote_dir else '/'
@@ -100,7 +102,7 @@ class SyncDir:
             logger.info(f"Cloudinary folder '{self.user_friendly_remote_dir}' does not exist "
                            f"({self.folder_mode} folder mode).")
         else:
-            raw_remote_files = query_cld_folder(self.remote_dir, self.folder_mode)
+            raw_remote_files = query_cld_folder(self.remote_dir, self.folder_mode, status)
             if len(raw_remote_files):
                 logger.info(
                     f"Found {len(raw_remote_files)} items in Cloudinary folder '{self.user_friendly_remote_dir}' "
