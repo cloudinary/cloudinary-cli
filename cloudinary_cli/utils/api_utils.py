@@ -82,7 +82,12 @@ def _display_path(asset):
     if asset.get("display_name") is None:
         return ""
 
-    return "/".join([asset.get("asset_folder", ""), ".".join(filter(None, [asset["display_name"], asset.get("format", None)]))])
+    if asset["resource_type"] == "raw" or asset["type"] == 'fetch':
+        normalized_display_name = asset["display_name"]
+    else:
+        normalized_display_name = ".".join(filter(None, [asset["display_name"], asset.get("format", None)]))
+
+    return "/".join([asset.get("asset_folder", ""), normalized_display_name])
 
 
 def _relative_display_path(asset, folder):
@@ -133,7 +138,7 @@ def upload_file(file_path, options, uploaded=None, failed=None):
         disp_path = _display_path(result)
         if "batch_id" in result:
             starting_msg = "Uploading"
-            disp_str = f"asynchnously with batch_id: {result['batch_id']}"
+            disp_str = f"asynchronously with batch_id: {result['batch_id']}"
         else:
             starting_msg = "Successfully uploaded"
             disp_str = f"as {result['public_id']}" if not disp_path \
