@@ -1,3 +1,16 @@
+1.12.0 / 2025-02-24
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for `status` option in `sync` command
+
+Other Changes
+-------------
+
+  * Fix duplicate `raw` files extension in `sync` command
+
 1.11.2 / 2025-02-12
 ==================
 
