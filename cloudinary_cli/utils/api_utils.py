@@ -21,18 +21,22 @@ PAGINATION_MAX_RESULTS = 500
 _cursor_fields = {"resource": "derived_next_cursor"}
 
 
-def query_cld_folder(folder, folder_mode):
+def query_cld_folder(folder, folder_mode, status=None):
     files = {}
 
     folder = folder.strip('/')  # omit redundant leading slash and duplicate trailing slashes in query
     folder_key = "asset_folder" if folder_mode == "dynamic" else "folder"
     folder_query = f"{folder}/*" if folder else "*"
+    status_value = "(active OR pending)" if status == "all" else status
+    status_query = f" AND status:{status_value}" if status_value else ""
 
-    expression = Search().expression(f"{folder_key}:\"{folder_query}\"").with_field("image_analysis").max_results(500)
+    search = Search().expression(f"{folder_key}:\"{folder_query}\"{status_query}").with_field("image_analysis").max_results(500)
+
+    logger.debug(f"Search expression: {search.to_json()}")
 
     next_cursor = True
     while next_cursor:
-        res = expression.execute()
+        res = search.execute()
 
         for asset in res['resources']:
             rel_path = _relative_path(asset, folder)
@@ -58,7 +62,7 @@ def query_cld_folder(folder, folder_mode):
             }
         # use := when switch to python 3.8
         next_cursor = res.get('next_cursor')
-        expression.next_cursor(next_cursor)
+        search.next_cursor(next_cursor)
 
     return files
 
