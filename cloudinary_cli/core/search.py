@@ -6,6 +6,7 @@ from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.json_utils import write_json_to_file, print_json
 from cloudinary_cli.utils.utils import write_json_list_to_csv, confirm_action, whitelist_keys, \
     normalize_list_params
+from cloudinary_cli.utils.search_utils import parse_aggregate
 
 DEFAULT_MAX_RESULTS = 500
 
@@ -100,7 +101,7 @@ def _perform_search(query, with_field, fields, sort_by, aggregate, max_results, 
     if sort_by:
         search.sort_by(*sort_by)
     if aggregate:
-        search.aggregate(aggregate)
+        search.aggregate(parse_aggregate(aggregate))
     if next_cursor:
         search.next_cursor(next_cursor)
     if ttl:
