@@ -2,13 +2,13 @@
 
 <head>
     <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/cloudinary-video-player@2.3.5/dist/cld-video-player.min.css">
+        href="https://cdn.jsdelivr.net/npm/cloudinary-video-player@latest/dist/cld-video-player.min.css">
 </head>
 
 <body>
 
     <script
-        src="https://cdn.jsdelivr.net/npm/cloudinary-video-player@2.3.5/dist/cld-video-player.light.min.js"></script>
+        src="https://cdn.jsdelivr.net/npm/cloudinary-video-player@latest/dist/cld-video-player.light.min.js"></script>
     
     <video
         style="min-width:100vw;min-height:100vh;max-width:100vw;max-height:100vh"
