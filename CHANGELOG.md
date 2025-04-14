@@ -1,3 +1,16 @@
+1.13.0 / 2025-04-14
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for custom aggregations in `search` command
+
+Other Changes
+-------------
+
+  * Update video player template
+
 1.12.0 / 2025-02-24
 ==================
 
