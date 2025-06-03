@@ -44,7 +44,7 @@ Example 2 (Copy all assets with a specific tag via a search expression using a s
         help="Webhook notification URL.")
 @option("-t", "--ttl", type=int, default=3600,
         help=("URL expiration duration in seconds. Only relevant if cloning "
-              "restricted assets without providing an auth_key in which case "
+              "restricted assets. If you do not provide an auth_key, "
               "a private download URL is generated which may incur additional "
               "bandwidth costs."))
 def clone(target, force, overwrite, concurrent_workers, fields,
@@ -64,16 +64,21 @@ def clone(target, force, overwrite, concurrent_workers, fields,
                      "as source environment.")
         return False
 
-    source_config = config_to_dict(cloudinary.config())
-    auth_token = source_config.get("auth_token")
-    if auth_token and not validate_authtoken(auth_token):
+    auth_token = cloudinary.config().auth_token
+    if auth_token:
         # It is important to validate auth_token if provided as this prevents
         # customer from having to re-run the command as well as
         # saving Admin API calls and time.
-        return False
+        try:
+            cloudinary.utils.generate_auth_token(acl="/image/*")
+        except Exception as e:
+            logger.error(f"{e} - auth_token validation failed. "
+                         "Please double-check your auth_token parameters.")
+            return False
 
     source_assets = search_assets(force, search_exp)
     if not source_assets:
+        # End command if search_exp contains unsupported type(s)
         return False
 
     upload_list = []
@@ -85,41 +90,18 @@ def clone(target, force, overwrite, concurrent_workers, fields,
         updated_options.update(config_to_dict(target_config))
         upload_list.append((asset_url, {**updated_options}))
 
+    source_cloud_name = cloudinary.config().cloud_name
     if not upload_list:
-        logger.error(style(f'No assets found in {cloudinary.config().cloud_name}', fg="red"))
+        logger.error(style('No asset(s) found in '
+                           f'{source_cloud_name}', fg="red"))
         return False
 
-    logger.info(style(f'Copying {len(upload_list)} asset(s) from {cloudinary.config().cloud_name} to {target_config.cloud_name}', fg="blue"))
+    logger.info(style(f'Copying {len(upload_list)} asset(s) from '
+                      f'{source_cloud_name} to '
+                      f'{target_config.cloud_name}', fg="blue"))
 
     run_tasks_concurrently(upload_file, upload_list, concurrent_workers)
 
-    return True
-
-
-def validate_authtoken(auth_token):
-    duration = auth_token.get('duration')
-    if not duration:
-        logger.error("Duration is required when using auth_token. Include "
-                     "`auth_token[duration]=<duration>` in your config.")
-        return False
-    try:
-        duration = int(duration)
-        if duration < 0:
-            logger.error("Duration cannot be negative.")
-            return False
-    except (ValueError, TypeError):
-        logger.error("Duration must be an integer.")
-        return False
-    key = auth_token.get('key')
-    if not key:
-        logger.error("No auth_token key found. Include "
-                     "`auth_token[key]=<key>` in your config.")
-        return False
-    try:
-        _digest("", key)
-    except Exception as e:
-        logger.error(f"Auth token invalid: {e}.")
-        return False
     return True
 
 
@@ -143,7 +125,7 @@ def search_assets(force, search_exp):
         search_exp += " AND (type:upload OR type:private OR type:authenticated)"
     else:
         search_exp = "type:upload OR type:private OR type:authenticated"
-    print(search_exp)
+
     search = cloudinary.search.Search().expression(search_exp)
     search.fields(['tags', 'context', 'access_control',
                    'secure_url', 'display_name', 'format'])
@@ -172,12 +154,14 @@ def process_metadata(res, overwrite, async_, notification_url,
         # Generate a time-limited URL for restricted assets
         # Use private url if no auth_token provided
         if auth_token:
+            # Don't add format if asset is raw
             pub_id_format = (pub_id if reso_type == "raw"
                              else f"{pub_id}.{file_format}")
             asset_url = cloudinary.utils.cloudinary_url(
                             pub_id_format,
                             type=del_type,
                             resource_type=reso_type,
+                            auth_token={"duration": ttl},
                             secure=True,
                             sign_url=True)
         else:
