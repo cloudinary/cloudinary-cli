@@ -32,7 +32,7 @@ _**Note:** you can copy and paste your account environment variable from the Acc
     api_secret:     ***************<LAST_4_DIGITS>
     private_cdn:    <True|False>
     ```
-    
+
     If you get an error message when running `cld config`, you may need to add your Python installation to your $PATH. To do so, you can run `PATH="$PATH:/Library/Python/Versions/3.8/bin"` in your terminal, and add `export PATH="$PATH:/Library/Python/Versions/3.8/bin"` to your `/.bash_profile` or `~/.zshrc`.
 
 ## Quickstart
@@ -52,11 +52,38 @@ cld admin          # Lists Admin API methods.
 cld uploader       # Lists Upload API methods.
 ```
 
+## Docker Usage
+
+The Cloudinary CLI is also available as a Docker image, perfect for containerized environments, CI/CD pipelines, or when you prefer not to install Python locally.
+
+### Quick Docker Examples
+
+```sh
+# Check configuration
+docker run --rm -e CLOUDINARY_URL cloudinary/cli config
+
+# Upload files from your local machine
+docker run --rm -e CLOUDINARY_URL \
+  -v /path/to/your/images:/app/images \
+  cloudinary/cli uploader upload /app/images/sample.jpg
+
+# Search for assets
+docker run --rm -e CLOUDINARY_URL \
+  cloudinary/cli search "resource_type:image" --max_results 5
+
+# Interactive mode for multiple commands
+docker run --rm -it -e CLOUDINARY_URL --entrypoint /bin/bash cloudinary/cli
+```
+
+**Docker Image**: `cloudinary/cli` • **Base**: Debian 12 • **Size**: ~175MB • **Multi-arch**: amd64, arm64
+
+For comprehensive Docker usage, examples, and troubleshooting, see [DOCKER.md](DOCKER.md).
+
 ## Upload API
 
 Enables you to run any methods that can be called through the upload API.
 
-You can find documentation for each of the Upload API methods at [https://cloudinary.com/documentation/image_upload_api_reference](https://cloudinary.com/documentation/image_upload_api_reference). 
+You can find documentation for each of the Upload API methods at [https://cloudinary.com/documentation/image_upload_api_reference](https://cloudinary.com/documentation/image_upload_api_reference).
 
 The basic syntax using the Upload API is as follows:
 
@@ -127,7 +154,7 @@ cld [cli options] url [command options] public_id [transformation]
 
 For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#url).
 
-Example: generate a URL that displays the image in your media library that has the public ID of 'sample', with a width of 500 pixels and transformed using the cartoonify effect, then open this URL in a browser. 
+Example: generate a URL that displays the image in your media library that has the public ID of 'sample', with a width of 500 pixels and transformed using the cartoonify effect, then open this URL in a browser.
 
 ```
 cld url -rt image -t upload -o sample w_500,e_cartoonify
@@ -162,9 +189,9 @@ Uploads a folder of assets, maintaining the folder structure.
 cld [cli options] upload_dir [command options] [local_folder]
 ```
 
-For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#upload_dir).  
+For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#upload_dir).
 
-Example: upload the local folder, my_images, and all its contents and sub-folders to your Cloudinary folder my_images_on_cloudinary.  
+Example: upload the local folder, my_images, and all its contents and sub-folders to your Cloudinary folder my_images_on_cloudinary.
 
 ```
 cld upload_dir -f my_images_on_cloudinary my_images
@@ -202,7 +229,7 @@ A configuration is a reference to a specified Cloudinary account or cloud name v
 
 The `config` command displays the current configuration and lets you manage additional configurations.
 
-You can specify the environment variable of additional Cloudinary accounts either explicitly (`-c` option) or as a saved configuration (`-C` option).  
+You can specify the environment variable of additional Cloudinary accounts either explicitly (`-c` option) or as a saved configuration (`-C` option).
 
 For example, using the `-c` option:
 
