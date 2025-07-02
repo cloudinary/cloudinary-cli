@@ -8,7 +8,7 @@ from cloudinary_cli.core.provisioning import provisioning
 from cloudinary_cli.core.utils import url, utils
 from cloudinary_cli.core.overrides import resolve_command
 
-setattr(click.MultiCommand, "resolve_command", resolve_command)
+setattr(click.Group, "resolve_command", resolve_command)
 
 commands = [
     config,
