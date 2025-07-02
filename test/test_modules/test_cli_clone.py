@@ -1,14 +1,12 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import re
-import importlib.util
-import os
+import sys
 
-# Get the path to the clone module and load it directly to avoid conflicts with the command object
-clone_module_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'cloudinary_cli', 'modules', 'clone.py'))
-spec = importlib.util.spec_from_file_location("clone_module", clone_module_path)
-clone_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(clone_module)
+# Import the modules package, which will load the clone module.
+# The 'clone' name in the package is the command object, so we get the module from sys.modules.
+import cloudinary_cli.modules
+clone_module = sys.modules['cloudinary_cli.modules.clone']
 
 from cloudinary_cli.defaults import logger
 
