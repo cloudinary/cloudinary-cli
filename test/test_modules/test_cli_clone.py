@@ -1,8 +1,15 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import re
+import importlib.util
+import os
 
-from cloudinary_cli.modules.clone import search_assets, process_metadata
+# Get the path to the clone module and load it directly to avoid conflicts with the command object
+clone_module_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'cloudinary_cli', 'modules', 'clone.py'))
+spec = importlib.util.spec_from_file_location("clone_module", clone_module_path)
+clone_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(clone_module)
+
 from cloudinary_cli.defaults import logger
 
 
@@ -25,8 +32,8 @@ class TestCLIClone(unittest.TestCase):
             ]
         }
 
-    @patch('cloudinary_cli.modules.clone.handle_auto_pagination')
-    @patch('cloudinary_cli.modules.clone.execute_single_request')
+    @patch.object(clone_module, 'handle_auto_pagination')
+    @patch.object(clone_module, 'execute_single_request')
     @patch('cloudinary.search.Search')
     def test_search_assets_default_expression(self, mock_search_class, mock_execute, mock_pagination):
         """Test search_assets with empty search expression uses default"""
@@ -35,14 +42,14 @@ class TestCLIClone(unittest.TestCase):
         mock_execute.return_value = self.mock_search_result
         mock_pagination.return_value = self.mock_search_result
 
-        result = search_assets(force=True, search_exp="")
+        result = clone_module.search_assets(force=True, search_exp="")
 
         # Verify default search expression is used
         mock_search.expression.assert_called_with("type:upload OR type:private OR type:authenticated")
         self.assertEqual(result, self.mock_search_result)
 
-    @patch('cloudinary_cli.modules.clone.handle_auto_pagination')
-    @patch('cloudinary_cli.modules.clone.execute_single_request')
+    @patch.object(clone_module, 'handle_auto_pagination')
+    @patch.object(clone_module, 'execute_single_request')
     @patch('cloudinary.search.Search')
     def test_search_assets_with_custom_expression(self, mock_search_class, mock_execute, mock_pagination):
         """Test search_assets appends default types to custom expression"""
@@ -51,15 +58,15 @@ class TestCLIClone(unittest.TestCase):
         mock_execute.return_value = self.mock_search_result
         mock_pagination.return_value = self.mock_search_result
 
-        result = search_assets(force=True, search_exp="tags:test")
+        result = clone_module.search_assets(force=True, search_exp="tags:test")
 
         # Verify custom expression gets default types appended
         expected_exp = "tags:test AND (type:upload OR type:private OR type:authenticated)"
         mock_search.expression.assert_called_with(expected_exp)
         self.assertEqual(result, self.mock_search_result)
 
-    @patch('cloudinary_cli.modules.clone.handle_auto_pagination')
-    @patch('cloudinary_cli.modules.clone.execute_single_request')
+    @patch.object(clone_module, 'handle_auto_pagination')
+    @patch.object(clone_module, 'execute_single_request')
     @patch('cloudinary.search.Search')
     def test_search_assets_with_allowed_type(self, mock_search_class, mock_execute, mock_pagination):
         """Test search_assets accepts allowed types"""
@@ -68,16 +75,16 @@ class TestCLIClone(unittest.TestCase):
         mock_execute.return_value = self.mock_search_result
         mock_pagination.return_value = self.mock_search_result
 
-        result = search_assets(force=True, search_exp="type:upload")
+        result = clone_module.search_assets(force=True, search_exp="type:upload")
 
         # Verify allowed type is accepted as-is
         mock_search.expression.assert_called_with("type:upload")
         self.assertEqual(result, self.mock_search_result)
 
-    @patch('cloudinary_cli.modules.clone.logger')
+    @patch.object(clone_module, 'logger')
     def test_search_assets_with_disallowed_type(self, mock_logger):
         """Test search_assets rejects disallowed types"""
-        result = search_assets(force=True, search_exp="type:facebook")
+        result = clone_module.search_assets(force=True, search_exp="type:facebook")
 
         # Verify error is logged and False is returned
         mock_logger.error.assert_called_once()
@@ -86,10 +93,10 @@ class TestCLIClone(unittest.TestCase):
         self.assertIn("facebook", error_call)
         self.assertEqual(result, False)
 
-    @patch('cloudinary_cli.modules.clone.logger')
+    @patch.object(clone_module, 'logger')
     def test_search_assets_with_mixed_types(self, mock_logger):
         """Test search_assets with mix of allowed and disallowed types"""
-        result = search_assets(force=True, search_exp="type:upload OR type:facebook")
+        result = clone_module.search_assets(force=True, search_exp="type:upload OR type:facebook")
 
         # Verify error is logged for disallowed type
         mock_logger.error.assert_called_once()
@@ -129,7 +136,7 @@ class TestCLIClone(unittest.TestCase):
             'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg'
         }
 
-        options, url = process_metadata(
+        options, url = clone_module.process_metadata(
             res, overwrite=True, async_=False, notification_url=None,
             auth_token=None, ttl=3600, copy_fields=[]
         )
@@ -153,7 +160,7 @@ class TestCLIClone(unittest.TestCase):
             'context': {'key': 'value'}
         }
 
-        options, url = process_metadata(
+        options, url = clone_module.process_metadata(
             res, overwrite=False, async_=True, notification_url='http://webhook.com',
             auth_token=None, ttl=3600, copy_fields=['tags', 'context']
         )
@@ -175,7 +182,7 @@ class TestCLIClone(unittest.TestCase):
             'folder': 'test_folder'
         }
 
-        options, url = process_metadata(
+        options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
             auth_token=None, ttl=3600, copy_fields=[]
         )
@@ -193,7 +200,7 @@ class TestCLIClone(unittest.TestCase):
             'asset_folder': 'asset_folder_test'
         }
 
-        options, url = process_metadata(
+        options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
             auth_token=None, ttl=3600, copy_fields=[]
         )
@@ -211,7 +218,7 @@ class TestCLIClone(unittest.TestCase):
             'display_name': 'Test Asset Display Name'
         }
 
-        options, url = process_metadata(
+        options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
             auth_token=None, ttl=3600, copy_fields=[]
         )
@@ -234,7 +241,7 @@ class TestCLIClone(unittest.TestCase):
             'access_control': [{'access_type': 'token'}]
         }
 
-        options, url = process_metadata(
+        options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
             auth_token=None, ttl=3600, copy_fields=[]
         )
@@ -259,7 +266,7 @@ class TestCLIClone(unittest.TestCase):
             'access_control': [{'access_type': 'token'}]
         }
 
-        options, url = process_metadata(
+        options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
             auth_token={'key': 'value'}, ttl=3600, copy_fields=[]
         )
@@ -290,7 +297,7 @@ class TestCLIClone(unittest.TestCase):
             'access_control': [{'access_type': 'token'}]
         }
 
-        options, url = process_metadata(
+        options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
             auth_token={'key': 'value'}, ttl=3600, copy_fields=[]
         )
