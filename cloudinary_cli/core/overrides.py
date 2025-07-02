@@ -9,6 +9,11 @@ from cloudinary_cli.utils.utils import split_opt
 def resolve_command(self, ctx, args):
     # Patch the `resolve_command` function to enable simple commands (eg. cld resource)
     # Only core commands from API and modules are registered (eg. cld admin)
+
+    # Handle empty args (when CLI is invoked with no arguments)
+    if not args:
+        return None, None, []
+
     cmd_name = make_str(args[0])
     original_cmd_name = cmd_name
 

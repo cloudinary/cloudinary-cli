@@ -300,7 +300,7 @@ class SyncDir:
 
     def _local_candidates(self, candidate_path):
         filename, extension = path.splitext(candidate_path)
-        r = re.compile(f"({candidate_path}|{filename} \(\d+\){extension})")
+        r = re.compile(f"({candidate_path}|{filename} \\(\\d+\\){extension})")
         # sort local files by base name (without ext) for accurate results.
         return dict(sorted({f: self.local_files[f]["etag"] for f in filter(r.match, self.local_files.keys())}.items(),
                            key=lambda f: path.splitext(f[0])[0]))
