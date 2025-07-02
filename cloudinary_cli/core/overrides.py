@@ -1,8 +1,8 @@
-from click.parser import split_opt
 from click.utils import make_str
 from cloudinary import api, uploader
 from cloudinary.uploader import upload as original_upload
 from cloudinary.utils import cloudinary_url as original_cloudinary_url
+from cloudinary_cli.utils.utils import split_opt
 
 
 # overrides click.MultiCommand.resolve_command
