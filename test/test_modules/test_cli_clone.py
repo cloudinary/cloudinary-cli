@@ -218,7 +218,7 @@ class TestCLIClone(unittest.TestCase):
 
         self.assertEqual(options['display_name'], 'Test Asset Display Name')
 
-    @patch('cloudinary_cli.modules.clone.time.time')
+    @patch('time.time')
     @patch('cloudinary.utils.private_download_url')
     def test_process_metadata_restricted_asset_no_auth_token(self, mock_private_url, mock_time):
         """Test process_metadata with restricted asset and no auth token"""
