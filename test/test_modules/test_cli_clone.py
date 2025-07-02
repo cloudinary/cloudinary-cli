@@ -12,14 +12,13 @@ class TestCLIClone(unittest.TestCase):
         self.mock_search_result = {
             'resources': [
                 {
-                    'public_id': 'test_asset',
+                    'public_id': 'sample',
                     'type': 'upload',
                     'resource_type': 'image',
                     'format': 'jpg',
-                    'secure_url': 'https://res.cloudinary.com/test/image/upload/test_asset.jpg',
+                    'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg',
                     'tags': ['tag1', 'tag2'],
                     'context': {'key': 'value'},
-                    'access_control': None,
                     'folder': 'test_folder',
                     'display_name': 'Test Asset'
                 }
@@ -97,7 +96,7 @@ class TestCLIClone(unittest.TestCase):
         error_call = mock_logger.error.call_args[0][0]
         self.assertIn("facebook", error_call)
         # Verify that only the disallowed type is mentioned in the error part
-        self.assertIn("Unsupported type(s) in search expression: facebook", error_call)
+        self.assertIn("Unsupported type(s) in search expression: type:facebook", error_call)
         self.assertEqual(result, False)
 
     def test_search_assets_type_validation_regex(self):
@@ -123,12 +122,11 @@ class TestCLIClone(unittest.TestCase):
     def test_process_metadata_basic(self):
         """Test process_metadata with basic asset"""
         res = {
-            'public_id': 'test_asset',
+            'public_id': 'sample',
             'type': 'upload',
             'resource_type': 'image',
             'format': 'jpg',
-            'secure_url': 'https://res.cloudinary.com/test/image/upload/test_asset.jpg',
-            'access_control': None
+            'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg'
         }
 
         options, url = process_metadata(
@@ -136,8 +134,8 @@ class TestCLIClone(unittest.TestCase):
             auth_token=None, ttl=3600, copy_fields=[]
         )
 
-        self.assertEqual(url, 'https://res.cloudinary.com/test/image/upload/test_asset.jpg')
-        self.assertEqual(options['public_id'], 'test_asset')
+        self.assertEqual(url, 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg')
+        self.assertEqual(options['public_id'], 'sample')
         self.assertEqual(options['type'], 'upload')
         self.assertEqual(options['resource_type'], 'image')
         self.assertEqual(options['overwrite'], True)
@@ -146,12 +144,11 @@ class TestCLIClone(unittest.TestCase):
     def test_process_metadata_with_tags_and_context(self):
         """Test process_metadata copying tags and context"""
         res = {
-            'public_id': 'test_asset',
+            'public_id': 'sample',
             'type': 'upload',
             'resource_type': 'image',
             'format': 'jpg',
-            'secure_url': 'https://res.cloudinary.com/test/image/upload/test_asset.jpg',
-            'access_control': None,
+            'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg',
             'tags': ['tag1', 'tag2'],
             'context': {'key': 'value'}
         }
@@ -170,12 +167,11 @@ class TestCLIClone(unittest.TestCase):
     def test_process_metadata_with_folder(self):
         """Test process_metadata with folder handling"""
         res = {
-            'public_id': 'test_asset',
+            'public_id': 'sample',
             'type': 'upload',
             'resource_type': 'image',
             'format': 'jpg',
-            'secure_url': 'https://res.cloudinary.com/test/image/upload/test_asset.jpg',
-            'access_control': None,
+            'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg',
             'folder': 'test_folder'
         }
 
@@ -189,12 +185,11 @@ class TestCLIClone(unittest.TestCase):
     def test_process_metadata_with_asset_folder(self):
         """Test process_metadata with asset_folder"""
         res = {
-            'public_id': 'test_asset',
+            'public_id': 'sample',
             'type': 'upload',
             'resource_type': 'image',
             'format': 'jpg',
-            'secure_url': 'https://res.cloudinary.com/test/image/upload/test_asset.jpg',
-            'access_control': None,
+            'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg',
             'asset_folder': 'asset_folder_test'
         }
 
@@ -208,12 +203,11 @@ class TestCLIClone(unittest.TestCase):
     def test_process_metadata_with_display_name(self):
         """Test process_metadata with display_name"""
         res = {
-            'public_id': 'test_asset',
+            'public_id': 'sample',
             'type': 'upload',
             'resource_type': 'image',
             'format': 'jpg',
-            'secure_url': 'https://res.cloudinary.com/test/image/upload/test_asset.jpg',
-            'access_control': None,
+            'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg',
             'display_name': 'Test Asset Display Name'
         }
 
@@ -229,14 +223,14 @@ class TestCLIClone(unittest.TestCase):
     def test_process_metadata_restricted_asset_no_auth_token(self, mock_private_url, mock_time):
         """Test process_metadata with restricted asset and no auth token"""
         mock_time.return_value = 1000
-        mock_private_url.return_value = 'https://private.url/test_asset.jpg'
+        mock_private_url.return_value = 'https://api.cloudinary.com/v1_1/demo/image/download?api_key=123456789012345&format=jpg&public_id=sample&signature=abcdef123456789&timestamp=1234567890'
 
         res = {
-            'public_id': 'test_asset',
+            'public_id': 'sample',
             'type': 'upload',
             'resource_type': 'image',
             'format': 'jpg',
-            'secure_url': 'https://res.cloudinary.com/test/image/upload/test_asset.jpg',
+            'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg',
             'access_control': [{'access_type': 'token'}]
         }
 
@@ -247,21 +241,21 @@ class TestCLIClone(unittest.TestCase):
 
         # Should use private download URL
         mock_private_url.assert_called_once_with(
-            'test_asset', 'jpg', resource_type='image', type='upload', expires_at=4600
+            'sample', 'jpg', resource_type='image', type='upload', expires_at=4600
         )
-        self.assertEqual(url, 'https://private.url/test_asset.jpg')
+        self.assertEqual(url, 'https://api.cloudinary.com/v1_1/demo/image/download?api_key=123456789012345&format=jpg&public_id=sample&signature=abcdef123456789&timestamp=1234567890')
 
     @patch('cloudinary.utils.cloudinary_url')
     def test_process_metadata_restricted_asset_with_auth_token(self, mock_cloudinary_url):
         """Test process_metadata with restricted asset and auth token"""
-        mock_cloudinary_url.return_value = ('https://signed.url/test_asset.jpg', {})
+        mock_cloudinary_url.return_value = ('https://res.cloudinary.com/demo/image/upload/s--AbCdEfGhI--/sample.jpg', {})
 
         res = {
-            'public_id': 'test_asset',
+            'public_id': 'sample',
             'type': 'upload',
             'resource_type': 'image',
             'format': 'jpg',
-            'secure_url': 'https://res.cloudinary.com/test/image/upload/test_asset.jpg',
+            'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg',
             'access_control': [{'access_type': 'token'}]
         }
 
@@ -272,7 +266,7 @@ class TestCLIClone(unittest.TestCase):
 
         # Should use signed URL
         mock_cloudinary_url.assert_called_once_with(
-            'test_asset.jpg',
+            'sample.jpg',
             type='upload',
             resource_type='image',
             auth_token={'duration': 3600},
@@ -280,19 +274,19 @@ class TestCLIClone(unittest.TestCase):
             sign_url=True
         )
         # The current implementation assigns the tuple directly, so we expect the tuple
-        self.assertEqual(url, ('https://signed.url/test_asset.jpg', {}))
+        self.assertEqual(url, ('https://res.cloudinary.com/demo/image/upload/s--AbCdEfGhI--/sample.jpg', {}))
 
     @patch('cloudinary.utils.cloudinary_url')
     def test_process_metadata_restricted_raw_asset_with_auth_token(self, mock_cloudinary_url):
         """Test process_metadata with restricted raw asset and auth token"""
-        mock_cloudinary_url.return_value = ('https://signed.url/test_asset', {})
+        mock_cloudinary_url.return_value = ('https://res.cloudinary.com/demo/raw/upload/s--XyZaBcDeF--/sample_document', {})
 
         res = {
-            'public_id': 'test_asset',
+            'public_id': 'sample_document',
             'type': 'upload',
             'resource_type': 'raw',
             'format': 'pdf',
-            'secure_url': 'https://res.cloudinary.com/test/raw/upload/test_asset.pdf',
+            'secure_url': 'https://res.cloudinary.com/demo/raw/upload/v1234567890/sample_document.pdf',
             'access_control': [{'access_type': 'token'}]
         }
 
@@ -303,7 +297,7 @@ class TestCLIClone(unittest.TestCase):
 
         # For raw assets, should not append format to public_id
         mock_cloudinary_url.assert_called_once_with(
-            'test_asset',  # No .pdf extension for raw assets
+            'sample_document',  # No .pdf extension for raw assets
             type='upload',
             resource_type='raw',
             auth_token={'duration': 3600},
@@ -311,7 +305,7 @@ class TestCLIClone(unittest.TestCase):
             sign_url=True
         )
         # The current implementation assigns the tuple directly, so we expect the tuple
-        self.assertEqual(url, ('https://signed.url/test_asset', {}))
+        self.assertEqual(url, ('https://res.cloudinary.com/demo/raw/upload/s--XyZaBcDeF--/sample_document', {}))
 
 
 if __name__ == '__main__':
