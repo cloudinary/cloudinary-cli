@@ -379,3 +379,25 @@ def duplicate_values(items, value_key, key_of_interest=None):
         rev_multidict.setdefault(value[value_key], set()).add(value[key_of_interest] if key_of_interest is not None else key)
 
     return {key: values for key, values in rev_multidict.items() if len(values) > 1}
+
+
+def split_opt(opt):
+    """
+    Splits an option string into prefix and value parts.
+
+    This function replaces the deprecated click.parser.split_opt import.
+    Returns a tuple of (prefix, value) where prefix is the option prefix
+    (like '-' or '--') and value is the remaining part, or ('', opt)
+    if it doesn't look like an option.
+
+    :param opt: The option string to parse.
+    :type opt: str
+    :return: Tuple of (prefix, value)
+    :rtype: tuple
+    """
+    first = opt[:1]
+    if first.isalnum():
+        return '', opt
+    if opt[1:2] == first:
+        return opt[:2], opt[2:]
+    return first, opt[1:]

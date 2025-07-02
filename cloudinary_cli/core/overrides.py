@@ -1,14 +1,19 @@
-from click.parser import split_opt
 from click.utils import make_str
 from cloudinary import api, uploader
 from cloudinary.uploader import upload as original_upload
 from cloudinary.utils import cloudinary_url as original_cloudinary_url
+from cloudinary_cli.utils.utils import split_opt
 
 
 # overrides click.MultiCommand.resolve_command
 def resolve_command(self, ctx, args):
     # Patch the `resolve_command` function to enable simple commands (eg. cld resource)
     # Only core commands from API and modules are registered (eg. cld admin)
+
+    # Handle empty args (when CLI is invoked with no arguments)
+    if not args:
+        return None, None, []
+
     cmd_name = make_str(args[0])
     original_cmd_name = cmd_name
 
