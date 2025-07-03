@@ -30,6 +30,12 @@ class TestCLIClone(unittest.TestCase):
             ]
         }
 
+        self.mock_target_config = {
+            'cloud_name': 'target-cloud',
+            'api_key': 'target-key',
+            'api_secret': 'target-secret'
+        }
+
     @patch('cloudinary.api.metadata_fields')
     def test_list_metadata_items(self, mock_metadata_fields):
         """Test listing metadata fields"""
@@ -44,13 +50,32 @@ class TestCLIClone(unittest.TestCase):
             ]
         }
 
-        result = clone_module.list_metadata_items()
+        result = clone_module.list_metadata_items("metadata_fields")
 
         mock_metadata_fields.assert_called_once()
         self.assertEqual(result, mock_metadata_fields.return_value['metadata_fields'])
 
+    @patch('cloudinary.api.metadata_rules')
+    def test_list_metadata_rules(self, mock_metadata_rules):
+        """Test listing metadata fields"""
+        mock_metadata_rules.return_value = {
+            'metadata_rules': [
+                {
+                    'external_id': 'test_field',
+                    'type': 'string',
+                    'label': 'Test Field',
+                    'mandatory': False
+                }
+            ]
+        }
+
+        result = clone_module.list_metadata_items("metadata_rules")
+
+        mock_metadata_rules.assert_called_once()
+        self.assertEqual(result, mock_metadata_rules.return_value['metadata_rules'])
+
     @patch('cloudinary.api.add_metadata_field')
-    def test_create_metadata_item(self, mock_add_metadata_field):
+    def test_create_metadata_item_field(self, mock_add_metadata_field):
         """Test creating a single metadata field"""
         metadata_field = {
             'external_id': 'test_field',
@@ -59,12 +84,31 @@ class TestCLIClone(unittest.TestCase):
             'mandatory': False
         }
         
-        clone_module.create_metadata_item(metadata_field)
+        clone_module.create_metadata_item('add_metadata_field', metadata_field, self.mock_target_config)
 
         mock_add_metadata_field.assert_called_once_with(metadata_field)
 
+    @patch('cloudinary.api.add_metadata_rule')
+    def test_create_metadata_item_rule(self, mock_add_metadata_rule):
+        """Test creating a single metadata rule"""
+        metadata_rule = {
+            'external_id': 'test_rule',
+            'condition': 'if',
+            'metadata_field': {
+                'external_id': 'test_field'
+            },
+            'results': [{
+                'value': 'test_value',
+                'apply_to': ['metadata_field_external_id']
+            }]
+        }
+
+        clone_module.create_metadata_item('add_metadata_rule', metadata_rule, self.mock_target_config)
+
+        mock_add_metadata_rule.assert_called_once_with(metadata_rule)
+
     @patch('cloudinary.api.add_metadata_field')
-    def test_create_metadata_item_with_error(self, mock_add_metadata_field):
+    def test_create_metadata_item_field_with_error(self, mock_add_metadata_field):
         """Test creating metadata field with API error"""
         metadata_field = {
             'external_id': 'test_field',
@@ -76,7 +120,28 @@ class TestCLIClone(unittest.TestCase):
         mock_add_metadata_field.side_effect = Exception("API Error")
         
         with self.assertLogs(logger, level='ERROR') as log:
-            clone_module.create_metadata_item(metadata_field)
+            clone_module.create_metadata_item('add_metadata_field', metadata_field, self.mock_target_config)
+            self.assertIn('Error creating metadata field', log.output[0])
+
+    @patch('cloudinary.api.add_metadata_rule')
+    def test_create_metadata_item_rule_with_error(self, mock_add_metadata_rule):
+        """Test creating metadata rule with API error"""
+        metadata_rule = {
+            'external_id': 'test_rule',
+            'condition': 'if',
+            'metadata_field': {
+                'external_id': 'test_field'
+            },
+            'results': [{
+                'value': 'test_value',
+                'apply_to': ['metadata_field_external_id']
+            }]
+        }
+        
+        mock_add_metadata_rule.side_effect = Exception("API Error")
+        
+        with self.assertLogs(logger, level='ERROR') as log:
+            clone_module.create_metadata_item('add_metadata_rule', metadata_rule, self.mock_target_config)
             self.assertIn('Error creating metadata field', log.output[0])
 
     @patch.object(clone_module, 'create_metadata_item')
@@ -95,17 +160,50 @@ class TestCLIClone(unittest.TestCase):
                 'label': 'Field 2'
             }
         ]
+
+        destination_fields = []
         
-        # Simulate destination having no fields
-        mock_list.return_value = []
-        
-        clone_module.compare_create_metadata_items(source_fields)
+        clone_module.compare_create_metadata_items(source_fields, destination_fields, self.mock_target_config, key="metadata_fields")
         
         # Both fields should be created
         self.assertEqual(mock_create.call_count, 2)
         mock_create.assert_any_call(source_fields[0])
         mock_create.assert_any_call(source_fields[1])
 
+    @patch.object(clone_module, 'create_metadata_item')
+    @patch.object(clone_module, 'list_metadata_items')
+    def test_compare_create_metadata_items_new_rules(self, mock_list, mock_create):
+        """Test comparing and creating new metadata rules"""
+        source_rules = [
+            {
+                'external_id': 'rule1',
+                'condition': 'if',
+                'metadata_field': {'external_id': 'field1'},
+                'results': [{
+                    'value': 'value1',
+                    'apply_to': ['target_field1']
+                }]
+            },
+            {
+                'external_id': 'rule2',
+                'condition': 'if',
+                'metadata_field': {'external_id': 'field2'},
+                'results': [{
+                    'value': 'value2',
+                    'apply_to': ['target_field2']
+                }]
+            }
+        ]
+
+        destination_rules = []
+        
+        clone_module.compare_create_metadata_items(source_rules, destination_rules, self.mock_target_config, key="metadata_rules")
+        
+        # Both rules should be created
+        self.assertEqual(mock_create.call_count, 2)
+        mock_create.assert_any_call('add_metadata_rule', source_rules[0])
+        mock_create.assert_any_call('add_metadata_rule', source_rules[1])
+    
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
     def test_compare_create_metadata_items_existing_fields(self, mock_list, mock_create):
@@ -119,7 +217,7 @@ class TestCLIClone(unittest.TestCase):
         ]
         
         # Simulate destination already having the field
-        mock_list.return_value = [
+        destination_fields = [
             {
                 'external_id': 'field1',
                 'type': 'string',
@@ -127,11 +225,45 @@ class TestCLIClone(unittest.TestCase):
             }
         ]
         
-        clone_module.compare_create_metadata_items(source_fields)
+        clone_module.compare_create_metadata_items(source_fields, destination_fields, self.mock_target_config, key="metadata_fields")
         
         # No fields should be created
         mock_create.assert_not_called()
 
+    @patch.object(clone_module, 'create_metadata_item')
+    @patch.object(clone_module, 'list_metadata_items')
+    def test_compare_create_metadata_items_existing_rules(self, mock_list, mock_create):
+        """Test comparing when rules already exist"""
+        source_rules = [
+            {
+                'external_id': 'rule1',
+                'condition': 'if',
+                'metadata_field': {'external_id': 'field1'},
+                'results': [{
+                    'value': 'value1',
+                    'apply_to': ['target_field1']
+                }]
+            }
+        ]
+        
+        # Simulate destination already having the rule
+        destination_rules = [
+            {
+                'external_id': 'rule1',
+                'condition': 'if',
+                'metadata_field': {'external_id': 'field1'},
+                'results': [{
+                    'value': 'value1',
+                    'apply_to': ['target_field1']
+                }]
+            }
+        ]
+        
+        clone_module.compare_create_metadata_items(source_rules, destination_rules, self.mock_target_config, key="metadata_rules")
+        
+        # No rules should be created
+        mock_create.assert_not_called()
+    
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
     def test_compare_create_metadata_items_mixed_scenario(self, mock_list, mock_create):
@@ -150,7 +282,7 @@ class TestCLIClone(unittest.TestCase):
         ]
         
         # Simulate destination having only one field
-        mock_list.return_value = [
+        destination_fields = [
             {
                 'external_id': 'existing_field',
                 'type': 'string',
@@ -158,11 +290,53 @@ class TestCLIClone(unittest.TestCase):
             }
         ]
         
-        clone_module.compare_create_metadata_items(source_fields)
+        clone_module.compare_create_metadata_items(source_fields, destination_fields, self.mock_target_config, key="metadata_fields")
         
         # Only new_field should be created
         mock_create.assert_called_once_with(source_fields[1])
 
+    @patch.object(clone_module, 'create_metadata_item')
+    @patch.object(clone_module, 'list_metadata_items')
+    def test_compare_create_metadata_items_mixed_rules_scenario(self, mock_list, mock_create):
+        """Test comparing with mix of new and existing rules"""
+        source_rules = [
+            {
+                'external_id': 'existing_rule',
+                'condition': 'if',
+                'metadata_field': {'external_id': 'field1'},
+                'results': [{
+                    'value': 'value1',
+                    'apply_to': ['target_field1']
+                }]
+            },
+            {
+                'external_id': 'new_rule',
+                'condition': 'if',
+                'metadata_field': {'external_id': 'field2'},
+                'results': [{
+                    'value': 'value2',
+                    'apply_to': ['target_field2']
+                }]
+            }
+        ]
+        
+        # Simulate destination having only one rule
+        destination_rules = [
+            {
+                'external_id': 'existing_rule',
+                'condition': 'if',
+                'metadata_field': {'external_id': 'field1'},
+                'results': [{
+                    'value': 'value1',
+                    'apply_to': ['target_field1']
+                }]
+            }
+        ]
+        
+        clone_module.compare_create_metadata_items(source_rules, destination_rules, self.mock_target_config, key="metadata_rules")
+        
+        # Only new_rule should be created
+        mock_create.assert_called_once_with('add_metadata_rule', source_rules[1])
 
 if __name__ == '__main__':
     unittest.main()
