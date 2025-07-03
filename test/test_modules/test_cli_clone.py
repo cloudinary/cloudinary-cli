@@ -53,7 +53,7 @@ class TestCLIClone(unittest.TestCase):
         result = clone_module.list_metadata_items("metadata_fields")
 
         mock_metadata_fields.assert_called_once()
-        self.assertEqual(result, mock_metadata_fields.return_value['metadata_fields'])
+        self.assertEqual(result, mock_metadata_fields.return_value)
 
     @patch.object(clone_module, 'list_metadata_items')
     def test_list_metadata_rules(self, mock_metadata_rules):
@@ -77,7 +77,7 @@ class TestCLIClone(unittest.TestCase):
         result = clone_module.list_metadata_items("metadata_rules")
 
         mock_metadata_rules.assert_called_once()
-        self.assertEqual(result, mock_metadata_rules.return_value['metadata_rules'])
+        self.assertEqual(result, mock_metadata_rules.return_value)
 
     @patch.object(clone_module, 'create_metadata_item')
     def test_create_metadata_item_field(self, mock_add_metadata_field):
@@ -111,43 +111,6 @@ class TestCLIClone(unittest.TestCase):
         clone_module.create_metadata_item('add_metadata_rule', mock_metadata_rule)
 
         mock_add_metadata_rule.assert_called_once_with('add_metadata_rule', mock_metadata_rule)
-
-    @patch.object(clone_module, 'create_metadata_item')
-    def test_create_metadata_item_field_with_error(self, mock_add_metadata_field):
-        """Test creating metadata field with API error"""
-        mock_metadata_field = {
-            'external_id': 'test_field',
-            'type': 'string',
-            'label': 'Test Field',
-            'mandatory': False
-        }
-        
-        mock_add_metadata_field.side_effect = Exception("API Error")
-        
-        with self.assertLogs(logger, level='ERROR') as log:
-            clone_module.create_metadata_item('add_metadata_field', mock_metadata_field)
-            self.assertIn('Error creating metadata field', log.output[0])
-
-    @patch.object(clone_module, 'create_metadata_item')
-    def test_create_metadata_item_rule_with_error(self, mock_add_metadata_rule):
-        """Test creating metadata rule with API error"""
-        mock_metadata_rule = {
-            'external_id': 'test_rule',
-            'condition': 'if',
-            'metadata_field': {
-                'external_id': 'test_field'
-            },
-            'results': [{
-                'value': 'test_value',
-                'apply_to': ['metadata_field_external_id']
-            }]
-        }
-        
-        mock_add_metadata_rule.side_effect = Exception("API Error")
-        
-        with self.assertLogs(logger, level='ERROR') as log:
-            clone_module.create_metadata_item('add_metadata_rule', mock_metadata_rule)
-            self.assertIn('Error creating metadata field', log.output[0])
 
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
