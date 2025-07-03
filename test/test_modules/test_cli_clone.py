@@ -89,7 +89,7 @@ class TestCLIClone(unittest.TestCase):
             'mandatory': False
         }
         
-        clone_module.create_metadata_item('add_metadata_field', mock_metadata_field, self.mock_target_config)
+        clone_module.create_metadata_item('add_metadata_field', mock_metadata_field)
 
         mock_add_metadata_field.assert_called_once_with('add_metadata_field', mock_metadata_field)
 
@@ -108,7 +108,7 @@ class TestCLIClone(unittest.TestCase):
             }]
         }
 
-        clone_module.create_metadata_item('add_metadata_rule', mock_metadata_rule, self.mock_target_config)
+        clone_module.create_metadata_item('add_metadata_rule', mock_metadata_rule)
 
         mock_add_metadata_rule.assert_called_once_with('add_metadata_rule', mock_metadata_rule)
 
@@ -125,7 +125,7 @@ class TestCLIClone(unittest.TestCase):
         mock_add_metadata_field.side_effect = Exception("API Error")
         
         with self.assertLogs(logger, level='ERROR') as log:
-            clone_module.create_metadata_item('add_metadata_field', mock_metadata_field, self.mock_target_config)
+            clone_module.create_metadata_item('add_metadata_field', mock_metadata_field)
             self.assertIn('Error creating metadata field', log.output[0])
 
     @patch('cloudinary.api.add_metadata_rule')
@@ -146,7 +146,7 @@ class TestCLIClone(unittest.TestCase):
         mock_add_metadata_rule.side_effect = Exception("API Error")
         
         with self.assertLogs(logger, level='ERROR') as log:
-            clone_module.create_metadata_item('add_metadata_rule', mock_metadata_rule, self.mock_target_config)
+            clone_module.create_metadata_item('add_metadata_rule', mock_metadata_rule)
             self.assertIn('Error creating metadata field', log.output[0])
 
     @patch.object(clone_module, 'create_metadata_item')
@@ -319,7 +319,7 @@ class TestCLIClone(unittest.TestCase):
         clone_module.compare_create_metadata_items(mock_source_fields, mock_destination_fields, self.mock_target_config, key="metadata_fields")
         
         # Only new_field should be created
-        mock_create.assert_called_once_with(mock_source_fields['metadata_fields'][1])
+        mock_create.assert_called_once_with('add_metadata_field', mock_source_fields['metadata_fields'][1], self.mock_target_config)
 
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
@@ -366,7 +366,7 @@ class TestCLIClone(unittest.TestCase):
         clone_module.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, self.mock_target_config, key="metadata_rules")
         
         # Only new_rule should be created
-        mock_create.assert_called_once_with('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1])
+        mock_create.assert_called_once_with('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], self.mock_target_config)
 
 if __name__ == '__main__':
     unittest.main()
