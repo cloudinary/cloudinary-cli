@@ -144,7 +144,7 @@ class TestCLIClone(unittest.TestCase):
 
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
-    def test_compare_create_metadata_items_new_rules(self, mock_list, mock_create):
+    def test_compare_create_metadata_items_new_rules(self, mock_create):
         """Test comparing and creating new metadata rules"""
         mock_source_metadata_rules = {
             'metadata_rules': [
@@ -179,6 +179,11 @@ class TestCLIClone(unittest.TestCase):
         self.assertEqual(mock_create.call_count, 2)
         mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][0], self.mock_target_config)
         mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], self.mock_target_config)
+
+        result = clone_module.list_metadata_items("metadata_rules")
+
+        mock_source_metadata_rules.assert_called_once()
+        self.assertEqual(result, mock_source_metadata_rules)
 
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
