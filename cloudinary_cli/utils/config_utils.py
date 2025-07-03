@@ -67,6 +67,9 @@ def get_cloudinary_config(target):
 def config_to_dict(config):
     return {k: v for k, v in config.__dict__.items() if not k.startswith("_")}
 
+def config_to_tuple_list(config):
+    return [(k, v) for k, v in config.__dict__.items() if not k.startswith("_")]
+
 def show_cloudinary_config(cloudinary_config):
     obfuscated_config = config_to_dict(cloudinary_config)
 
