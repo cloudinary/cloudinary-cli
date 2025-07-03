@@ -36,7 +36,7 @@ class TestCLIClone(unittest.TestCase):
             'api_secret': 'target-secret'
         }
 
-    @patch('cloudinary.api.list_metadata_fields')
+    @patch.object(clone_module, 'list_metadata_items')
     def test_list_metadata_items(self, mock_metadata_fields):
         """Test listing metadata fields"""
         mock_metadata_fields.return_value = {
@@ -55,7 +55,7 @@ class TestCLIClone(unittest.TestCase):
         mock_metadata_fields.assert_called_once()
         self.assertEqual(result, mock_metadata_fields.return_value['metadata_fields'])
 
-    @patch('cloudinary.api.list_metadata_rules')
+    @patch.object(clone_module, 'list_metadata_items')
     def test_list_metadata_rules(self, mock_metadata_rules):
         """Test listing metadata fields"""
         mock_metadata_rules.return_value = {
@@ -79,7 +79,7 @@ class TestCLIClone(unittest.TestCase):
         mock_metadata_rules.assert_called_once()
         self.assertEqual(result, mock_metadata_rules.return_value['metadata_rules'])
 
-    @patch('cloudinary.api.add_metadata_field')
+    @patch.object(clone_module, 'create_metadata_item')
     def test_create_metadata_item_field(self, mock_add_metadata_field):
         """Test creating a single metadata field"""
         mock_metadata_field = {
@@ -93,7 +93,7 @@ class TestCLIClone(unittest.TestCase):
 
         mock_add_metadata_field.assert_called_once_with('add_metadata_field', mock_metadata_field)
 
-    @patch('cloudinary.api.add_metadata_rule')
+    @patch.object(clone_module, 'create_metadata_item')
     def test_create_metadata_item_rule(self, mock_add_metadata_rule):
         """Test creating a single metadata rule"""
         mock_metadata_rule = {
@@ -112,7 +112,7 @@ class TestCLIClone(unittest.TestCase):
 
         mock_add_metadata_rule.assert_called_once_with('add_metadata_rule', mock_metadata_rule)
 
-    @patch('cloudinary.api.add_metadata_field')
+    @patch.object(clone_module, 'create_metadata_item')
     def test_create_metadata_item_field_with_error(self, mock_add_metadata_field):
         """Test creating metadata field with API error"""
         mock_metadata_field = {
@@ -128,7 +128,7 @@ class TestCLIClone(unittest.TestCase):
             clone_module.create_metadata_item('add_metadata_field', mock_metadata_field)
             self.assertIn('Error creating metadata field', log.output[0])
 
-    @patch('cloudinary.api.add_metadata_rule')
+    @patch.object(clone_module, 'create_metadata_item')
     def test_create_metadata_item_rule_with_error(self, mock_add_metadata_rule):
         """Test creating metadata rule with API error"""
         mock_metadata_rule = {
@@ -176,8 +176,7 @@ class TestCLIClone(unittest.TestCase):
         
         # Both fields should be created
         self.assertEqual(mock_create.call_count, 2)
-        mock_create.assert_any_call(mock_source_fields['metadata_fields'][0])
-        mock_create.assert_any_call(mock_source_fields['metadata_fields'][1])
+        mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'], self.mock_target_config)
 
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
@@ -214,8 +213,7 @@ class TestCLIClone(unittest.TestCase):
         
         # Both rules should be created
         self.assertEqual(mock_create.call_count, 2)
-        mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][0])
-        mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1])
+        mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'], self.mock_target_config)
     
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
