@@ -55,7 +55,9 @@ def clone(target, force, overwrite, concurrent_workers, fields,
         return False
 
     source_assets = search_assets(search_exp, force)
-    if not source_assets or not source_assets.get('resources'):
+    if not source_assets:
+        return False
+    if not isinstance(source_assets, dict) or not source_assets.get('resources'):
         logger.error(style(f"No asset(s) found in {cloudinary.config().cloud_name}", fg="red"))
         return False
 
