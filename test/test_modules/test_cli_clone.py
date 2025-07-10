@@ -116,7 +116,7 @@ class TestCLIClone(unittest.TestCase):
     @patch.object(clone_module, 'list_metadata_items')
     def test_compare_create_metadata_items_new_fields(self, mock_list, mock_create):
         """Test comparing and creating new metadata fields"""
-        mock_source_fields = {
+        metadata_fields = {
             'metadata_fields': [
                 {
                     'external_id': 'field1',
@@ -131,6 +131,8 @@ class TestCLIClone(unittest.TestCase):
             ]
         }
 
+        mock_source_fields = metadata_fields
+        mock_list.return_value = metadata_fields
         mock_destination_fields = {
             'metadata_fields': []
         }
@@ -142,11 +144,15 @@ class TestCLIClone(unittest.TestCase):
         mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'][0], self.mock_target_config)
         mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'][1], self.mock_target_config)
 
+        result = clone_module.list_metadata_items("metadata_fields", self.mock_target_config)
+        mock_list.assert_called_once()
+        self.assertEqual(result, mock_list.return_value)
+
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
     def test_compare_create_metadata_items_new_rules(self, mock_list, mock_create):
         """Test comparing and creating new metadata rules"""
-        mock_source_metadata_rules = {
+        metadata_rules = {
             'metadata_rules': [
                 {
                     'external_id': 'rule1',
@@ -168,6 +174,9 @@ class TestCLIClone(unittest.TestCase):
                 }
             ]
         }
+        
+        mock_source_metadata_rules = metadata_rules
+        mock_list.return_value = metadata_rules
 
         mock_destination_metadata_rules = {
             'metadata_rules': []
@@ -180,14 +189,12 @@ class TestCLIClone(unittest.TestCase):
         mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][0], self.mock_target_config)
         mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], self.mock_target_config)
 
-        result = clone_module.list_metadata_items("metadata_rules")
-        mock_list.return_value = mock_source_metadata_rules
+        result = clone_module.list_metadata_items("metadata_rules", self.mock_target_config)
         mock_list.assert_called_once()
         self.assertEqual(result, mock_list.return_value)
 
     @patch.object(clone_module, 'create_metadata_item')
-    @patch.object(clone_module, 'list_metadata_items')
-    def test_compare_create_metadata_items_existing_fields(self, mock_list, mock_create):
+    def test_compare_create_metadata_items_existing_fields(self, mock_create):
         """Test comparing when fields already exist"""
         mock_source_fields = {
             'metadata_fields': [
@@ -210,14 +217,14 @@ class TestCLIClone(unittest.TestCase):
             ]
         }
         
+        mock_source_fields
         clone_module.compare_create_metadata_items(mock_source_fields, mock_destination_fields, self.mock_target_config, key="metadata_fields")
         
         # No fields should be created
         mock_create.assert_not_called()
 
     @patch.object(clone_module, 'create_metadata_item')
-    @patch.object(clone_module, 'list_metadata_items')
-    def test_compare_create_metadata_items_existing_rules(self, mock_list, mock_create):
+    def test_compare_create_metadata_items_existing_rules(self, mock_create):
         """Test comparing when rules already exist"""
 
         mock_source_metadata_rules = {
@@ -258,7 +265,7 @@ class TestCLIClone(unittest.TestCase):
     @patch.object(clone_module, 'list_metadata_items')
     def test_compare_create_metadata_items_mixed_scenario(self, mock_list, mock_create):
         """Test comparing with mix of new and existing fields"""
-        mock_source_fields = {
+        metadata_fields = {
             'metadata_fields': [
                 {
                     'external_id': 'field1',
@@ -283,17 +290,24 @@ class TestCLIClone(unittest.TestCase):
                 }
             ]
         }
+
+        mock_source_fields= metadata_fields
+        mock_list.return_value = metadata_fields
         
         clone_module.compare_create_metadata_items(mock_source_fields, mock_destination_fields, self.mock_target_config, key="metadata_fields")
         
         # Only new_field should be created
         mock_create.assert_called_once_with('add_metadata_field', mock_source_fields['metadata_fields'][1], self.mock_target_config)
+        
+        result = clone_module.list_metadata_items("metadata_fields", self.mock_target_config)
+        mock_list.assert_called_once()
+        self.assertEqual(result, mock_list.return_value)
 
     @patch.object(clone_module, 'create_metadata_item')
     @patch.object(clone_module, 'list_metadata_items')
     def test_compare_create_metadata_items_mixed_rules_scenario(self, mock_list, mock_create):
         """Test comparing with mix of new and existing rules"""
-        mock_source_metadata_rules = {
+        metadata_rules = {
             'metadata_rules': [
                 {
                     'external_id': 'rule1',
@@ -330,11 +344,18 @@ class TestCLIClone(unittest.TestCase):
                 }
             ]
         }
+
+        mock_source_metadata_rules = metadata_rules
+        mock_list.return_value = metadata_rules
         
         clone_module.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, self.mock_target_config, key="metadata_rules")
         
         # Only new_rule should be created
         mock_create.assert_called_once_with('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], self.mock_target_config)
+
+        result = clone_module.list_metadata_items("metadata_rules", self.mock_target_config)
+        mock_list.assert_called_once()
+        self.assertEqual(result, mock_list.return_value)
 
 if __name__ == '__main__':
     unittest.main()
