@@ -136,7 +136,7 @@ class TestCLIClone(unittest.TestCase):
 
         options, url = clone_module.process_metadata(
             res, overwrite=True, async_=False, notification_url=None,
-            auth_token=None, ttl=3600, copy_fields=[]
+            auth_token=None, url_expiry=3600, copy_fields=[]
         )
 
         self.assertEqual(url, 'https://res.cloudinary.com/demo/image/upload/v1234567890/sample.jpg')
@@ -160,7 +160,7 @@ class TestCLIClone(unittest.TestCase):
 
         options, url = clone_module.process_metadata(
             res, overwrite=False, async_=True, notification_url='http://webhook.com',
-            auth_token=None, ttl=3600, copy_fields=['tags', 'context']
+            auth_token=None, url_expiry=3600, copy_fields=['tags', 'context']
         )
 
         self.assertEqual(options['tags'], ['tag1', 'tag2'])
@@ -182,7 +182,7 @@ class TestCLIClone(unittest.TestCase):
 
         options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
-            auth_token=None, ttl=3600, copy_fields=[]
+            auth_token=None, url_expiry=3600, copy_fields=[]
         )
 
         self.assertEqual(options['asset_folder'], 'test_folder')
@@ -200,7 +200,7 @@ class TestCLIClone(unittest.TestCase):
 
         options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
-            auth_token=None, ttl=3600, copy_fields=[]
+            auth_token=None, url_expiry=3600, copy_fields=[]
         )
 
         self.assertEqual(options['asset_folder'], 'asset_folder_test')
@@ -218,7 +218,7 @@ class TestCLIClone(unittest.TestCase):
 
         options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
-            auth_token=None, ttl=3600, copy_fields=[]
+            auth_token=None, url_expiry=3600, copy_fields=[]
         )
 
         self.assertEqual(options['display_name'], 'Test Asset Display Name')
@@ -241,7 +241,7 @@ class TestCLIClone(unittest.TestCase):
 
         options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
-            auth_token=None, ttl=3600, copy_fields=[]
+            auth_token=None, url_expiry=3600, copy_fields=[]
         )
 
         # Should use private download URL
@@ -266,7 +266,7 @@ class TestCLIClone(unittest.TestCase):
 
         options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
-            auth_token={'key': 'value'}, ttl=3600, copy_fields=[]
+            auth_token={'key': 'value'}, url_expiry=3600, copy_fields=[]
         )
 
         # Should use signed URL
@@ -297,7 +297,7 @@ class TestCLIClone(unittest.TestCase):
 
         options, url = clone_module.process_metadata(
             res, overwrite=False, async_=False, notification_url=None,
-            auth_token={'key': 'value'}, ttl=3600, copy_fields=[]
+            auth_token={'key': 'value'}, url_expiry=3600, copy_fields=[]
         )
 
         # For raw assets, should not append format to public_id
