@@ -43,13 +43,13 @@ Example 2 (Copy all assets with a specific tag via a search expression using a s
         help="Clone the assets asynchronously.")
 @option("-nu", "--notification_url",
         help="Webhook notification URL.")
-@option("-t", "--ttl", type=int, default=3600,
+@option("-ue", "--url_expiry", type=int, default=3600,
         help=("URL expiration duration in seconds. Only relevant if cloning "
               "restricted assets. If you do not provide an auth_key, "
               "a private download URL is generated which may incur additional "
               "bandwidth costs."))
 def clone(target, force, overwrite, concurrent_workers, fields,
-          search_exp, async_, notification_url, ttl):
+          search_exp, async_, notification_url, url_expiry):
     target_config, auth_token = _validate_clone_inputs(target)
     if not target_config:
         return False
@@ -63,7 +63,7 @@ def clone(target, force, overwrite, concurrent_workers, fields,
 
     upload_list = _prepare_upload_list(
         source_assets, target_config, overwrite, async_,
-        notification_url, auth_token, ttl, fields
+        notification_url, auth_token, url_expiry, fields
     )
 
     logger.info(style(f"Copying {len(upload_list)} asset(s) from "
@@ -107,12 +107,12 @@ def _validate_clone_inputs(target):
 
 
 def _prepare_upload_list(source_assets, target_config, overwrite, async_,
-                         notification_url, auth_token, ttl, fields):
+                         notification_url, auth_token, url_expiry, fields):
     upload_list = []
     for r in source_assets.get('resources'):
         updated_options, asset_url = process_metadata(r, overwrite, async_,
                                                       notification_url,
-                                                      auth_token, ttl,
+                                                      auth_token, url_expiry,
                                                       normalize_list_params(fields))
         updated_options.update(config_to_dict(target_config))
         upload_list.append((asset_url, {**updated_options}))
@@ -170,16 +170,16 @@ def _normalize_search_expression(search_exp):
     return search_exp
 
 
-def process_metadata(res, overwrite, async_, notification_url, auth_token, ttl, copy_fields=None):
+def process_metadata(res, overwrite, async_, notification_url, auth_token, url_expiry, copy_fields=None):
     if copy_fields is None:
         copy_fields = []
-    asset_url = _get_asset_url(res, auth_token, ttl)
+    asset_url = _get_asset_url(res, auth_token, url_expiry)
     cloned_options = _build_cloned_options(res, overwrite, async_, notification_url, copy_fields)
 
     return cloned_options, asset_url
 
 
-def _get_asset_url(res, auth_token, ttl):
+def _get_asset_url(res, auth_token, url_expiry):
     if not (isinstance(res.get('access_control'), list) and
             len(res.get('access_control')) > 0 and
             isinstance(res['access_control'][0], dict) and
@@ -198,7 +198,7 @@ def _get_asset_url(res, auth_token, ttl):
             pub_id_format,
             type=del_type,
             resource_type=reso_type,
-            auth_token={"duration": ttl},
+            auth_token={"duration": url_expiry},
             secure=True,
             sign_url=True
         )
@@ -209,7 +209,7 @@ def _get_asset_url(res, auth_token, ttl):
         file_format,
         resource_type=reso_type,
         type=del_type,
-        expires_at=int(time.time()) + ttl
+        expires_at=int(time.time()) + url_expiry
     )
 
 
