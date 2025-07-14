@@ -45,7 +45,8 @@ Example 2 (Copy all assets with a specific tag via a search expression using a s
         help="Webhook notification URL.")
 @option("-ue", "--url_expiry", type=int, default=3600,
         help=("URL expiration duration in seconds. Only relevant if cloning "
-              "restricted assets. If you do not provide an auth_key, "
+              "restricted assets with an auth_key configured. "
+              "If you do not provide an auth_key, "
               "a private download URL is generated which may incur additional "
               "bandwidth costs."))
 def clone(target, force, overwrite, concurrent_workers, fields,
