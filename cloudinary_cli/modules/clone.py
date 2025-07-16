@@ -63,7 +63,7 @@ def clone(target, force, overwrite, concurrent_workers, fields,
         logger.error(style(f"No asset(s) found in {cloudinary.config().cloud_name}", fg="red"))
         return False
     
-    if 'metadata' in fields:
+    if 'metadata' in normalize_list_params(fields):
         source_metadata = list_metadata_items("metadata_fields")
         if source_metadata.get('metadata_fields'):
             target_metadata = list_metadata_items("metadata_fields", config_to_tuple_list(target_config))
@@ -160,7 +160,7 @@ def list_metadata_items(method_key, *options):
                              api_name="admin",
                              auto_paginate=True,
                              force=True, return_data=True)
-    res.get(method_key, []).sort(key=lambda x: x["external_id"])
+    res.get(method_key).sort(key=lambda x: x["external_id"])
     
     return res
 
