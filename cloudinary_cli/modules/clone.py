@@ -62,6 +62,20 @@ def clone(target, force, overwrite, concurrent_workers, fields,
     if not isinstance(source_assets, dict) or not source_assets.get('resources'):
         logger.error(style(f"No asset(s) found in {cloudinary.config().cloud_name}", fg="red"))
         return False
+    
+    if 'metadata' in fields:
+        source_metadata = list_metadata_items("metadata_fields")
+        if source_metadata.get('metadata_fields'):
+            target_metadata = list_metadata_items("metadata_fields", config_to_tuple_list(target_config))
+            fields_compare = compare_create_metadata_items(source_metadata, target_metadata, config_to_tuple_list(target_config), key="metadata_fields")
+            source_metadata_rules = list_metadata_items("metadata_rules")
+            if source_metadata_rules.get('metadata_rules'):
+                target_metadata_rules = list_metadata_items("metadata_rules", config_to_tuple_list(target_config))
+                rules_compare = compare_create_metadata_items(source_metadata_rules,target_metadata_rules, config_to_tuple_list(target_config), key="metadata_rules", id_field="name")
+            else:
+                logger.info(style(f"No metadata rules found in {cloudinary.config().cloud_name}", fg="yellow"))
+        else:
+            logger.info(style(f"No metadata found in {cloudinary.config().cloud_name}", fg="yellow"))
 
     upload_list = _prepare_upload_list(
         source_assets, target_config, overwrite, async_,
@@ -93,19 +107,6 @@ def _validate_clone_inputs(target):
                      "as source environment.")
         return None, None
 
-    if 'metadata' in fields:
-        source_metadata = list_metadata_items("metadata_fields")
-        if source_metadata.get('metadata_fields'):
-            target_metadata = list_metadata_items("metadata_fields", config_to_tuple_list(target_config))
-            fields_compare = compare_create_metadata_items(source_metadata, target_metadata, config_to_tuple_list(target_config), key="metadata_fields")
-            source_metadata_rules = list_metadata_items("metadata_rules")
-            if source_metadata_rules.get('metadata_rules'):
-                target_metadata_rules = list_metadata_items("metadata_rules", config_to_tuple_list(target_config))
-                rules_compare = compare_create_metadata_items(source_metadata_rules,target_metadata_rules, config_to_tuple_list(target_config), key="metadata_rules", id_field="name")
-            else:
-                logger.info(style(f"No metadata rules found in {cloudinary.config().cloud_name}", fg="yellow"))
-        else:
-            logger.info(style(f"No metadata found in {cloudinary.config().cloud_name}", fg="yellow"))
 
     auth_token = cloudinary.config().auth_token
     if auth_token:
