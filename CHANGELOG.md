@@ -1,3 +1,17 @@
+1.14.0 / 2025-07-17
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for `restricted` assets in `clone` command
+
+Other Changes
+-------------
+
+  * Fix deprecation warnings
+  * Update Dockerfile
+
 1.13.0 / 2025-04-14
 ==================
 
