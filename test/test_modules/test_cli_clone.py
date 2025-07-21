@@ -116,7 +116,7 @@ class TestCLIClone(unittest.TestCase):
     @patch.object(clone_metadata_utils, 'create_metadata_items')
     @patch.object(clone_metadata_utils, 'list_metadata_items')
     @patch('builtins.input', return_value='true')
-    def test_compare_create_metadata_items_new_fields(self,mock_confirm, mock_list, mock_create, ):
+    def test_compare_create_metadata_items_new_fields(sel, mock_list, mock_create, ):
         """Test comparing and creating new metadata fields"""
         metadata_fields = {
             'metadata_fields': [
@@ -152,8 +152,8 @@ class TestCLIClone(unittest.TestCase):
 
     @patch.object(clone_metadata_utils, 'create_metadata_items')
     @patch.object(clone_metadata_utils, 'list_metadata_items')
-    @patch('builtins.input', return_value='true')
-    def test_compare_create_metadata_items_new_rules(self, mock_list, mock_create, mock_confirm):
+    @patch('builtins.input', return_value='y')
+    def test_compare_create_metadata_items_new_rules(self, mock_list, mock_create):
         """Test comparing and creating new metadata rules"""
         metadata_rules = {
             'metadata_rules': [
@@ -197,7 +197,7 @@ class TestCLIClone(unittest.TestCase):
 
     @patch.object(clone_metadata_utils, 'create_metadata_items')
     @patch('builtins.input', return_value='true')
-    def test_compare_create_metadata_items_existing_fields(self, mock_create, mock_confirm):
+    def test_compare_create_metadata_items_existing_fields(self, mock_create):
         """Test comparing when fields already exist"""
         mock_source_fields = {
             'metadata_fields': [
@@ -227,7 +227,7 @@ class TestCLIClone(unittest.TestCase):
 
     @patch.object(clone_metadata_utils, 'create_metadata_items')
     @patch('builtins.input', return_value='true')
-    def test_compare_create_metadata_items_existing_rules(self, mock_create, mock_confirm):
+    def test_compare_create_metadata_items_existing_rules(self, mock_create):
         """Test comparing when rules already exist"""
 
         mock_source_metadata_rules = {
@@ -267,7 +267,7 @@ class TestCLIClone(unittest.TestCase):
     @patch.object(clone_metadata_utils, 'create_metadata_items')
     @patch.object(clone_metadata_utils, 'list_metadata_items')
     @patch('builtins.input', return_value='true')
-    def test_compare_create_metadata_items_mixed_scenario(self, mock_list, mock_create, mock_confirm):
+    def test_compare_create_metadata_items_mixed_scenario(self, mock_list, mock_create):
         """Test comparing with mix of new and existing fields"""
         metadata_fields = {
             'metadata_fields': [
@@ -310,7 +310,7 @@ class TestCLIClone(unittest.TestCase):
     @patch.object(clone_metadata_utils, 'create_metadata_items')
     @patch.object(clone_metadata_utils, 'list_metadata_items')
     @patch('builtins.input', return_value='true')
-    def test_compare_create_metadata_items_mixed_rules_scenario(self, mock_list, mock_create, mock_confirm):
+    def test_compare_create_metadata_items_mixed_rules_scenario(self, mock_list, mock_create):
         """Test comparing with mix of new and existing rules"""
         metadata_rules = {
             'metadata_rules': [
