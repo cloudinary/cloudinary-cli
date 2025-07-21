@@ -116,7 +116,7 @@ class TestCLIClone(unittest.TestCase):
     @patch.object(clone_metadata_utils, 'create_metadata_items')
     @patch.object(clone_metadata_utils, 'list_metadata_items')
     @patch('cloudinary_cli.utils.utils.confirm_action')
-    def test_compare_create_metadata_items_new_fields(self, mock_list, mock_create, mock_confirm):
+    def test_compare_create_metadata_items_new_fields(self,mock_confirm, mock_list, mock_create, ):
         """Test comparing and creating new metadata fields"""
         metadata_fields = {
             'metadata_fields': [
@@ -139,8 +139,8 @@ class TestCLIClone(unittest.TestCase):
             'metadata_fields': []
         }
         
-        res = clone_metadata_utils.compare_create_metadata_items(mock_source_fields, mock_destination_fields, key="metadata_fields", **self.mock_target_config)
-        print(res)
+        clone_metadata_utils.compare_create_metadata_items(mock_source_fields, mock_destination_fields, key="metadata_fields", **self.mock_target_config)
+        mock_confirm.return_value = True
         # Both fields should be created
         self.assertEqual(mock_create.call_count, 2)
         mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'][0], **self.mock_target_config)
@@ -185,8 +185,7 @@ class TestCLIClone(unittest.TestCase):
             'metadata_rules': []
         }
         
-        res = clone_metadata_utils.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, key="metadata_rules", **self.mock_target_config)
-        print(res)
+        clone_metadata_utils.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, key="metadata_rules", **self.mock_target_config)
         # Both rules should be created
         self.assertEqual(mock_create.call_count, 2)
         mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][0], **self.mock_target_config)
