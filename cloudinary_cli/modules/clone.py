@@ -1,11 +1,12 @@
 from click import command, option, style, argument
 from cloudinary_cli.utils.utils import normalize_list_params, print_help_and_exit
 import cloudinary
+from cloudinary_cli.utils.clone.metadata import clone_metadata
 from cloudinary.auth_token import _digest
 from cloudinary_cli.utils.utils import run_tasks_concurrently
-from cloudinary_cli.utils.api_utils import upload_file, handle_api_command
+from cloudinary_cli.utils.api_utils import upload_file
 from cloudinary_cli.utils.json_utils import print_json
-from cloudinary_cli.utils.config_utils import get_cloudinary_config, config_to_dict, config_to_tuple_list
+from cloudinary_cli.utils.config_utils import get_cloudinary_config, config_to_dict
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.core.search import execute_single_request, handle_auto_pagination
 import time
@@ -55,27 +56,19 @@ def clone(target, force, overwrite, concurrent_workers, fields,
     target_config, auth_token = _validate_clone_inputs(target)
     if not target_config:
         return False
-
+    if 'metadata' in normalize_list_params(fields):
+        metadata_clone = clone_metadata(target_config)
+        if not metadata_clone:
+            logger.error(style(f"The operation has been aborted due to your answer.", fg="red"))
+            return False
+        else:
+            logger.info(style(f"Metadata cloned successfully from {cloudinary.config().cloud_name} to {target_config.cloud_name}. We will now proceed with cloning the assets.", fg="green"))
     source_assets = search_assets(search_exp, force)
     if not source_assets:
         return False
     if not isinstance(source_assets, dict) or not source_assets.get('resources'):
         logger.error(style(f"No asset(s) found in {cloudinary.config().cloud_name}", fg="red"))
         return False
-    
-    if 'metadata' in normalize_list_params(fields):
-        source_metadata = list_metadata_items("metadata_fields")
-        if source_metadata.get('metadata_fields'):
-            target_metadata = list_metadata_items("metadata_fields", config_to_tuple_list(target_config))
-            fields_compare = compare_create_metadata_items(source_metadata, target_metadata, config_to_tuple_list(target_config), key="metadata_fields")
-            source_metadata_rules = list_metadata_items("metadata_rules")
-            if source_metadata_rules.get('metadata_rules'):
-                target_metadata_rules = list_metadata_items("metadata_rules", config_to_tuple_list(target_config))
-                rules_compare = compare_create_metadata_items(source_metadata_rules,target_metadata_rules, config_to_tuple_list(target_config), key="metadata_rules", id_field="name")
-            else:
-                logger.info(style(f"No metadata rules found in {cloudinary.config().cloud_name}", fg="yellow"))
-        else:
-            logger.info(style(f"No metadata found in {cloudinary.config().cloud_name}", fg="yellow"))
 
     upload_list = _prepare_upload_list(
         source_assets, target_config, overwrite, async_,
@@ -149,79 +142,6 @@ def search_assets(search_exp, force):
     res = handle_auto_pagination(res, search, force, fields_to_keep="")
 
     return res
-
-def list_metadata_items(method_key, *options):
-    api_method_name = 'list_' + method_key
-    params = [api_method_name]
-    if options:
-        options = options[0]
-    res = handle_api_command(params, (), options, None, None, None,
-                             doc_url="", api_instance=cloudinary.api,
-                             api_name="admin",
-                             auto_paginate=True,
-                             force=True, return_data=True)
-    res.get(method_key).sort(key=lambda x: x["external_id"])
-    
-    return res
-
-
-def create_metadata_item(api_method_name, item, *options):
-    params = (api_method_name, item)
-    if options:
-        options = options[0]
-    res = handle_api_command(params, (), options, None, None, None,
-                             doc_url="", api_instance=cloudinary.api,
-                             api_name="admin",
-                             return_data=True)
-    
-    return res
-
-
-def deep_diff(obj_source, obj_target):
-    diffs = {}
-    for k in set(obj_source.keys()).union(obj_target.keys()):
-        if obj_source.get(k) != obj_target.get(k):
-            diffs[k] = {"json_source": obj_source.get(k), "json_target": obj_target.get(k)}
-    
-    return diffs
-
-
-def compare_create_metadata_items(json_source, json_target, target_config, key, id_field = "external_id"):
-    list_source = {item[id_field]: item for item in json_source.get(key, [])}
-    list_target = {item[id_field]: item for item in json_target.get(key, [])}
-
-    only_in_source = list(list_source.keys() - list_target.keys())
-    common = list_source.keys() & list_target.keys()
-
-    if not len(only_in_source):
-        logger.info(style(f"{(' '.join(key.split('_')))} in {dict(target_config)['cloud_name']} and in {cloudinary.config().cloud_name} are identical. No {(' '.join(key.split('_')))} will be cloned", fg="yellow"))
-    else:
-        logger.info(style(f"Copying {len(only_in_source)} {(' '.join(key.split('_')))} from {cloudinary.config().cloud_name} to {dict(target_config)['cloud_name']}", fg="blue"))
-    
-        for key_field in only_in_source:
-            if key == 'metadata_fields':
-                try:
-                    res = create_metadata_item('add_metadata_field', list_source[key_field],target_config)
-                    logger.info(style(f"Successfully created {(' '.join(key.split('_')))} {key_field} to {dict(target_config)['cloud_name']}", fg="green"))
-                except Exception as e:
-                    logger.error(style(f"Error when creating {(' '.join(key.split('_')))} {key_field} to {dict(target_config)['cloud_name']}", fg="red"))
-            else:
-                try:
-                    res = create_metadata_item('add_metadata_rule', list_source[key_field],target_config)
-                    logger.info(style(f"Successfully created {(' '.join(key.split('_')))} {key_field} to {dict(target_config)['cloud_name']}", fg="green"))
-                except Exception as e:
-                    logger.error(style(f"Error when creating {(' '.join(key.split('_')))} {key_field} to {dict(target_config)['cloud_name']}", fg="red"))
-            
-
-    diffs = {}
-    for id_ in common:
-        if list_source[id_] != list_target[id_]:
-            diffs[id_] = deep_diff(list_source[id_], list_target[id_])
-
-    return {
-        "only_in_json_source": only_in_source,
-        "differences": diffs
-    }
 
 def _normalize_search_expression(search_exp):
     """

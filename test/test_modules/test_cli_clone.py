@@ -8,6 +8,8 @@ import sys
 import cloudinary_cli.modules
 clone_module = sys.modules['cloudinary_cli.modules.clone']
 
+import cloudinary_cli.utils.clone.metadata as clone_metadata_utils
+
 from cloudinary_cli.defaults import logger
 
 
@@ -35,7 +37,7 @@ class TestCLIClone(unittest.TestCase):
             'api_secret': 'target-secret'
         }
 
-    @patch.object(clone_module, 'list_metadata_items')
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
     def test_list_metadata_items(self, mock_metadata_fields):
         """Test listing metadata fields"""
         mock_metadata_fields.return_value = {
@@ -49,12 +51,12 @@ class TestCLIClone(unittest.TestCase):
             ]
         }
 
-        result = clone_module.list_metadata_items("metadata_fields")
+        result = clone_metadata_utils.list_metadata_items("metadata_fields")
 
         mock_metadata_fields.assert_called_once()
         self.assertEqual(result, mock_metadata_fields.return_value)
 
-    @patch.object(clone_module, 'list_metadata_items')
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
     def test_list_metadata_rules(self, mock_metadata_rules):
         """Test listing metadata fields"""
         mock_metadata_rules.return_value = {
@@ -73,12 +75,12 @@ class TestCLIClone(unittest.TestCase):
             ]
         }
 
-        result = clone_module.list_metadata_items("metadata_rules")
+        result = clone_metadata_utils.list_metadata_items("metadata_rules")
 
         mock_metadata_rules.assert_called_once()
         self.assertEqual(result, mock_metadata_rules.return_value)
 
-    @patch.object(clone_module, 'create_metadata_item')
+    @patch.object(clone_metadata_utils, 'create_metadata_items')
     def test_create_metadata_item_field(self, mock_add_metadata_field):
         """Test creating a single metadata field"""
         mock_metadata_field = {
@@ -88,11 +90,11 @@ class TestCLIClone(unittest.TestCase):
             'mandatory': False
         }
         
-        clone_module.create_metadata_item('add_metadata_field', mock_metadata_field)
+        clone_metadata_utils.create_metadata_items('add_metadata_field', mock_metadata_field)
 
         mock_add_metadata_field.assert_called_once_with('add_metadata_field', mock_metadata_field)
 
-    @patch.object(clone_module, 'create_metadata_item')
+    @patch.object(clone_metadata_utils, 'create_metadata_items')
     def test_create_metadata_item_rule(self, mock_add_metadata_rule):
         """Test creating a single metadata rule"""
         mock_metadata_rule = {
@@ -107,12 +109,12 @@ class TestCLIClone(unittest.TestCase):
             }]
         }
 
-        clone_module.create_metadata_item('add_metadata_rule', mock_metadata_rule)
+        clone_metadata_utils.create_metadata_items('add_metadata_rule', mock_metadata_rule)
 
         mock_add_metadata_rule.assert_called_once_with('add_metadata_rule', mock_metadata_rule)
 
-    @patch.object(clone_module, 'create_metadata_item')
-    @patch.object(clone_module, 'list_metadata_items')
+    @patch.object(clone_metadata_utils, 'create_metadata_items')
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
     def test_compare_create_metadata_items_new_fields(self, mock_list, mock_create):
         """Test comparing and creating new metadata fields"""
         metadata_fields = {
@@ -136,19 +138,19 @@ class TestCLIClone(unittest.TestCase):
             'metadata_fields': []
         }
         
-        clone_module.compare_create_metadata_items(mock_source_fields, mock_destination_fields, self.mock_target_config, key="metadata_fields")
-        
+        res = clone_metadata_utils.compare_create_metadata_items(mock_source_fields, mock_destination_fields, key="metadata_fields", **self.mock_target_config)
+        print(res)
         # Both fields should be created
         self.assertEqual(mock_create.call_count, 2)
-        mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'][0], self.mock_target_config)
-        mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'][1], self.mock_target_config)
+        mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'][0], **self.mock_target_config)
+        mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'][1], **self.mock_target_config)
 
-        result = clone_module.list_metadata_items("metadata_fields", self.mock_target_config)
+        result = clone_metadata_utils.list_metadata_items("metadata_fields", **self.mock_target_config)
         mock_list.assert_called_once()
         self.assertEqual(result, mock_list.return_value)
 
-    @patch.object(clone_module, 'create_metadata_item')
-    @patch.object(clone_module, 'list_metadata_items')
+    @patch.object(clone_metadata_utils, 'create_metadata_items')
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
     def test_compare_create_metadata_items_new_rules(self, mock_list, mock_create):
         """Test comparing and creating new metadata rules"""
         metadata_rules = {
@@ -181,18 +183,18 @@ class TestCLIClone(unittest.TestCase):
             'metadata_rules': []
         }
         
-        clone_module.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, self.mock_target_config, key="metadata_rules")
-        
+        res = clone_metadata_utils.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, key="metadata_rules", **self.mock_target_config)
+        print(res)
         # Both rules should be created
         self.assertEqual(mock_create.call_count, 2)
-        mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][0], self.mock_target_config)
-        mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], self.mock_target_config)
+        mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][0], **self.mock_target_config)
+        mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], **self.mock_target_config)
 
-        result = clone_module.list_metadata_items("metadata_rules", self.mock_target_config)
+        result = clone_metadata_utils.list_metadata_items("metadata_rules", **self.mock_target_config)
         mock_list.assert_called_once()
         self.assertEqual(result, mock_list.return_value)
 
-    @patch.object(clone_module, 'create_metadata_item')
+    @patch.object(clone_metadata_utils, 'create_metadata_items')
     def test_compare_create_metadata_items_existing_fields(self, mock_create):
         """Test comparing when fields already exist"""
         mock_source_fields = {
@@ -217,12 +219,12 @@ class TestCLIClone(unittest.TestCase):
         }
         
         mock_source_fields
-        clone_module.compare_create_metadata_items(mock_source_fields, mock_destination_fields, self.mock_target_config, key="metadata_fields")
+        clone_metadata_utils.compare_create_metadata_items(mock_source_fields, mock_destination_fields, key="metadata_fields", **self.mock_target_config)
         
         # No fields should be created
         mock_create.assert_not_called()
 
-    @patch.object(clone_module, 'create_metadata_item')
+    @patch.object(clone_metadata_utils, 'create_metadata_items')
     def test_compare_create_metadata_items_existing_rules(self, mock_create):
         """Test comparing when rules already exist"""
 
@@ -255,13 +257,13 @@ class TestCLIClone(unittest.TestCase):
             ]
         }
         
-        clone_module.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, self.mock_target_config, key="metadata_rules")
+        clone_metadata_utils.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, key="metadata_rules", **self.mock_target_config)
         
         # No rules should be created
         mock_create.assert_not_called()
     
-    @patch.object(clone_module, 'create_metadata_item')
-    @patch.object(clone_module, 'list_metadata_items')
+    @patch.object(clone_metadata_utils, 'create_metadata_items')
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
     def test_compare_create_metadata_items_mixed_scenario(self, mock_list, mock_create):
         """Test comparing with mix of new and existing fields"""
         metadata_fields = {
@@ -293,17 +295,17 @@ class TestCLIClone(unittest.TestCase):
         mock_source_fields= metadata_fields
         mock_list.return_value = metadata_fields
         
-        clone_module.compare_create_metadata_items(mock_source_fields, mock_destination_fields, self.mock_target_config, key="metadata_fields")
+        clone_metadata_utils.compare_create_metadata_items(mock_source_fields, mock_destination_fields, key="metadata_fields", **self.mock_target_config)
         
         # Only new_field should be created
-        mock_create.assert_called_once_with('add_metadata_field', mock_source_fields['metadata_fields'][1], self.mock_target_config)
+        mock_create.assert_called_once_with('add_metadata_field', mock_source_fields['metadata_fields'][1], **self.mock_target_config)
         
-        result = clone_module.list_metadata_items("metadata_fields", self.mock_target_config)
+        result = clone_metadata_utils.list_metadata_items("metadata_fields", **self.mock_target_config)
         mock_list.assert_called_once()
         self.assertEqual(result, mock_list.return_value)
 
-    @patch.object(clone_module, 'create_metadata_item')
-    @patch.object(clone_module, 'list_metadata_items')
+    @patch.object(clone_metadata_utils, 'create_metadata_items')
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
     def test_compare_create_metadata_items_mixed_rules_scenario(self, mock_list, mock_create):
         """Test comparing with mix of new and existing rules"""
         metadata_rules = {
@@ -347,12 +349,12 @@ class TestCLIClone(unittest.TestCase):
         mock_source_metadata_rules = metadata_rules
         mock_list.return_value = metadata_rules
         
-        clone_module.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, self.mock_target_config, key="metadata_rules")
+        clone_metadata_utils.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, key="metadata_rules", **self.mock_target_config)
         
         # Only new_rule should be created
-        mock_create.assert_called_once_with('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], self.mock_target_config)
+        mock_create.assert_called_once_with('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], **self.mock_target_config)
 
-        result = clone_module.list_metadata_items("metadata_rules", self.mock_target_config)
+        result = clone_metadata_utils.list_metadata_items("metadata_rules", **self.mock_target_config)
         mock_list.assert_called_once()
         self.assertEqual(result, mock_list.return_value)
 
