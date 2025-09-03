@@ -10,3 +10,4 @@ venv
 .idea
 
 .cld-sync
+.env

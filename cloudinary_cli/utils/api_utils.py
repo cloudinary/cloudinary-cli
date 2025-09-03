@@ -131,10 +131,52 @@ def upload_file(file_path, options, uploaded=None, failed=None):
 
     try:
         size = 0 if is_remote_url(file_path) else path.getsize(file_path)
-        upload_func = uploader.upload
+
+        # Set cloudinary configuration from options if provided
+        if 'cloud_name' in options and 'api_key' in options and 'api_secret' in options:
+            import cloudinary
+            cloudinary.config(
+                cloud_name=options['cloud_name'],
+                api_key=options['api_key'],
+                api_secret=options['api_secret']
+            )
+            logger.debug(f"Set configuration for upload: {options['cloud_name']}")
+
+        # Refresh uploader module to ensure it uses current config
+        import importlib
+        from cloudinary import uploader as cloudinary_uploader
+        importlib.reload(cloudinary_uploader)
+
+        upload_func = cloudinary_uploader.upload
         if size > 20000000:
-            upload_func = uploader.upload_large
+            upload_func = cloudinary_uploader.upload_large
+
+        # Handle metadata separately for existing assets
+        metadata_to_apply = None
+        if 'metadata' in options:
+            metadata_to_apply = options.pop('metadata')  # Remove from upload options
+
         result = upload_func(file_path, **options)
+
+        # Apply metadata separately if it was specified
+        if metadata_to_apply and result and result.get('public_id'):
+            try:
+                # Use the api to update metadata on the uploaded asset
+                from cloudinary import api
+                importlib.reload(api)
+
+                # Ensure we're using the correct configuration for metadata update
+                current_cloud = cloudinary.config().cloud_name
+                logger.debug(f"Updating metadata for {result['public_id']} in cloud {current_cloud}")
+
+                api.update(result['public_id'],
+                          resource_type=result.get('resource_type', 'image'),
+                          type=result.get('type', 'upload'),
+                          metadata=metadata_to_apply)
+                logger.info(f"Applied metadata to {result['public_id']}: {list(metadata_to_apply.keys())}")
+            except Exception as e:
+                logger.warning(f"Failed to apply metadata to {result['public_id']}: {e}")
+                logger.debug(f"Metadata application failed with config: {cloudinary.config().cloud_name}")
         disp_path = _display_path(result)
         if "batch_id" in result:
             starting_msg = "Uploading"

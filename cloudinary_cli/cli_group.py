@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 import platform
 import shutil
+import os
 
 import click
 import click_log
 import cloudinary
+from dotenv import load_dotenv
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.config_utils import load_config, refresh_cloudinary_config, \
     is_valid_cloudinary_config
 from cloudinary_cli.version import __version__ as cli_version
+
+# Load environment variables from .env file
+load_dotenv()
 
 CONTEXT_SETTINGS = dict(max_content_width=shutil.get_terminal_size()[0], terminal_width=shutil.get_terminal_size()[0])
 
