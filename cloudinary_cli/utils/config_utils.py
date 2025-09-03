@@ -65,7 +65,17 @@ def get_cloudinary_config(target):
     return target_config
 
 def config_to_dict(config):
-    return {k: v for k, v in config.__dict__.items() if not k.startswith("_")}
+    """Convert Cloudinary config object or dict to dict"""
+    if isinstance(config, dict):
+        return config
+    elif hasattr(config, '__dict__'):
+        return {k: v for k, v in config.__dict__.items() if not k.startswith("_")}
+    else:
+        # Fallback: try to convert to dict
+        try:
+            return dict(config)
+        except (TypeError, ValueError):
+            return {}
 
 def show_cloudinary_config(cloudinary_config):
     obfuscated_config = config_to_dict(cloudinary_config)

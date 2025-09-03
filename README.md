@@ -223,6 +223,45 @@ cld [cli options] migrate [command options] upload_mapping file
 
 For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#migrate).
 
+### `clone`
+
+Clones assets from one product environment to another with/without tags, context, and structured metadata.
+
+**Metadata Features:**
+- **Schema Replication**: Automatically replicate metadata field definitions from source to target cloud
+- **Metadata Copying**: Copy structured metadata values from source assets to target assets
+- **Validation**: Validate metadata compatibility before cloning to prevent errors
+
+```
+cld [cli options] clone [command options] target_environment
+```
+
+For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#clone).
+
+**Examples:**
+```bash
+# Clone with full metadata support (default)
+cld clone cloudinary://api_key:api_secret@target_cloud
+
+# Clone without metadata copying
+cld clone target_cloud --no-copy_metadata --no-replicate_schema
+
+# Clone with only schema replication
+cld clone target_cloud --replicate_schema --no-copy_metadata
+
+# Clone assets with specific metadata values
+cld clone target_cloud -se 'resource_type:image AND metadata.sku:*'
+
+# Force clone even with validation errors
+cld clone target_cloud --force
+```
+
+**Metadata Options:**
+- `--copy_metadata`: Copy metadata fields from source assets to target assets (default: enabled)
+- `--replicate_schema`: Replicate metadata schema from source to target cloud (default: enabled)
+- `--no-copy_metadata`: Disable metadata copying
+- `--no-replicate_schema`: Disable schema replication
+
 ## Additional configurations
 
 A configuration is a reference to a specified Cloudinary account or cloud name via its environment variable.  You set the default configuration during setup and installation. Using different configurations allows you to access different Cloudinary cloud names, such as sub-accounts of your main Cloudinary account, or any additional Cloudinary accounts you may have.
