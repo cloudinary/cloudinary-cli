@@ -56,7 +56,7 @@ class TestCLIClone(unittest.TestCase):
         mock_metadata_fields.assert_called_once()
         self.assertEqual(result, mock_metadata_fields.return_value)
 
-    @patch.object(clone_metadata_utils, 'list_metadata_items')
+    @patch.object(clone_metadata_utils, 'list_metadata_rules')
     def test_list_metadata_rules(self, mock_metadata_rules):
         """Test listing metadata fields"""
         mock_metadata_rules.return_value = {
@@ -75,7 +75,7 @@ class TestCLIClone(unittest.TestCase):
             ]
         }
 
-        result = clone_metadata_utils.list_metadata_items("metadata_rules")
+        result = clone_metadata_utils.list_metadata_rules()
 
         mock_metadata_rules.assert_called_once()
         self.assertEqual(result, mock_metadata_rules.return_value)

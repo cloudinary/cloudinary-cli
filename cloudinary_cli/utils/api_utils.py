@@ -366,3 +366,24 @@ def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
     all_results.pop(cursor_field, None)
 
     return all_results
+
+
+def call_api_with_pagination(func, args=None, kwargs=None, force=False, filter_fields=""):
+    """
+    Calls a Cloudinary API method and handles pagination.
+
+    :param func: The Cloudinary API method to call.
+    :param args: Positional arguments to pass to the API method.
+    :param kwargs: Keyword arguments to pass to the API method.
+    :param force: Whether to force pagination even if not explicitly enabled.
+    :param filter_fields: The fields to keep in the results.
+    :return: A list of results from all pages.
+    """
+    if kwargs is None:
+        kwargs = {}
+    if args is None:
+        args = []
+
+    res = func(*args, **kwargs)
+
+    return handle_auto_pagination(res, func, args, kwargs, force=force, filter_fields=filter_fields)

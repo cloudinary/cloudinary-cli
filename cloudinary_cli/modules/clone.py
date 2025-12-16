@@ -56,6 +56,7 @@ def clone(target, force, overwrite, concurrent_workers, fields,
     target_config, auth_token = _validate_clone_inputs(target)
     if not target_config:
         return False
+
     if 'metadata' in normalize_list_params(fields):
         metadata_clone = clone_metadata(target_config)
         if not metadata_clone:
@@ -63,6 +64,7 @@ def clone(target, force, overwrite, concurrent_workers, fields,
             return False
         else:
             logger.info(style(f"Metadata cloned successfully from {cloudinary.config().cloud_name} to {target_config.cloud_name}. We will now proceed with cloning the assets.", fg="green"))
+
     source_assets = search_assets(search_exp, force)
     if not source_assets:
         return False
