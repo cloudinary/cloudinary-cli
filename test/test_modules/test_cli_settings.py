@@ -18,12 +18,12 @@ class TestCLISettings(unittest.TestCase):
     def test_parse_picks_all_sentinels(self):
         from cloudinary_cli.modules.settings.utils.pick import parse_picks, SMD_PICK_ALL_SENTINEL
 
-        selected_types, smd_fields, smd_rules = parse_picks([
+        selected_components, smd_fields, smd_rules = parse_picks([
             ("smd", "field", "all"),
             ("smd", "rule", "*"),
         ])
 
-        self.assertEqual(["smd"], selected_types)
+        self.assertEqual(["smd"], selected_components)
         self.assertEqual([SMD_PICK_ALL_SENTINEL], smd_fields)
         self.assertEqual([SMD_PICK_ALL_SENTINEL], smd_rules)
 
@@ -93,7 +93,7 @@ class TestCLISettings(unittest.TestCase):
             with patch.object(settings_commands.cloudinary, "config", return_value=fake_cloudinary_cfg), \
                  patch.object(settings_commands, "export_smd_bundle", return_value={"fields": [], "rules": []}), \
                  patch.object(settings_commands, "ensure_settings_store_dirs", return_value=os.getcwd()), \
-                 patch.object(settings_commands, "get_settings_store_bundle_path", side_effect=AssertionError("store path should not be used when --out is set")):
+                 patch.object(settings_commands, "get_settings_store_snapshot_path", side_effect=AssertionError("store path should not be used when --out is set")):
                 result = self.runner.invoke(cli, ["settings", "save", "--out", "out.json", "-F"])
 
             self.assertEqual(0, result.exit_code, msg=result.output)

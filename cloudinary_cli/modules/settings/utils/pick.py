@@ -11,7 +11,7 @@ def parse_picks(picks):
     Parse hierarchical selections passed via --pick <group> <kind> <value>.
 
     Returns:
-      - selected_types: list[str]
+      - selected_components: list[str]
       - smd_fields: list[str]
       - smd_rules: list[str]
     """
@@ -47,5 +47,5 @@ def parse_picks(picks):
                 else:
                     smd_rules.append(value)
 
-    selected_types = sorted(groups)
-    return selected_types, smd_fields, smd_rules
+    selected_components = sorted(groups)
+    return selected_components, smd_fields, smd_rules

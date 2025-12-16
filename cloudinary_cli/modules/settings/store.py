@@ -30,7 +30,7 @@ def resolve_cloud_name_or_current(cloud_name=None):
     return current
 
 
-def get_settings_store_bundle_path(cloud_name, name):
+def get_settings_store_snapshot_path(cloud_name, name):
     root = ensure_settings_store_dirs()
     cloud_dir = path_join(root, cloud_name)
     os.makedirs(cloud_dir, exist_ok=True)
@@ -65,13 +65,13 @@ def list_settings_store_entries(cloud_name=None):
     return entries
 
 
-def delete_settings_store_bundle(cloud_name, name):
-    bundle_path = get_settings_store_bundle_path(cloud_name, name)
-    if not os.path.exists(bundle_path):
+def delete_settings_store_snapshot(cloud_name, name):
+    snapshot_path = get_settings_store_snapshot_path(cloud_name, name)
+    if not os.path.exists(snapshot_path):
         return False
     try:
-        os.remove(bundle_path)
+        os.remove(snapshot_path)
     except Exception as e:
-        logger.error(f"Failed deleting '{bundle_path}': {e}")
+        logger.error(f"Failed deleting '{snapshot_path}': {e}")
         return False
     return True
