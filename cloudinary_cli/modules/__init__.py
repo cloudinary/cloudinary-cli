@@ -4,6 +4,7 @@ from .sync import sync
 from .upload_dir import upload_dir
 from .regen_derived import regen_derived
 from .clone import clone
+from .settings import settings
 
 commands = [
     upload_dir,
@@ -11,5 +12,6 @@ commands = [
     migrate,
     sync,
     regen_derived,
-    clone
+    clone,
+    settings,
 ]

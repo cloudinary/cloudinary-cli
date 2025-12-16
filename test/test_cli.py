@@ -15,6 +15,7 @@ class TestCLI(unittest.TestCase):
         'migrate',
         'provisioning',
         'search',
+        'settings',
         'sync',
         'upload_dir',
         'uploader',

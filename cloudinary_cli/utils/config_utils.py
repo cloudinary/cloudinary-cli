@@ -38,6 +38,7 @@ def remove_config_keys(*keys):
 
 
 def refresh_cloudinary_config(cloudinary_url):
+    os.environ.pop("CLOUDINARY_CLOUD_NAME", None)
     os.environ.update({'CLOUDINARY_URL': cloudinary_url})
     cloudinary.reset_config()
 

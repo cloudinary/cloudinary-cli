@@ -401,3 +401,28 @@ def split_opt(opt):
     if opt[1:2] == first:
         return opt[:2], opt[2:]
     return first, opt[1:]
+
+
+def mid_trim(s, max_len, ellipsis="…"):
+    """
+    Trim a string to at most `max_len` characters by removing characters from the middle.
+
+    Examples:
+      mid_trim("abcdefghij", 7) -> "abc…hij"
+      mid_trim("abc", 7) -> "abc"
+
+    :param s: Value to trim (will be converted to string).
+    :param max_len: Maximum length of returned string.
+    :param ellipsis: Ellipsis character/string to insert (defaults to '…').
+    """
+    s = "" if s is None else str(s)
+    if max_len <= 0:
+        return ""
+    if len(s) <= max_len:
+        return s
+    if max_len <= len(ellipsis):
+        return ellipsis[:max_len]
+    keep = max_len - len(ellipsis)
+    left = keep // 2
+    right = keep - left
+    return f"{s[:left]}{ellipsis}{s[-right:]}"
