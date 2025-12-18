@@ -25,7 +25,7 @@ Source will be your `CLOUDINARY_URL` environment variable but you also can speci
 Format: cld clone <target_environment> <command options>
 `<target_environment>` can be a CLOUDINARY_URL or a saved config (see `config` command)
 Example 1 (Copy all assets including tags and context using CLOUDINARY URL):
-    cld clone cloudinary://<api_key>:<api_secret>@<cloudname> -fi tags,context
+    cld clone cloudinary://<api_key>:<api_secret>@<cloudname> -fi tags,context,metadata
 Example 2 (Copy all assets with a specific tag via a search expression using a saved config):
     cld clone <config_name> -se "tags:<tag_name>"
 """)
@@ -57,12 +57,11 @@ def clone(target, force, overwrite, concurrent_workers, fields,
     if not target_config:
         return False
     if 'metadata' in normalize_list_params(fields):
-        metadata_clone = clone_metadata(target_config)
+        metadata_clone = clone_metadata(target_config, force)
         if not metadata_clone:
-            logger.error(style(f"The operation has been aborted due to your answer.", fg="red"))
             return False
         else:
-            logger.info(style(f"Metadata cloned successfully from {cloudinary.config().cloud_name} to {target_config.cloud_name}. We will now proceed with cloning the assets.", fg="green"))
+            logger.info(style(f"The metadata process from {cloudinary.config().cloud_name} to {target_config.cloud_name} is now done. We will now proceed with cloning the assets.", fg="green"))
     source_assets = search_assets(search_exp, force)
     if not source_assets:
         return False

@@ -401,3 +401,27 @@ def split_opt(opt):
     if opt[1:2] == first:
         return opt[:2], opt[2:]
     return first, opt[1:]
+
+
+def compare_dicts(dict1, dict2, compare_key):#
+    """
+    Diff between two dictionaries.
+
+    This function is used to compare two dictionaries and return the keys that are only in the first dictionary,
+    the keys that are only in the second dictionary, and the keys that are in both dictionaries.
+    The compare_key is a unique key to compare the dictionaries by.
+    For Phase 3 - add deep diff between two lists of dictionaries.
+    Example for phase 3: compare metadata fields and their datasource
+        diffs = {}
+        for k in set(dict1.keys()).union(dict2.keys()):
+            if dict1.get(k) != dict2.get(k):
+                diffs[k] = {"json_source": dict1.get(k), "json_target": dict2.get(k)}
+    """
+    list_dict1 = {item[compare_key]: item for item in dict1}
+    list_dict2 = {item[compare_key]: item for item in dict2}
+
+    only_in_dict1 = list(list_dict1.keys() - list_dict2.keys())
+    #only_in_dict2 = list(list_dict2.keys() - list_dict1.keys()) not needed for now
+    common = list_dict1.keys() & list_dict2.keys()
+    
+    return list_dict1, only_in_dict1, common

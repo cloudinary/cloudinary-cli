@@ -11,6 +11,7 @@ clone_module = sys.modules['cloudinary_cli.modules.clone']
 import cloudinary_cli.utils.clone.metadata as clone_metadata_utils
 
 from cloudinary_cli.defaults import logger
+from types import SimpleNamespace
 
 
 class TestCLIClone(unittest.TestCase):
@@ -36,22 +37,41 @@ class TestCLIClone(unittest.TestCase):
             'api_key': 'target-key',
             'api_secret': 'target-secret'
         }
+        self.mock_source_config = {
+            'cloud_name': 'source-cloud',
+            'api_key': 'source-key',
+            'api_secret': 'source-secret'
+        }
+        self.mock_fields_result = [
+            {
+                'external_id': 'test_field',
+                'type': 'string',
+                'label': 'Test Field',
+                'mandatory': False
+            }
+        ]
+        self.mock_rules_result = [
+            {
+                'name': 'test_rule',
+                'condition': 'if',
+                'metadata_field': {
+                    'external_id': 'test_field'
+                },
+                'results': [{
+                    'value': 'test_value',
+                    'apply_to': ['metadata_field_external_id']
+                }]
+            }
+        ]
 
     @patch.object(clone_metadata_utils, 'list_metadata_items')
-    def test_list_metadata_items(self, mock_metadata_fields):
+    def test_list_metadata_fields(self, mock_metadata_fields):
         """Test listing metadata fields"""
         mock_metadata_fields.return_value = {
-            'metadata_fields': [
-                {
-                    'external_id': 'test_field',
-                    'type': 'string',
-                    'label': 'Test Field',
-                    'mandatory': False
-                }
-            ]
+            'metadata_fields': self.mock_fields_result
         }
 
-        result = clone_metadata_utils.list_metadata_items("metadata_fields")
+        result = clone_metadata_utils.list_metadata_items('fields')
 
         mock_metadata_fields.assert_called_once()
         self.assertEqual(result, mock_metadata_fields.return_value)
@@ -60,307 +80,95 @@ class TestCLIClone(unittest.TestCase):
     def test_list_metadata_rules(self, mock_metadata_rules):
         """Test listing metadata fields"""
         mock_metadata_rules.return_value = {
-            'metadata_rules': [
-                {
-                    'external_id': 'test_rule',
-                    'condition': 'if',
-                    'metadata_field': {
-                        'external_id': 'test_field'
-                    },
-                    'results': [{
-                        'value': 'test_value',
-                        'apply_to': ['metadata_field_external_id']
-                    }]
-                }
-            ]
+            'metadata_rules': self.mock_rules_result
         }
 
-        result = clone_metadata_utils.list_metadata_items("metadata_rules")
+        result = clone_metadata_utils.list_metadata_items('rules')
 
-        mock_metadata_rules.assert_called_once()
+        mock_metadata_rules.assert_called_once_with('rules')
         self.assertEqual(result, mock_metadata_rules.return_value)
 
-    @patch.object(clone_metadata_utils, 'create_metadata_items')
-    def test_create_metadata_item_field(self, mock_add_metadata_field):
-        """Test creating a single metadata field"""
-        mock_metadata_field = {
-            'external_id': 'test_field',
-            'type': 'string',
-            'label': 'Test Field',
-            'mandatory': False
-        }
-        
-        clone_metadata_utils.create_metadata_items('add_metadata_field', mock_metadata_field)
-
-        mock_add_metadata_field.assert_called_once_with('add_metadata_field', mock_metadata_field)
-
-    @patch.object(clone_metadata_utils, 'create_metadata_items')
-    def test_create_metadata_item_rule(self, mock_add_metadata_rule):
-        """Test creating a single metadata rule"""
-        mock_metadata_rule = {
-            'external_id': 'test_rule',
-            'condition': 'if',
-            'metadata_field': {
-                'external_id': 'test_field'
-            },
-            'results': [{
-                'value': 'test_value',
-                'apply_to': ['metadata_field_external_id']
-            }]
-        }
-
-        clone_metadata_utils.create_metadata_items('add_metadata_rule', mock_metadata_rule)
-
-        mock_add_metadata_rule.assert_called_once_with('add_metadata_rule', mock_metadata_rule)
-
-    @patch.object(clone_metadata_utils, 'create_metadata_items')
+    @patch.object(clone_metadata_utils, 'sync_metadata_items')
     @patch.object(clone_metadata_utils, 'list_metadata_items')
-    def test_compare_create_metadata_items_new_fields(self, mock_list, mock_create):
-        """Test comparing and creating new metadata fields"""
-        metadata_fields = {
-            'metadata_fields': [
-                {
-                    'external_id': 'field1',
-                    'type': 'string',
-                    'label': 'Field 1'
-                },
-                {
-                    'external_id': 'field2',
-                    'type': 'integer',
-                    'label': 'Field 2'
-                }
-            ]
-        }
+    @patch.object(clone_metadata_utils, 'compare_dicts')
+    @patch('cloudinary.config')
+    def test_clone_metadata_type_fields_success(self, mock_config, mock_compare, mock_list, mock_sync):
+        """Test _clone_metadata_type for fields"""
+        mock_config.return_value.cloud_name = 'source-cloud'
+        mock_list.return_value = [
+            {'external_id': 'field1', 'type': 'string'}
+        ]
+        mock_compare.return_value = (
+            {'field1': {'external_id': 'field1'}},  # source_map
+            ['field1'],  # only_in_source
+            set()  # common
+        )
+        mock_sync.return_value = True
 
-        mock_source_fields = metadata_fields
-        mock_list.return_value = metadata_fields
-        mock_destination_fields = {
-            'metadata_fields': []
-        }
-        
-        with patch('builtins.input', return_value='y'):
-            clone_metadata_utils.compare_create_metadata_items(mock_source_fields, mock_destination_fields, key="metadata_fields", **self.mock_target_config)
+        result = clone_metadata_utils._clone_metadata_type(
+            'fields', 'external_id', self.mock_target_config, False
+        )
 
-        # Both fields should be created
-        self.assertEqual(mock_create.call_count, 2)
-        mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'][0], **self.mock_target_config)
-        mock_create.assert_any_call('add_metadata_field', mock_source_fields['metadata_fields'][1], **self.mock_target_config)
+        self.assertTrue(result)
+        mock_list.assert_any_call('fields')
+        mock_list.assert_any_call('fields', **self.mock_target_config)
+        mock_compare.assert_called_once()
+        mock_sync.assert_called_once()
 
-        result = clone_metadata_utils.list_metadata_items("metadata_fields", **self.mock_target_config)
-        mock_list.assert_called_once()
-        self.assertEqual(result, mock_list.return_value)
-
-    @patch.object(clone_metadata_utils, 'create_metadata_items')
+    @patch.object(clone_metadata_utils, 'sync_metadata_items')
     @patch.object(clone_metadata_utils, 'list_metadata_items')
-    def test_compare_create_metadata_items_new_rules(self, mock_list, mock_create):
-        """Test comparing and creating new metadata rules"""
-        metadata_rules = {
-            'metadata_rules': [
-                {
-                    'external_id': 'rule1',
-                    'condition': 'if',
-                    'metadata_field': {'external_id': 'field1'},
-                    'results': [{
-                        'value': 'value1',
-                        'apply_to': ['target_field1']
-                    }]
-                },
-                {
-                    'external_id': 'rule2',
-                    'condition': 'if',
-                    'metadata_field': {'external_id': 'field2'},
-                    'results': [{
-                        'value': 'value2',
-                        'apply_to': ['target_field2']
-                    }]
-                }
-            ]
-        }
+    @patch.object(clone_metadata_utils, 'compare_dicts')
+    @patch('cloudinary.config')
+    def test_clone_metadata_type_rules_success(self, mock_config, mock_compare, mock_list, mock_sync):
+        """Test _clone_metadata_type for rules"""
+        mock_config.return_value.cloud_name = 'source-cloud'
+        mock_list.return_value = [
+            {'name': 'rule1', 'condition': 'if'}
+        ]
+        mock_compare.return_value = (
+            {'rule1': {'name': 'rule1'}},
+            ['rule1'],
+            set()
+        )
+        mock_sync.return_value = True
 
-        mock_source_metadata_rules = metadata_rules
-        mock_list.return_value = metadata_rules
+        result = clone_metadata_utils._clone_metadata_type(
+            'rules', 'name', self.mock_target_config, False
+        )
 
-        mock_destination_metadata_rules = {
-            'metadata_rules': []
-        }
-        
-        with patch('builtins.input', return_value='y'):
-            clone_metadata_utils.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, key="metadata_rules", **self.mock_target_config)
-        # Both rules should be created
-        self.assertEqual(mock_create.call_count, 2)
-        mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][0], **self.mock_target_config)
-        mock_create.assert_any_call('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], **self.mock_target_config)
+        self.assertTrue(result)
+        mock_list.assert_any_call('rules')
+        mock_list.assert_any_call('rules', **self.mock_target_config)
+        mock_compare.assert_called_once()
+        mock_sync.assert_called_once()
 
-        result = clone_metadata_utils.list_metadata_items("metadata_rules", **self.mock_target_config)
-        mock_list.assert_called_once()
-        self.assertEqual(result, mock_list.return_value)
-
-    @patch.object(clone_metadata_utils, 'create_metadata_items')
-    def test_compare_create_metadata_items_existing_fields(self, mock_create):
-        """Test comparing when fields already exist"""
-        mock_source_fields = {
-            'metadata_fields': [
-                {
-                    'external_id': 'field1',
-                    'type': 'string',
-                    'label': 'Field 1'
-                }
-            ]
-        }
-        
-        # Simulate destination already having the field
-        mock_destination_fields = {
-            'metadata_fields': [
-                {
-                    'external_id': 'field1',
-                    'type': 'string',
-                    'label': 'Field 1'
-                }
-            ]
-        }
-
-        with patch('builtins.input', return_value='y'):
-            clone_metadata_utils.compare_create_metadata_items(mock_source_fields, mock_destination_fields, key="metadata_fields", **self.mock_target_config)
-        
-        # No fields should be created
-        mock_create.assert_not_called()
-
-    @patch.object(clone_metadata_utils, 'create_metadata_items')
-    def test_compare_create_metadata_items_existing_rules(self, mock_create):
-        """Test comparing when rules already exist"""
-
-        mock_source_metadata_rules = {
-            'metadata_rules': [
-                {
-                    'external_id': 'rule1',
-                    'condition': 'if',
-                    'metadata_field': {'external_id': 'field1'},
-                    'results': [{
-                        'value': 'value1',
-                        'apply_to': ['target_field1']
-                    }]
-                }
-            ]
-        }
-        
-        # Simulate destination already having the rule
-        mock_destination_metadata_rules = {
-            'metadata_rules': [
-                {
-                    'external_id': 'rule1',
-                    'condition': 'if',
-                    'metadata_field': {'external_id': 'field1'},
-                    'results': [{
-                        'value': 'value1',
-                        'apply_to': ['target_field1']
-                    }]
-                }
-            ]
-        }
-
-        with patch('builtins.input', return_value='y'):
-            clone_metadata_utils.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, key="metadata_rules", **self.mock_target_config)
-        
-        # No rules should be created
-        mock_create.assert_not_called()
-    
-    @patch.object(clone_metadata_utils, 'create_metadata_items')
     @patch.object(clone_metadata_utils, 'list_metadata_items')
-    def test_compare_create_metadata_items_mixed_scenario(self, mock_list, mock_create):
-        """Test comparing with mix of new and existing fields"""
-        metadata_fields = {
-            'metadata_fields': [
-                {
-                    'external_id': 'field1',
-                    'type': 'string',
-                    'label': 'Field 1'
-                },
-                {
-                    'external_id': 'field2',
-                    'type': 'integer',
-                    'label': 'Field 2'
-                }
-            ]
-        }
-        
-        # Simulate destination having only one field
-        mock_destination_fields = {
-            'metadata_fields': [
-                {
-                    'external_id': 'field1',
-                    'type': 'string',
-                    'label': 'Field 1'
-                }
-            ]
-        }
+    @patch('cloudinary.config')
+    def test_clone_metadata_fields_no_source_items(self, mock_config, mock_list):
+        """Test _clone_metadata_type for fields when source has no items"""
+        mock_config.return_value.cloud_name = 'source-cloud'
+        mock_list.return_value = []
 
-        mock_source_fields= metadata_fields
-        mock_list.return_value = metadata_fields
-        
-        with patch('builtins.input', return_value='y'):
-            clone_metadata_utils.compare_create_metadata_items(mock_source_fields, mock_destination_fields, key="metadata_fields", **self.mock_target_config)
-        
-        # Only new_field should be created
-        mock_create.assert_called_once_with('add_metadata_field', mock_source_fields['metadata_fields'][1], **self.mock_target_config)
-        
-        result = clone_metadata_utils.list_metadata_items("metadata_fields", **self.mock_target_config)
-        mock_list.assert_called_once()
-        self.assertEqual(result, mock_list.return_value)
+        result = clone_metadata_utils._clone_metadata_type(
+            'fields', 'external_id', self.mock_target_config, False
+        )
 
-    @patch.object(clone_metadata_utils, 'create_metadata_items')
+        self.assertFalse(result)
+        mock_list.assert_called_once_with('fields')
+
     @patch.object(clone_metadata_utils, 'list_metadata_items')
-    def test_compare_create_metadata_items_mixed_rules_scenario(self, mock_list, mock_create):
-        """Test comparing with mix of new and existing rules"""
-        metadata_rules = {
-            'metadata_rules': [
-                {
-                    'external_id': 'rule1',
-                    'condition': 'if',
-                    'metadata_field': {'external_id': 'field1'},
-                    'results': [{
-                        'value': 'value1',
-                        'apply_to': ['target_field1']
-                    }]
-                },
-                {
-                    'external_id': 'rule2',
-                    'condition': 'if',
-                    'metadata_field': {'external_id': 'field2'},
-                    'results': [{
-                        'value': 'value2',
-                        'apply_to': ['target_field2']
-                    }]
-                }
-            ]
-        }
-        
-        # Simulate destination having only one rule
-        mock_destination_metadata_rules = {
-            'metadata_rules': [
-                {
-                    'external_id': 'rule1',
-                    'condition': 'if',
-                    'metadata_field': {'external_id': 'field1'},
-                    'results': [{
-                        'value': 'value1',
-                        'apply_to': ['target_field1']
-                    }]
-                }
-            ]
-        }
+    @patch('cloudinary.config')
+    def test_clone_metadata_rules_no_source_items(self, mock_config, mock_list):
+        """Test _clone_metadata_type for rules when source has no items"""
+        mock_config.return_value.cloud_name = 'source-cloud'
+        mock_list.return_value = []
 
-        mock_source_metadata_rules = metadata_rules
-        mock_list.return_value = metadata_rules
-        
-        with patch('builtins.input', return_value='y'):
-            clone_metadata_utils.compare_create_metadata_items(mock_source_metadata_rules, mock_destination_metadata_rules, key="metadata_rules", **self.mock_target_config)
-        
-        # Only new_rule should be created
-        mock_create.assert_called_once_with('add_metadata_rule', mock_source_metadata_rules['metadata_rules'][1], **self.mock_target_config)
+        result = clone_metadata_utils._clone_metadata_type(
+            'rules', 'name', self.mock_target_config, False
+        )
 
-        result = clone_metadata_utils.list_metadata_items("metadata_rules", **self.mock_target_config)
-        mock_list.assert_called_once()
-        self.assertEqual(result, mock_list.return_value)
+        self.assertFalse(result)
+        mock_list.assert_called_once_with('rules')
 
     @patch.object(clone_module, 'handle_auto_pagination')
     @patch.object(clone_module, 'execute_single_request')
@@ -373,7 +181,6 @@ class TestCLIClone(unittest.TestCase):
         mock_pagination.return_value = self.mock_search_result
 
         result = clone_module.search_assets(force=True, search_exp="")
-
         # Verify default search expression is used
         mock_search.expression.assert_called_with("type:upload OR type:private OR type:authenticated")
         self.assertEqual(result, self.mock_search_result)

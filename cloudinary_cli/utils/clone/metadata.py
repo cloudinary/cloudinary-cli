@@ -1,113 +1,144 @@
 import cloudinary
 from cloudinary_cli.utils.config_utils import config_to_dict
-from cloudinary_cli.utils.api_utils import handle_auto_pagination
+from cloudinary_cli.utils.api_utils import call_api
 from cloudinary_cli.defaults import logger
-from cloudinary_cli.utils.utils import confirm_action
+from cloudinary_cli.utils.utils import confirm_action, compare_dicts
 from click import style
 
-def clone_metadata(config):
-    """
-    Clone metadata from the source to the destination.
-    """
+METADATA_FIELDS = "fields"
+METADATA_RULES = "rules"
+COMPARE_KEY_FIELDS = "external_id"
+COMPARE_KEY_RULES = "name"
+METADATA_TYPE_SINGULAR = {
+    "fields": "field",
+    "rules": "rule"
+}
+METADATA_API_METHODS = {
+    "fields": cloudinary.api.add_metadata_field,
+    "rules": cloudinary.api.add_metadata_rule
+}
+
+def clone_metadata(config, force):
+    """Clone metadata fields and rules from source to target."""
     target_config = config_to_dict(config)
-    source_metadata = list_metadata_items("metadata_fields")
-    if source_metadata.get('metadata_fields'):
-        target_metadata = list_metadata_items("metadata_fields", **target_config)
-        fields_compare = compare_create_metadata_items(source_metadata, target_metadata, key="metadata_fields", **target_config)
-        if not fields_compare:
-            return False
-        else:
-            source_metadata_rules = list_metadata_items("metadata_rules")
-            if source_metadata_rules.get('metadata_rules'):
-                target_metadata_rules = list_metadata_items("metadata_rules", **target_config)
-                rules_compare = compare_create_metadata_items(source_metadata_rules,target_metadata_rules, key="metadata_rules", id_field="name", **target_config)
-                if not rules_compare:
-                    return False
-            else:
-                logger.info(style(f"No metadata rules found in {cloudinary.config().cloud_name}", fg="yellow"))
-    else:
-        logger.info(style(f"No metadata found in {cloudinary.config().cloud_name}", fg="yellow"))
-
-    return True  # Return True to indicate that the metadata was cloned successfully or False if there were no items to clone.
-
-def list_metadata_items(method_key, **options):
-    if method_key == 'metadata_fields':
-        res = cloudinary.api.list_metadata_fields(**options)
-        res = handle_auto_pagination(res, cloudinary.api.list_metadata_fields, options, None, force=True, filter_fields="")
-    else:
-        res = cloudinary.api.list_metadata_rules(**options)
-        res = handle_auto_pagination(res, cloudinary.api.list_metadata_rules, options, None, force=True, filter_fields="")
-
-    return res
-
-def create_metadata_items(api_method_name, item, **options):
-    if api_method_name == 'add_metadata_field':
-        res = cloudinary.api.add_metadata_field(item, **options)
-    else:
-        res = cloudinary.api.add_metadata_rule(item, **options)
-    return res
-
-def deep_diff(obj_source, obj_target):
-    diffs = {}
-    for k in set(obj_source.keys()).union(obj_target.keys()):
-        if obj_source.get(k) != obj_target.get(k):
-            diffs[k] = {"json_source": obj_source.get(k), "json_target": obj_target.get(k)}
     
-    return diffs
+    # Clone fields (required)
+    fields_result = _clone_metadata_type(METADATA_FIELDS, COMPARE_KEY_FIELDS, target_config, force)
+    if fields_result is False:
+        return False
+    
+    # Clone rules (optional)
+    rules_result = _clone_metadata_type(METADATA_RULES, COMPARE_KEY_RULES, target_config, force)
+    if rules_result is False:
+        return False
+    
+    return True
 
+def _clone_metadata_type(item_type, compare_key, target_config, force):
+    """
+    Generic function to clone a metadata type (fields or rules).
+    
+    :param item_type: 'fields' or 'rules'
+    :param compare_key: Key to use for comparison ('external_id' or 'name')
+    :param target_config: Target configuration dict
+    :param force: Skip confirmation if True
+    :return: True on success, False on failure, None if nothing to clone
+    """
+    source_cloud = cloudinary.config().cloud_name
+    target_cloud = target_config['cloud_name']
+    
+    # List source items
+    logger.info(style(f"Listing metadata {item_type} in `{source_cloud}`.", fg="blue"))
+    source_items = list_metadata_items(item_type)
+    
+    if not source_items:
+        logger.info(style(f"No metadata {item_type} found in `{source_cloud}`.", fg="yellow"))
+        return False
+    
+    logger.info(style(f"{len(source_items)} metadata {item_type} found in `{source_cloud}`.", fg="green"))
+    
+    # List target items
+    logger.info(style(f"Listing metadata {item_type} in `{target_cloud}`.", fg="blue"))
+    target_items = list_metadata_items(item_type, **target_config)
+    logger.info(style(f"{len(target_items)} metadata {item_type} found in `{target_cloud}`.", fg="green"))
+    
+    # Compare and sync
+    source_map, only_in_source, common = compare_dicts(source_items, target_items, compare_key)
+    return sync_metadata_items(source_map, only_in_source, common, item_type, force, **target_config)
 
-def compare_create_metadata_items(json_source, json_target, key, id_field = "external_id", **options):
-    list_source = {item[id_field]: item for item in json_source.get(key, [])}
-    list_target = {item[id_field]: item for item in json_target.get(key, [])}
+def list_metadata_items(item_type, **options):
+    """
+    List metadata fields or rules.
+    
+    :param item_type: Either 'fields' or 'rules'
+    :param options: Cloudinary API options (cloud_name, api_key, etc.)
+    :return: List of metadata items
+    """
+    api_method = getattr(cloudinary.api, f'list_metadata_{item_type}')
+    res = api_method(**options)
+    return res.get(f'metadata_{item_type}', [])
 
-    only_in_source = list(list_source.keys() - list_target.keys())
-    common = list_source.keys() & list_target.keys()
+def sync_metadata_items(source_metadata_items, only_in_source_items, common_items, item_type, force, **options):
+    source_cloud = cloudinary.config().cloud_name
+    target_cloud = options['cloud_name']
+    succeeded = []
+    failed = []
 
-    if not len(only_in_source):
-        logger.info(style(f"{(' '.join(key.split('_')))} in `{dict(options)['cloud_name']}` and in `{cloudinary.config().cloud_name}` are identical. No {(' '.join(key.split('_')))} will be cloned", fg="yellow"))
+    
+    if not only_in_source_items:
+        logger.info(style(
+            f"All metadata {item_type} from `{source_cloud}` already exist in `{target_cloud}`. "
+            f"No metadata {item_type} cloning needed.", 
+            fg="yellow"
+        ))
+        return True
+    
+    logger.info(style(
+        f"Metadata {item_type} {only_in_source_items} will be cloned from `{source_cloud}` to `{target_cloud}`.", 
+        fg="yellow"
+    ))
+    
+    if common_items:
+        logger.info(style(
+            f"Metadata {item_type} {list(common_items)} exist in both clouds and will be skipped.", 
+            fg="yellow"
+        ))
+    if not force:
         if not confirm_action(
-            f"If you had some {key} in the target environment, "
-            f"new values from the source environment won't be cloned.\n"
-            f"Would you like to still proceed with the cloning of assets? (y/N).\n"):
-            logger.info("Stopping.")
-            return False
-        else:
-            logger.info("Continuing.")
-    else:
-        logger.info(style(f"{only_in_source} are only in `{dict(options)['cloud_name']}` and will be cloned to `{cloudinary.config().cloud_name}`.", fg="blue"))
-        if not confirm_action(
-            f"You have a {key} mismatch between the source and target environment.\n"
-            f"Confirming this action will create the missing {key} and their values.\n"
-            f"If you currently have some {key} in the target environment, "
-            f"new values from the source environment won't be cloned.\n"
+            f"Based on the analysis above, \n"
+            f"The module will now copy the metadata {item_type} from {cloudinary.config().cloud_name} to {dict(options)['cloud_name']}.\n"
             f"Continue? (y/N)"):
             logger.info("Stopping.")
             return False
         else:
-            logger.info("Continuing.")
-            logger.info(style(f"Copying {len(only_in_source)} {(' '.join(key.split('_')))} from {cloudinary.config().cloud_name} to {dict(options)['cloud_name']}", fg="blue"))
-            for key_field in only_in_source:
-                if key == 'metadata_fields':
-                    try:
-                        res = create_metadata_items('add_metadata_field', list_source[key_field], **options)
-                        logger.info(style(f"Successfully created {(' '.join(key.split('_')))[:-1]} `{res.get('label')}` to {dict(options)['cloud_name']}", fg="green"))
-                    except Exception as e:
-                        logger.error(style(f"Error when creating {(' '.join(key.split('_')))[:-1]} `{res.get('label')}`` to {dict(options)['cloud_name']}", fg="red"))
-                else:
-                    try:
-                        res = create_metadata_items('add_metadata_rule', list_source[key_field],**options)
-                        logger.info(style(f"Successfully created {(' '.join(key.split('_')))[:-1]} `{res.get('name')}` to {dict(options)['cloud_name']}", fg="green"))
-                    except Exception as e:
-                        logger.error(style(f"Error when creating {(' '.join(key.split('_')))[:-1]} `{res.get('name')}` to {dict(options)['cloud_name']}", fg="red"))
-            
-    # for Phase 3
-    #diffs = {}
-    #for id_ in common:
-    #    if list_source[id_] != list_target[id_]:
-    #        diffs[id_] = deep_diff(list_source[id_], list_target[id_])
+            logger.info("Continuing. You may use the -F "
+                        "flag to skip confirmation.")
 
-    #return {
-    #    "only_in_json_source": only_in_source,
-    #    "differences": diffs 
-    #}
-    return True  # Return True to indicate that the metadata items were compared and created successfully.
+    add_method = METADATA_API_METHODS.get(item_type)
+    singular = METADATA_TYPE_SINGULAR.get(item_type)
+    
+    for key_field in only_in_source_items:
+        try:
+            add_method(source_metadata_items[key_field], **options)
+            succeeded.append(key_field)
+            logger.info(style(f"Successfully created metadata {singular} `{key_field}` in `{target_cloud}`", fg="green"))
+        except Exception as e:
+            failed.append((key_field, str(e)))
+            logger.error(style(
+                f"Failed to create metadata  {singular} `{key_field}` in `{target_cloud}`: {e}", 
+                fg="red"
+            ))
+    
+    # Summary
+    if failed:
+        logger.warning(style(
+            f"Cloned {len(succeeded)}/{len(only_in_source_items)} {item_type} successfully. "
+            f"{len(failed)} failed.", 
+            fg="yellow"
+        ))
+        return False  # Or consider partial success handling
+    
+    if succeeded:
+        logger.info(style(f"Successfully cloned {len(succeeded)} metadata {item_type}.", fg="green"))
+    
+    return True

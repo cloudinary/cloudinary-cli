@@ -366,3 +366,5 @@ def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
     all_results.pop(cursor_field, None)
 
     return all_results
+
+
