@@ -1,3 +1,8 @@
+1.14.1 / 2026-04-27
+==================
+
+  * Add confirmation prompt for destructive bulk Admin API methods
+
 1.14.0 / 2025-07-17
 ==================
 
