@@ -11,6 +11,25 @@ New functionality and features
     * Adds apply modes (`create-missing`, `upsert`, `sync`) and dependency-aware apply order
     * Snapshot envelope v2 with `lineage`, `serial`, `writer`, `selection`, per-component `fingerprints`, and top-level `checksum`; v1 snapshots remain loadable
 
+1.14.1 / 2026-04-27
+==================
+
+  * Add confirmation prompt for destructive bulk Admin API methods
+
+1.14.0 / 2025-07-17
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for `restricted` assets in `clone` command
+
+Other Changes
+-------------
+
+  * Fix deprecation warnings
+  * Update Dockerfile
+
 1.13.0 / 2025-04-14
 ==================
 
