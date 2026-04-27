@@ -1,3 +1,16 @@
+Unreleased
+==========
+
+New functionality and features
+------------------------------
+
+  * Add `settings` command for saving, restoring, diffing, and cloning product-environment configuration
+    * Supports `smd`, `transformations`, `upload_presets`, `streaming_profiles`, `upload_mappings`, and `config` components under a uniform provider contract
+    * Adds `cld settings diff`, `cld settings components`, and per-component `delete` subgroups
+    * Adds `--out-dir`/`--in-dir` directory layout, `--note`/`--tag` metadata, and `ls --tag` filtering
+    * Adds apply modes (`create-missing`, `upsert`, `sync`) and dependency-aware apply order
+    * Snapshot envelope v2 with `lineage`, `serial`, `writer`, `selection`, per-component `fingerprints`, and top-level `checksum`; v1 snapshots remain loadable
+
 1.13.0 / 2025-04-14
 ==================
 

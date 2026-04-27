@@ -11,6 +11,11 @@ from cloudinary_cli.utils.utils import confirm_action
 
 from .smd_table import format_datasource_values, render_smd_fields_table
 
+
+COMPONENT = "smd"
+PICK_KINDS = ("field", "rule")
+PICK_ALL_SENTINEL = "__ALL__"
+
 def summarize_smd_bundle(smd_bundle):
     """
     Summarize an SMD bundle for CLI output.
@@ -1134,3 +1139,75 @@ def _update_rule(rule_external_id, rule, target_options):
 def _delete_rule(rule_external_id, target_options):
     cloudinary.api.delete_metadata_rule(rule_external_id, **target_options)
     logger.info(f"SMD: deleted metadata rule '{rule_external_id}'.")
+
+
+# ---------------------------------------------------------------------------
+# Uniform provider contract (settings-design.md §3.1)
+#
+# SMD has two pick kinds (field, rule) so `picks` is a tuple:
+#     picks = (field_external_ids, rule_names)
+#
+# `related` is interpreted as `include_related_rules: bool`.
+# ---------------------------------------------------------------------------
+
+def _split_picks(picks):
+    if picks is None:
+        return None, None
+    if isinstance(picks, tuple) and len(picks) == 2:
+        return picks
+    raise TypeError("SMD picks must be a (field_external_ids, rule_names) tuple")
+
+
+def export_bundle(*, picks=None, related=None):
+    fields, rules = _split_picks(picks)
+    return export_smd_bundle(
+        field_external_ids=fields,
+        rule_names=rules,
+        include_related_rules=bool(related),
+    )
+
+
+def summarize_bundle(bundle):
+    return summarize_smd_bundle(bundle)
+
+
+def apply_bundle(
+    bundle,
+    *,
+    target_options=None,
+    picks=None,
+    related=None,
+    mode="create-missing",
+    dry_run=False,
+    force=False,
+):
+    fields, rules = _split_picks(picks)
+    return apply_smd_bundle(
+        bundle,
+        target_options=target_options,
+        dry_run=dry_run,
+        force=force,
+        field_external_ids=fields,
+        rule_names=rules,
+        include_related_rules=bool(related),
+        mode=mode,
+    )
+
+
+def delete_items(
+    *,
+    target_options=None,
+    picks=None,
+    related=None,
+    dry_run=False,
+    force=False,
+):
+    fields, rules = _split_picks(picks)
+    return delete_smd_items(
+        target_options=target_options,
+        dry_run=dry_run,
+        force=force,
+        field_external_ids=fields,
+        rule_names=rules,
+        include_related_rules=bool(related),
+    )

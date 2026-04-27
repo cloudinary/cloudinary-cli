@@ -223,6 +223,62 @@ cld [cli options] migrate [command options] upload_mapping file
 
 For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#migrate).
 
+### `settings`
+
+Save, restore, diff, and clone Cloudinary product-environment configuration.
+For the full guide see [`docs/settings.md`](docs/settings.md). The following
+components are supported:
+
+  * `smd` — Structured Metadata fields and rules
+  * `transformations` — Named transformations
+  * `upload_presets` — Upload presets (signed and unsigned)
+  * `streaming_profiles` — Custom streaming profiles and overridden built-ins
+  * `upload_mappings` — Auto-upload mappings (`folder` ➝ `template`)
+  * `config` — Product-environment config (read/diff only)
+
+```
+cld [cli options] settings [command] [options]
+```
+
+Snapshots are stored under `~/.cloudinary-cli/settings/<cloud_name>/<name>.json`
+in a v2 envelope that includes `lineage`, `serial`, `writer`, `selection`,
+per-component `fingerprints`, and a top-level `checksum`. v1 (smd-only)
+snapshots are still loadable.
+
+Examples:
+
+```
+# Save everything (default components) to the local store under the snapshot
+# name "prod-baseline".
+cld settings save prod-baseline --note "promoted from staging"
+
+# Save only some components, with picks, to a single file.
+cld settings save \
+  --component smd --component upload_presets \
+  --pick smd rule "Editorial workflow" \
+  --pick upload_presets name "checkout-*" \
+  --out bundle.json
+
+# Save into a directory layout (one file per component, easy to diff in Git).
+cld settings save --out-dir ./settings/
+
+# Show drift between a snapshot and the current account.
+cld settings diff --in bundle.json
+
+# Restore. Modes: create-missing (default), upsert, sync.
+cld settings restore --in bundle.json --mode upsert
+
+# Clone from current account (or a snapshot) to one or more targets.
+cld settings clone --from prod-baseline staging dev
+
+# List supported components and their --pick kinds.
+cld settings components
+```
+
+Per-component delete subgroups are also available, e.g.
+`cld settings smd delete`, `cld settings upload-presets delete`,
+`cld settings streaming-profiles delete --allow-revert-builtins`.
+
 ## Additional configurations
 
 A configuration is a reference to a specified Cloudinary account or cloud name via its environment variable.  You set the default configuration during setup and installation. Using different configurations allows you to access different Cloudinary cloud names, such as sub-accounts of your main Cloudinary account, or any additional Cloudinary accounts you may have.
