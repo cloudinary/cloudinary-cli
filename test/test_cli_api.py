@@ -11,6 +11,8 @@ from test.helper_test import api_response_mock, uploader_response_mock, URLLIB3_
 API_MOCK_RESPONSE = api_response_mock()
 UPLOAD_MOCK_RESPONSE = uploader_response_mock()
 
+CONFIRM_ACTION_PATCH = "cloudinary_cli.utils.api_utils.confirm_action"
+
 
 class TestCLIApi(unittest.TestCase):
     runner = CliRunner()
@@ -39,3 +41,87 @@ class TestCLIApi(unittest.TestCase):
 
         self.assertEqual(0, result.exit_code, result.output)
         self.assertIn('"foo": "bar"', result.output)
+
+
+class TestDestructiveBulkConfirmation(unittest.TestCase):
+    runner = CliRunner()
+
+    @patch(CONFIRM_ACTION_PATCH, return_value=False)
+    @patch(URLLIB3_REQUEST)
+    def test_delete_all_resources_decline_skips_call(self, http_mock, confirm_mock):
+        http_mock.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['admin', 'delete_all_resources'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        confirm_mock.assert_called_once()
+        self.assertFalse(http_mock.called, "SDK should not be called when user declines")
+
+    @patch(CONFIRM_ACTION_PATCH, return_value=True)
+    @patch(URLLIB3_REQUEST)
+    def test_delete_all_resources_accept_calls_sdk(self, http_mock, confirm_mock):
+        http_mock.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['admin', 'delete_all_resources'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        confirm_mock.assert_called_once()
+        self.assertTrue(http_mock.called, "SDK should be called when user accepts")
+
+    @patch(CONFIRM_ACTION_PATCH, return_value=False)
+    @patch(URLLIB3_REQUEST)
+    def test_delete_all_resources_force_skips_prompt(self, http_mock, confirm_mock):
+        http_mock.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['admin', '-F', 'delete_all_resources'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertFalse(confirm_mock.called, "--force should bypass the confirmation prompt")
+        self.assertTrue(http_mock.called, "SDK should be called when --force is set")
+
+    @patch(CONFIRM_ACTION_PATCH, return_value=False)
+    @patch(URLLIB3_REQUEST)
+    def test_delete_resources_by_tag_decline_skips_call(self, http_mock, confirm_mock):
+        http_mock.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['admin', 'delete_resources_by_tag', 'mytag'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        confirm_mock.assert_called_once()
+        self.assertFalse(http_mock.called, "SDK should not be called when user declines")
+
+    @patch(CONFIRM_ACTION_PATCH, return_value=False)
+    @patch(URLLIB3_REQUEST)
+    def test_delete_resources_explicit_ids_no_prompt(self, http_mock, confirm_mock):
+        http_mock.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['admin', 'delete_resources', 'public_id1', 'public_id2'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertFalse(confirm_mock.called, "Explicit-ID delete must not prompt")
+        self.assertTrue(http_mock.called, "SDK should be called for explicit-ID delete")
+
+    @patch(CONFIRM_ACTION_PATCH, return_value=False)
+    @patch(URLLIB3_REQUEST)
+    def test_uploader_add_tag_no_prompt(self, http_mock, confirm_mock):
+        http_mock.return_value = UPLOAD_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['uploader', 'add_tag', 'mytag', 'public_id1'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertFalse(confirm_mock.called, "Non-destructive bulk methods must not prompt")
+        self.assertTrue(http_mock.called, "SDK should be called for non-destructive bulk methods")
+
+    @patch(CONFIRM_ACTION_PATCH, return_value=False)
+    @patch(URLLIB3_REQUEST)
+    def test_admin_resources_read_no_prompt(self, http_mock, confirm_mock):
+        http_mock.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['admin', 'resources'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertFalse(confirm_mock.called, "Read commands must not prompt")
+        self.assertTrue(http_mock.called, "SDK should be called for read commands")
+
+    @patch(CONFIRM_ACTION_PATCH, return_value=False)
+    @patch(URLLIB3_REQUEST)
+    def test_admin_resources_read_with_force_no_prompt(self, http_mock, confirm_mock):
+        http_mock.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['admin', '-F', 'resources'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertFalse(confirm_mock.called, "Read commands must not prompt regardless of --force")
+        self.assertTrue(http_mock.called)

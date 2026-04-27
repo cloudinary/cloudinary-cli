@@ -21,7 +21,8 @@ Format: cld <cli options> admin <command options> <method> <method parameters>
         help="Pass optional parameters as interpreted strings.")
 @option("-A", "--auto_paginate", is_flag=True, help="Will auto paginate Admin API calls.", default=False)
 @option("-ff", "--filter_fields", multiple=True, help="Filter fields to return when using auto pagination.")
-@option("-F", "--force", is_flag=True, help="Skip confirmation when running --auto-paginate.")
+@option("-F", "--force", is_flag=True,
+        help="Skip confirmations for auto pagination and destructive bulk API methods.")
 @option("-ls", "--ls", is_flag=True, help="List all available methods in the Admin API.")
 @option("--save", nargs=1, help="Save output to a file.")
 @option("-d", "--doc", is_flag=True, help="Open the Admin API reference in a browser.")

@@ -20,6 +20,37 @@ PAGINATION_MAX_RESULTS = 500
 
 _cursor_fields = {"resource": "derived_next_cursor"}
 
+# Selector-style destructive bulk Admin API methods.
+# These can match an open-ended set of assets without the caller enumerating each target,
+# so an interactive confirmation is required (bypassable via --force).
+DESTRUCTIVE_BULK_API_METHODS = {
+    "delete_all_resources",
+    "delete_resources_by_prefix",
+    "delete_resources_by_tag",
+}
+
+# Server-enforced cap on how many resources a single destructive bulk call can affect
+# (NConfig.max_resource_count_for_delete). Used purely for clearer prompt wording.
+MAX_DESTRUCTIVE_BULK_PER_CALL = 1000
+
+
+def is_destructive_bulk_api_method(method_name):
+    return method_name in DESTRUCTIVE_BULK_API_METHODS
+
+
+def confirm_destructive_bulk_api_method(api_name, method_name, force=False):
+    if force or not is_destructive_bulk_api_method(method_name):
+        return True
+
+    display_api_name = api_name.capitalize()
+    if not confirm_action(
+            f"This will delete up to {MAX_DESTRUCTIVE_BULK_PER_CALL} matching assets via "
+            f"{display_api_name} API method '{method_name}'. Continue? (y/N)"):
+        logger.info("Stopping.")
+        return False
+
+    return True
+
 
 def query_cld_folder(folder, folder_mode, status=None):
     files = {}
@@ -309,6 +340,9 @@ def handle_api_command(
                                                 api_name)
     except Exception as e:
         log_exception(e)
+        return False
+
+    if not confirm_destructive_bulk_api_method(api_name, func.__name__, force):
         return False
 
     if not is_valid_cloudinary_config():
