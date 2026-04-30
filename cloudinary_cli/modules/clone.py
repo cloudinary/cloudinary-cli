@@ -1,9 +1,11 @@
 from click import command, option, style, argument
 from cloudinary_cli.utils.utils import normalize_list_params, print_help_and_exit
 import cloudinary
+from cloudinary_cli.utils.clone.metadata import clone_metadata
 from cloudinary.auth_token import _digest
 from cloudinary_cli.utils.utils import run_tasks_concurrently
 from cloudinary_cli.utils.api_utils import upload_file
+from cloudinary_cli.utils.json_utils import print_json
 from cloudinary_cli.utils.config_utils import get_cloudinary_config, config_to_dict
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.core.search import execute_single_request, handle_auto_pagination
@@ -23,7 +25,7 @@ Source will be your `CLOUDINARY_URL` environment variable but you also can speci
 Format: cld clone <target_environment> <command options>
 `<target_environment>` can be a CLOUDINARY_URL or a saved config (see `config` command)
 Example 1 (Copy all assets including tags and context using CLOUDINARY URL):
-    cld clone cloudinary://<api_key>:<api_secret>@<cloudname> -fi tags,context
+    cld clone cloudinary://<api_key>:<api_secret>@<cloudname> -fi tags,context,metadata
 Example 2 (Copy all assets with a specific tag via a search expression using a saved config):
     cld clone <config_name> -se "tags:<tag_name>"
 """)
@@ -36,7 +38,7 @@ Example 2 (Copy all assets with a specific tag via a search expression using a s
         help="Specify the number of concurrent network threads.")
 @option("-fi", "--fields", multiple=True,
         help=("Specify whether to copy tags and/or context. "
-              "Valid options: `tags,context`."))
+              "Valid options: `tags,context,metadata`."))
 @option("-se", "--search_exp", default="",
         help="Define a search expression to filter the assets to clone.")
 @option("--async", "async_", is_flag=True, default=False,
@@ -54,7 +56,12 @@ def clone(target, force, overwrite, concurrent_workers, fields,
     target_config, auth_token = _validate_clone_inputs(target)
     if not target_config:
         return False
-
+    if 'metadata' in normalize_list_params(fields):
+        metadata_clone = clone_metadata(target_config, force)
+        if not metadata_clone:
+            return False
+        else:
+            logger.info(style(f"The metadata process from {cloudinary.config().cloud_name} to {target_config.cloud_name} is now done. We will now proceed with cloning the assets.", fg="green"))
     source_assets = search_assets(search_exp, force)
     if not source_assets:
         return False
@@ -92,6 +99,7 @@ def _validate_clone_inputs(target):
                      "as source environment.")
         return None, None
 
+
     auth_token = cloudinary.config().auth_token
     if auth_token:
         # It is important to validate auth_token if provided as this prevents
@@ -119,7 +127,6 @@ def _prepare_upload_list(source_assets, target_config, overwrite, async_,
         upload_list.append((asset_url, {**updated_options}))
     return upload_list
 
-
 def search_assets(search_exp, force):
     search_exp = _normalize_search_expression(search_exp)
     if not search_exp:
@@ -127,14 +134,13 @@ def search_assets(search_exp, force):
 
     search = cloudinary.search.Search().expression(search_exp)
     search.fields(['tags', 'context', 'access_control',
-                   'secure_url', 'display_name', 'format'])
+                   'secure_url', 'display_name', 'metadata', 'format'])
     search.max_results(DEFAULT_MAX_RESULTS)
 
     res = execute_single_request(search, fields_to_keep="")
     res = handle_auto_pagination(res, search, force, fields_to_keep="")
 
     return res
-
 
 def _normalize_search_expression(search_exp):
     """

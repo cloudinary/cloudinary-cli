@@ -8,7 +8,10 @@ import sys
 import cloudinary_cli.modules
 clone_module = sys.modules['cloudinary_cli.modules.clone']
 
+import cloudinary_cli.utils.clone.metadata as clone_metadata_utils
+
 from cloudinary_cli.defaults import logger
+from types import SimpleNamespace
 
 
 class TestCLIClone(unittest.TestCase):
@@ -29,6 +32,143 @@ class TestCLIClone(unittest.TestCase):
                 }
             ]
         }
+        self.mock_target_config = {
+            'cloud_name': 'target-cloud',
+            'api_key': 'target-key',
+            'api_secret': 'target-secret'
+        }
+        self.mock_source_config = {
+            'cloud_name': 'source-cloud',
+            'api_key': 'source-key',
+            'api_secret': 'source-secret'
+        }
+        self.mock_fields_result = [
+            {
+                'external_id': 'test_field',
+                'type': 'string',
+                'label': 'Test Field',
+                'mandatory': False
+            }
+        ]
+        self.mock_rules_result = [
+            {
+                'name': 'test_rule',
+                'condition': 'if',
+                'metadata_field': {
+                    'external_id': 'test_field'
+                },
+                'results': [{
+                    'value': 'test_value',
+                    'apply_to': ['metadata_field_external_id']
+                }]
+            }
+        ]
+
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
+    def test_list_metadata_fields(self, mock_metadata_fields):
+        """Test listing metadata fields"""
+        mock_metadata_fields.return_value = {
+            'metadata_fields': self.mock_fields_result
+        }
+
+        result = clone_metadata_utils.list_metadata_items('fields')
+
+        mock_metadata_fields.assert_called_once()
+        self.assertEqual(result, mock_metadata_fields.return_value)
+
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
+    def test_list_metadata_rules(self, mock_metadata_rules):
+        """Test listing metadata fields"""
+        mock_metadata_rules.return_value = {
+            'metadata_rules': self.mock_rules_result
+        }
+
+        result = clone_metadata_utils.list_metadata_items('rules')
+
+        mock_metadata_rules.assert_called_once_with('rules')
+        self.assertEqual(result, mock_metadata_rules.return_value)
+
+    @patch.object(clone_metadata_utils, 'sync_metadata_items')
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
+    @patch.object(clone_metadata_utils, 'compare_dicts')
+    @patch('cloudinary.config')
+    def test_clone_metadata_type_fields_success(self, mock_config, mock_compare, mock_list, mock_sync):
+        """Test _clone_metadata_type for fields"""
+        mock_config.return_value.cloud_name = 'source-cloud'
+        mock_list.return_value = [
+            {'external_id': 'field1', 'type': 'string'}
+        ]
+        mock_compare.return_value = (
+            {'field1': {'external_id': 'field1'}},  # source_map
+            ['field1'],  # only_in_source
+            set()  # common
+        )
+        mock_sync.return_value = True
+
+        result = clone_metadata_utils._clone_metadata_type(
+            'fields', 'external_id', self.mock_target_config, False
+        )
+
+        self.assertTrue(result)
+        mock_list.assert_any_call('fields')
+        mock_list.assert_any_call('fields', **self.mock_target_config)
+        mock_compare.assert_called_once()
+        mock_sync.assert_called_once()
+
+    @patch.object(clone_metadata_utils, 'sync_metadata_items')
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
+    @patch.object(clone_metadata_utils, 'compare_dicts')
+    @patch('cloudinary.config')
+    def test_clone_metadata_type_rules_success(self, mock_config, mock_compare, mock_list, mock_sync):
+        """Test _clone_metadata_type for rules"""
+        mock_config.return_value.cloud_name = 'source-cloud'
+        mock_list.return_value = [
+            {'name': 'rule1', 'condition': 'if'}
+        ]
+        mock_compare.return_value = (
+            {'rule1': {'name': 'rule1'}},
+            ['rule1'],
+            set()
+        )
+        mock_sync.return_value = True
+
+        result = clone_metadata_utils._clone_metadata_type(
+            'rules', 'name', self.mock_target_config, False
+        )
+
+        self.assertTrue(result)
+        mock_list.assert_any_call('rules')
+        mock_list.assert_any_call('rules', **self.mock_target_config)
+        mock_compare.assert_called_once()
+        mock_sync.assert_called_once()
+
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
+    @patch('cloudinary.config')
+    def test_clone_metadata_fields_no_source_items(self, mock_config, mock_list):
+        """Test _clone_metadata_type for fields when source has no items"""
+        mock_config.return_value.cloud_name = 'source-cloud'
+        mock_list.return_value = []
+
+        result = clone_metadata_utils._clone_metadata_type(
+            'fields', 'external_id', self.mock_target_config, False
+        )
+
+        self.assertFalse(result)
+        mock_list.assert_called_once_with('fields')
+
+    @patch.object(clone_metadata_utils, 'list_metadata_items')
+    @patch('cloudinary.config')
+    def test_clone_metadata_rules_no_source_items(self, mock_config, mock_list):
+        """Test _clone_metadata_type for rules when source has no items"""
+        mock_config.return_value.cloud_name = 'source-cloud'
+        mock_list.return_value = []
+
+        result = clone_metadata_utils._clone_metadata_type(
+            'rules', 'name', self.mock_target_config, False
+        )
+
+        self.assertFalse(result)
+        mock_list.assert_called_once_with('rules')
 
     @patch.object(clone_module, 'handle_auto_pagination')
     @patch.object(clone_module, 'execute_single_request')
@@ -41,7 +181,6 @@ class TestCLIClone(unittest.TestCase):
         mock_pagination.return_value = self.mock_search_result
 
         result = clone_module.search_assets(force=True, search_exp="")
-
         # Verify default search expression is used
         mock_search.expression.assert_called_with("type:upload OR type:private OR type:authenticated")
         self.assertEqual(result, self.mock_search_result)
