@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 
 import cloudinary
 from click import echo
@@ -17,6 +18,7 @@ def load_config():
 def save_config(config):
     _verify_file_path(CLOUDINARY_CLI_CONFIG_FILE)
     write_json_to_file(config, CLOUDINARY_CLI_CONFIG_FILE)
+    _restrict_permissions(CLOUDINARY_CLI_CONFIG_FILE)
 
 
 def update_config(new_config):
@@ -38,8 +40,8 @@ def remove_config_keys(*keys):
 
 
 def refresh_cloudinary_config(cloudinary_url):
-    os.environ.update({'CLOUDINARY_URL': cloudinary_url})
     cloudinary.reset_config()
+    cloudinary.config()._load_from_url(cloudinary_url)
 
 
 def verify_cloudinary_url(cloudinary_url):
@@ -47,32 +49,33 @@ def verify_cloudinary_url(cloudinary_url):
     return ping_cloudinary()
 
 
-def get_cloudinary_config(target):
-    target_config = cloudinary.Config()
-    if target.startswith("cloudinary://"):
-        parsed_url = target_config._parse_cloudinary_url(target)
-    elif target in load_config():
-        parsed_url = target_config._parse_cloudinary_url(load_config().get(target))
-    else:
-        return False
-
-    target_config._setup_from_parsed_url(parsed_url)
-
-    if not ping_cloudinary(**config_to_dict(target_config)):
-        logger.error(f"Invalid Cloudinary config: {target}")
-        return False
-
-    return target_config
-
 def config_to_dict(config):
     return {k: v for k, v in config.__dict__.items() if not k.startswith("_")}
+
+
+_SECRET_KEYS = {"api_secret", "oauth_token", "refresh_token"}
+_URL_SECRET_KEYS = {"account_url"}
+
+
+def _mask_secret(value):
+    value = str(value)
+    return "*" * (len(value) - 4) + value[-4:] if len(value) > 4 else "*" * len(value)
+
+
+def _mask_url_secret(url):
+    # Mask the password between `:` and `@` in scheme://user:secret@host.
+    return re.sub(r'(://[^:/?#]+:)([^@]+)(@)',
+                  lambda m: m.group(1) + _mask_secret(m.group(2)) + m.group(3), str(url))
+
 
 def show_cloudinary_config(cloudinary_config):
     obfuscated_config = config_to_dict(cloudinary_config)
 
-    if "api_secret" in obfuscated_config:
-        api_secret = obfuscated_config["api_secret"]
-        obfuscated_config["api_secret"] = "*" * (len(api_secret) - 4) + f"{api_secret[-4:]}"
+    for key, value in obfuscated_config.items():
+        if value and key in _SECRET_KEYS:
+            obfuscated_config[key] = _mask_secret(value)
+        elif value and key in _URL_SECRET_KEYS:
+            obfuscated_config[key] = _mask_url_secret(value)
 
     # omit default signature algorithm
     if obfuscated_config.get("signature_algorithm", None) == cloudinary.utils.SIGNATURE_SHA1:
@@ -105,7 +108,13 @@ def migrate_old_config():
 
 
 def is_valid_cloudinary_config():
+    if cloudinary.config().cloud_name and cloudinary.config().oauth_token:
+        return True
     return None not in [cloudinary.config().cloud_name, cloudinary.config().api_key, cloudinary.config().api_secret]
+
+
+def is_env_configured():
+    return bool(cloudinary.Config().cloud_name)
 
 
 def initialize():
@@ -122,3 +131,11 @@ def ping_cloudinary(**options):
 
 def _verify_file_path(file):
     os.makedirs(os.path.dirname(file), exist_ok=True)
+
+
+def _restrict_permissions(file):
+    # The config file holds secrets (api_secret, account_url, OAuth tokens), so keep it 0600.
+    try:
+        os.chmod(file, 0o600)
+    except OSError as e:
+        logger.debug(f"Could not restrict permissions on {file}: {e}")

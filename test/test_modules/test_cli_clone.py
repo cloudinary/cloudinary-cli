@@ -313,5 +313,38 @@ class TestCLIClone(unittest.TestCase):
         self.assertEqual(url, ('https://res.cloudinary.com/demo/raw/upload/s--XyZaBcDeF--/sample_document', {}))
 
 
+class TestCloneOAuthTarget(unittest.TestCase):
+    def _oauth_target_config(self):
+        import cloudinary
+        from cloudinary_cli.auth.session import Session, to_cloudinary_url
+        import time
+        session = Session(
+            cloud_name="target_cloud", access_token="eyJ.access.tok",
+            refresh_token="rt", expires_at=int(time.time()) + 3600,
+            region="api-eu", issuer="https://oauth.cloudinary.com/")
+        config = cloudinary.Config()
+        config._setup_from_parsed_url(config._parse_cloudinary_url(to_cloudinary_url(session)))
+        return config
+
+    def test_upload_list_drops_oauth_bookkeeping(self):
+        source_assets = {
+            'resources': [{
+                'public_id': 'sample', 'type': 'upload', 'resource_type': 'image',
+                'format': 'jpg',
+                'secure_url': 'https://res.cloudinary.com/demo/image/upload/v1/sample.jpg',
+            }]
+        }
+        upload_list = clone_module._prepare_upload_list(
+            source_assets, self._oauth_target_config(), overwrite=False,
+            async_=False, notification_url=None, auth_token=None,
+            url_expiry=3600, fields=())
+
+        _, options = upload_list[0]
+        for leaked in ("refresh_token", "expires_at", "region", "issuer"):
+            self.assertNotIn(leaked, options)
+        self.assertEqual("eyJ.access.tok", options["oauth_token"])
+        self.assertEqual("target_cloud", options["cloud_name"])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -3,7 +3,8 @@ from click import command, option, echo, BadParameter
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.config_utils import load_config, verify_cloudinary_url, update_config, remove_config_keys, \
-    show_cloudinary_config
+    show_cloudinary_config, is_valid_cloudinary_config
+from cloudinary_cli.utils.utils import ConfigurationError
 
 
 @command("config", help="Display the current configuration, and manage additional configurations.")
@@ -47,4 +48,6 @@ def config(new, ls, show, rm, from_url):
 
         return show_cloudinary_config(config_obj)
     else:
+        if not is_valid_cloudinary_config():
+            raise ConfigurationError("No Cloudinary configuration found.")
         return show_cloudinary_config(cloudinary.config())

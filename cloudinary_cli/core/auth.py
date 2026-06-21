@@ -1,0 +1,70 @@
+from click import command, argument, option, echo
+
+from cloudinary_cli.auth import login as run_login, logout as run_logout, list_oauth_login_names
+from cloudinary_cli.defaults import logger
+from cloudinary_cli.utils.utils import log_exception
+
+
+@command("login", help="Log in to Cloudinary via OAuth (opens a browser). The session is saved "
+                       "as a named configuration you can select with `-C`.")
+@argument("name", required=False)
+@option("--region",
+        help="Cloudinary region to log in to (e.g. eu, ap, or api-eu). Defaults to the "
+             "global region (api).")
+def login(name, region):
+    try:
+        config_name = run_login(region=region, name=name)
+    except Exception as e:
+        log_exception(e, "Login failed")
+        return False
+
+    logger.info(f"Logged in. Saved as '{config_name}'.")
+    logger.info(f"Example usage: cld -C {config_name} <command>")
+    return True
+
+
+@command("logout", help="Log out by removing a saved OAuth configuration. "
+                        "Run without a name to choose from the saved logins.")
+@argument("name", required=False)
+def logout(name):
+    if not name:
+        action, name = _select_oauth_login()
+        if action == "invalid":
+            return False
+        if action != "selected":
+            return True
+
+    status = run_logout(name)
+    if status == "removed":
+        logger.info(f"Logged out of '{name}'.")
+    elif status == "not_oauth":
+        logger.error(f"'{name}' is not an OAuth login; refusing to remove it. "
+                     f"Use `config -rm {name}` to delete a saved configuration.")
+        return False
+    else:
+        logger.info(f"No saved OAuth configuration named '{name}'.")
+    return True
+
+
+def _select_oauth_login():
+    """
+    Prompt the user to pick a saved OAuth login by number.
+
+    Returns ("selected", name), ("cancelled", None), ("none", None), or ("invalid", None).
+    """
+    names = list_oauth_login_names()
+    if not names:
+        logger.info("No saved OAuth logins to log out of.")
+        return "none", None
+
+    echo("Saved OAuth logins:")
+    for i, name in enumerate(names, start=1):
+        echo(f"  {i}) {name}")
+
+    choice = input(f"Select a login to log out of [1-{len(names)}] (or Enter to cancel): ").strip()
+    if not choice:
+        return "cancelled", None
+    if not (choice.isdigit() and 1 <= int(choice) <= len(names)):
+        logger.error(f"Invalid selection '{choice}'. Expected a number between 1 and {len(names)}.")
+        return "invalid", None
+    return "selected", names[int(choice) - 1]

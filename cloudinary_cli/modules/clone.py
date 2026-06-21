@@ -4,7 +4,7 @@ import cloudinary
 from cloudinary.auth_token import _digest
 from cloudinary_cli.utils.utils import run_tasks_concurrently
 from cloudinary_cli.utils.api_utils import upload_file
-from cloudinary_cli.utils.config_utils import get_cloudinary_config, config_to_dict
+from cloudinary_cli.utils.config_resolver import get_cloudinary_config, config_to_api_kwargs
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.core.search import execute_single_request, handle_auto_pagination
 import time
@@ -115,7 +115,7 @@ def _prepare_upload_list(source_assets, target_config, overwrite, async_,
                                                       notification_url,
                                                       auth_token, url_expiry,
                                                       normalize_list_params(fields))
-        updated_options.update(config_to_dict(target_config))
+        updated_options.update(config_to_api_kwargs(target_config))
         upload_list.append((asset_url, {**updated_options}))
     return upload_list
 
