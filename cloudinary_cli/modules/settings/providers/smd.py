@@ -14,7 +14,7 @@ from .smd_table import format_datasource_values, render_smd_fields_table
 
 COMPONENT = "smd"
 PICK_KINDS = ("field", "rule")
-PICK_ALL_SENTINEL = "__ALL__"
+PICK_ALL_SENTINEL = "__ALL_SMD__"
 
 def summarize_smd_bundle(smd_bundle):
     """
@@ -67,9 +67,9 @@ def export_smd_bundle(field_external_ids=None, rule_names=None, include_related_
 
     field_external_ids = set(field_external_ids or [])
     rule_names = set(rule_names or [])
-    all_rules_selected = "__ALL__" in rule_names
+    all_rules_selected = PICK_ALL_SENTINEL in rule_names
     if all_rules_selected:
-        rule_names.discard("__ALL__")
+        rule_names.discard(PICK_ALL_SENTINEL)
 
     rules = all_rules
     if (not all_rules_selected) and rule_names:
@@ -385,9 +385,9 @@ def delete_smd_items(
     target_rules = _list_target_rules(kwargs)
 
     # Expand "all" sentinel selections
-    if "__ALL__" in field_external_ids:
+    if PICK_ALL_SENTINEL in field_external_ids:
         field_external_ids = set(target_fields.keys())
-    if "__ALL__" in rule_names:
+    if PICK_ALL_SENTINEL in rule_names:
         rule_names = set(target_rules.keys())
 
     # Expand wildcard patterns (glob) against current target state
@@ -786,9 +786,9 @@ def _desired_from_bundle(bundle_smd, field_external_ids=None, rule_names=None, i
 
     if rule_names:
         rule_names = set(rule_names)
-        all_rules_selected = "__ALL__" in rule_names
+        all_rules_selected = PICK_ALL_SENTINEL in rule_names
         if all_rules_selected:
-            rule_names.discard("__ALL__")
+            rule_names.discard(PICK_ALL_SENTINEL)
         if not all_rules_selected:
             desired_rules = _filter_index_by_name_or_patterns(desired_rules, rule_names)
 

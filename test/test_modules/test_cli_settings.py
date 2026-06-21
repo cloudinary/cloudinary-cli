@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import os
 import re
@@ -7,6 +8,7 @@ from unittest.mock import patch, MagicMock
 
 import cloudinary
 import cloudinary.api
+import click
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
@@ -15,27 +17,45 @@ from cloudinary_cli.cli import cli
 class TestCLISettings(unittest.TestCase):
     runner = CliRunner()
 
-    def test_parse_picks_all_sentinels(self):
+    def test_picks_named_attributes(self):
         from cloudinary_cli.modules.settings.utils.pick import (
             parse_picks,
             SMD_PICK_ALL_SENTINEL,
             TRANSFORMATIONS_PICK_ALL_SENTINEL,
         )
 
-        selected_components, smd_fields, smd_rules, transformation_names = parse_picks([
+        parsed = parse_picks([
             ("smd", "field", "all"),
             ("smd", "rule", "*"),
             ("transformations", "name", "all"),
         ])
 
-        self.assertEqual(["smd", "transformations"], selected_components)
-        self.assertEqual([SMD_PICK_ALL_SENTINEL], smd_fields)
-        self.assertEqual([SMD_PICK_ALL_SENTINEL], smd_rules)
-        self.assertEqual([TRANSFORMATIONS_PICK_ALL_SENTINEL], transformation_names)
+        self.assertEqual(["smd", "transformations"], parsed.selected_components)
+        self.assertEqual([SMD_PICK_ALL_SENTINEL], parsed.smd_fields)
+        self.assertEqual([SMD_PICK_ALL_SENTINEL], parsed.smd_rules)
+        self.assertEqual([TRANSFORMATIONS_PICK_ALL_SENTINEL], parsed.transformation_names)
+
+    def test_picks_is_slotted_dataclass(self):
+        from cloudinary_cli.modules.settings.utils.pick import Picks
+
+        self.assertTrue(dataclasses.is_dataclass(Picks))
+        self.assertTrue(getattr(Picks, "__slots__", None))
+
+        picks = Picks()
+        with self.assertRaises(TypeError):
+            iter(picks)
+        with self.assertRaises(TypeError):
+            picks[0]
+
+    def test_smd_pick_all_sentinel_renamed(self):
+        from cloudinary_cli.modules.settings.utils.pick import SMD_PICK_ALL_SENTINEL
+
+        self.assertEqual("__ALL_SMD__", SMD_PICK_ALL_SENTINEL)
 
     def test_export_smd_bundle_all_rules_includes_referenced_fields(self):
         # All rules selected should include only referenced fields (metadata_field_id + controlling_ids)
         from cloudinary_cli.modules.settings.providers import smd as smd_provider
+        from cloudinary_cli.modules.settings.utils.pick import SMD_PICK_ALL_SENTINEL
 
         mock_rules = [
             {"name": "r1", "metadata_field_id": "A", "controlling_ids": ["B"]},
@@ -55,7 +75,7 @@ class TestCLISettings(unittest.TestCase):
             raise AssertionError("unexpected function passed to call_api_with_pagination")
 
         with patch.object(smd_provider, "call_api_with_pagination", side_effect=fake_call_api_with_pagination):
-            bundle = smd_provider.export_smd_bundle(rule_names=["__ALL__"])
+            bundle = smd_provider.export_smd_bundle(rule_names=[SMD_PICK_ALL_SENTINEL])
 
         field_ids = {f.get("external_id") for f in bundle["fields"]}
         self.assertEqual({"A", "B"}, field_ids)
@@ -118,10 +138,9 @@ class TestCLISettings(unittest.TestCase):
 
             parsed = json.loads(raw)
             self.assertEqual("demo-cloud", parsed["source"]["cloud_name"])
-            # v2 envelope additions
-            self.assertEqual(2, parsed["schema_version"])
-            self.assertIn("lineage", parsed)
-            self.assertIn("serial", parsed)
+            self.assertEqual(1, parsed["schema_version"])
+            self.assertNotIn("lineage", parsed)
+            self.assertNotIn("serial", parsed)
             self.assertIn("writer", parsed)
             self.assertIn("checksum", parsed)
             self.assertIn("fingerprints", parsed)
@@ -192,10 +211,10 @@ class TestCLISettings(unittest.TestCase):
             parse_picks([("nonsense", "name", "x")])
 
     # -------------------------------------------------------------------
-    # P2: snapshot envelope v2 + v1 backcompat
+    # P0: snapshot envelope (v1, no upgrade branch)
     # -------------------------------------------------------------------
 
-    def test_envelope_v2_make_finalize_round_trip(self):
+    def test_envelope_make_finalize_round_trip(self):
         from cloudinary_cli.modules.settings.utils import envelope as env_mod
 
         env = env_mod.make_envelope(
@@ -204,11 +223,11 @@ class TestCLISettings(unittest.TestCase):
             components=["smd", "transformations"],
             metadata={"notes": "hi", "tags": ["t1", "t2"]},
         )
-        self.assertEqual(2, env["schema_version"])
+        self.assertEqual(1, env["schema_version"])
         self.assertEqual("settings_snapshot", env["type"])
         self.assertEqual(["smd", "transformations"], env["components"])
-        self.assertEqual(1, env["serial"])
-        self.assertIn("lineage", env)
+        self.assertNotIn("lineage", env)
+        self.assertNotIn("serial", env)
         self.assertIn("created_at", env)
         self.assertIn("writer", env)
         self.assertIn("cli_version", env["writer"])
@@ -222,10 +241,8 @@ class TestCLISettings(unittest.TestCase):
         self.assertIn("checksum", env)
         self.assertTrue(env["checksum"].startswith("sha256:"))
         self.assertSetEqual({"smd", "transformations"}, set(env["fingerprints"].keys()))
-        # Each component fingerprint is sha256 of its canonical bundle.
         self.assertTrue(env["fingerprints"]["smd"].startswith("sha256:"))
 
-        # Mutating a component bundle must change its fingerprint and the checksum.
         prev_fp = env["fingerprints"]["smd"]
         prev_cs = env["checksum"]
         env["smd"]["fields"].append({"external_id": "y"})
@@ -233,35 +250,21 @@ class TestCLISettings(unittest.TestCase):
         self.assertNotEqual(prev_fp, env["fingerprints"]["smd"])
         self.assertNotEqual(prev_cs, env["checksum"])
 
-    def test_envelope_load_v1_snapshot_upgrades_in_memory(self):
-        from cloudinary_cli.modules.settings.utils.envelope import load_snapshot
-
-        v1 = {
-            "schema_version": 1,
-            "name": "old",
-            "source": {"cloud_name": "legacy"},
-            "smd": {"fields": [], "rules": []},
-            "components": ["smd"],
-        }
-        upgraded = load_snapshot(v1)
-        self.assertEqual(1, upgraded["schema_version"])  # preserved
-        self.assertEqual("settings_snapshot", upgraded["type"])
-        self.assertIsNone(upgraded["lineage"])
-        self.assertIsNone(upgraded["serial"])
-        self.assertIsNone(upgraded["writer"])
-        self.assertEqual({"notes": None, "tags": []}, upgraded["metadata"])
-        self.assertEqual({"components": ["smd"], "picks": []}, upgraded["selection"])
-
-    def test_envelope_previous_serial_for_lineage(self):
+    def test_envelope_make_uses_schema_version_one(self):
         from cloudinary_cli.modules.settings.utils import envelope as env_mod
 
-        with self.runner.isolated_filesystem():
-            self.assertEqual((None, 0), env_mod.previous_serial_for_lineage("missing.json"))
-            self.assertEqual((None, 0), env_mod.previous_serial_for_lineage(None))
+        env = env_mod.make_envelope(name="alpha", cloud_name="demo", components=["smd"])
+        self.assertEqual(1, env["schema_version"])
+        self.assertNotIn("lineage", env)
+        self.assertNotIn("serial", env)
 
-            with open("snap.json", "w", encoding="utf-8") as f:
-                json.dump({"lineage": "abc-123", "serial": 4}, f)
-            self.assertEqual(("abc-123", 4), env_mod.previous_serial_for_lineage("snap.json"))
+    def test_envelope_load_rejects_unknown_schema_version(self):
+        from cloudinary_cli.modules.settings.utils.envelope import load_snapshot
+
+        for bad in (0, 2, None):
+            with self.assertRaises(click.UsageError) as ctx:
+                load_snapshot({"schema_version": bad, "name": "x"})
+            self.assertIn("schema_version", str(ctx.exception))
 
     # -------------------------------------------------------------------
     # P2: dirstore round-trip
@@ -275,7 +278,7 @@ class TestCLISettings(unittest.TestCase):
 
         with self.runner.isolated_filesystem():
             snapshot = {
-                "schema_version": 2,
+                "schema_version": 1,
                 "name": "rt",
                 "components": ["smd", "upload_presets"],
                 "smd": {"fields": [{"external_id": "a"}], "rules": []},
@@ -522,7 +525,7 @@ class TestCLISettings(unittest.TestCase):
 
         with self.runner.isolated_filesystem():
             snapshot = {
-                "schema_version": 2,
+                "schema_version": 1,
                 "type": "settings_snapshot",
                 "name": "diff-test",
                 "components": ["smd", "config"],

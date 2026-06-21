@@ -1,5 +1,15 @@
 # `cld settings` — Implementation notes
 
+> **See also:**
+> - [`settings.md`](settings.md) — end-user guide.
+> - [`settings-design.md`](settings-design.md) — current technical design.
+> - [`settings-fix-plan.md`](settings-fix-plan.md) — phased remediation plan
+>   that supersedes the "Known stubs / TODOs" section below.
+> - [`settings-redesign.md`](settings-redesign.md) — proposed new internal
+>   architecture (engine + ResourceSpec).
+> - [`settings-test-plan.md`](settings-test-plan.md) — coverage matrix,
+>   regression tests, and live integration harness.
+
 A maintainer-oriented log of decisions made while implementing the design at
 `[docs/settings-design.md](settings-design.md)`. Read this **after** the
 design doc and `[docs/settings.md](settings.md)` (user guide). It records:

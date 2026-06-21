@@ -9,6 +9,12 @@ Scope: `cloudinary_cli/modules/settings`
 > - [`settings-implementation.md`](settings-implementation.md) —
 >   maintainer-oriented implementation notes (decisions, divergences from
 >   this design, known stubs/TODOs, runbook for adding a new provider).
+> - [`settings-fix-plan.md`](settings-fix-plan.md) — phased remediation plan
+>   for the issues found in review (v1/v2 collapse, bug fixes, refactors).
+> - [`settings-redesign.md`](settings-redesign.md) — proposed new internal
+>   architecture (engine + ResourceSpec) that supersedes this design's §3.
+> - [`settings-test-plan.md`](settings-test-plan.md) — coverage matrix,
+>   regression tests, and live integration harness.
 
 ## 1. Goal
 

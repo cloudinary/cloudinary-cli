@@ -70,9 +70,8 @@ from .utils.envelope import (
     finalize_envelope,
     load_snapshot,
     make_envelope,
-    previous_serial_for_lineage,
 )
-from .utils.pick import parse_picks
+from .utils.pick import parse_picks, SMD_PICK_ALL_SENTINEL
 from .utils.render import c, diff_any
 
 
@@ -124,7 +123,7 @@ def _is_all(values, sentinels):
 def _trans_filters(transformation_names):
     if not transformation_names:
         return None
-    if _is_all(transformation_names, ("__ALL__", TRANSFORMATIONS_PICK_ALL_SENTINEL)):
+    if _is_all(transformation_names, (TRANSFORMATIONS_PICK_ALL_SENTINEL,)):
         return None
     return normalize_list_params(transformation_names)
 
@@ -132,7 +131,7 @@ def _trans_filters(transformation_names):
 def _preset_filters(preset_names):
     if not preset_names:
         return None
-    if _is_all(preset_names, ("__ALL__", UPLOAD_PRESETS_PICK_ALL_SENTINEL)):
+    if _is_all(preset_names, (UPLOAD_PRESETS_PICK_ALL_SENTINEL,)):
         return None
     return normalize_list_params(preset_names)
 
@@ -140,7 +139,7 @@ def _preset_filters(preset_names):
 def _profile_filters(profile_names):
     if not profile_names:
         return None
-    if _is_all(profile_names, ("__ALL__", STREAMING_PROFILES_PICK_ALL_SENTINEL)):
+    if _is_all(profile_names, (STREAMING_PROFILES_PICK_ALL_SENTINEL,)):
         return None
     return normalize_list_params(profile_names)
 
@@ -148,7 +147,7 @@ def _profile_filters(profile_names):
 def _mapping_filters(folders):
     if not folders:
         return None
-    if _is_all(folders, ("__ALL__", UPLOAD_MAPPINGS_PICK_ALL_SENTINEL)):
+    if _is_all(folders, (UPLOAD_MAPPINGS_PICK_ALL_SENTINEL,)):
         return None
     return normalize_list_params(folders)
 
@@ -247,14 +246,16 @@ def settings_smd():
 @click.option("-F", "--force", is_flag=True, help="Skip confirmation prompts.")
 def smd_delete(picks, smd_include_rules, dry_run, force):
     parsed = parse_picks(picks)
-    picked_components, smd_fields, smd_rules, _ = parsed
+    picked_components = parsed.selected_components
+    smd_fields = list(parsed.smd_fields or [])
+    smd_rules = list(parsed.smd_rules or [])
 
     if picked_components and "smd" not in picked_components:
         raise click.UsageError("Unsupported pick group(s) for this command. Use --pick smd ...")
 
     if not smd_fields and not smd_rules:
-        smd_fields = ["__ALL__"]
-        smd_rules = ["__ALL__"]
+        smd_fields = [SMD_PICK_ALL_SENTINEL]
+        smd_rules = [SMD_PICK_ALL_SENTINEL]
 
     return delete_smd_items(
         target_options=None,
@@ -462,21 +463,16 @@ def save_settings(name, components, picks, smd_include_rules, out_file, out_dir,
         now = datetime.now().astimezone()
         name = f"{cloud_name}_{components_label}_" + now.strftime("%Y-%m-%d_%H-%M-%S-") + f"{int(now.microsecond / 1000):03d}"
 
-    # Resolve previous lineage/serial if we're overwriting a store entry.
     target_path = None
     if not (out_file or out_dir):
         target_path = get_settings_store_snapshot_path(cloud_name, name)
-    prev_lineage, prev_serial = previous_serial_for_lineage(target_path)
 
-    # Build envelope.
     snapshot = make_envelope(
         name=name,
         cloud_name=cloud_name,
         components=selected_components,
         selection=_selection_record(selected_components, picks),
         metadata={"notes": note, "tags": list(tags or [])},
-        lineage=prev_lineage,
-        serial=(prev_serial + 1) if prev_serial else 1,
     )
 
     # Component bundles.
@@ -544,7 +540,7 @@ def save_settings(name, components, picks, smd_include_rules, out_file, out_dir,
             return False
 
     write_json_to_file(snapshot, target_path, indent=2)
-    logger.info(f"Saved settings snapshot '{name}' for cloud '{cloud_name}' (serial={snapshot['serial']}).")
+    logger.info(f"Saved settings snapshot '{name}' for cloud '{cloud_name}'.")
     return True
 
 
@@ -570,8 +566,6 @@ def list_settings(cloud_name, as_json, filter_tags):
                 "name": e["name"],
                 "path": e["path"],
                 "schema_version": snap.get("schema_version"),
-                "lineage": snap.get("lineage"),
-                "serial": snap.get("serial"),
                 "created_at": snap.get("created_at"),
                 "tags": tags,
                 "notes": (snap.get("metadata") or {}).get("notes"),
@@ -588,7 +582,7 @@ def list_settings(cloud_name, as_json, filter_tags):
             return True
         for r in enriched:
             tag_str = (",".join(r["tags"]) if r["tags"] else "-")
-            click.echo(f"{r['cloud_name']}\t{r['name']}\t{r['serial'] or '-'}\t{tag_str}")
+            click.echo(f"{r['cloud_name']}\t{r['name']}\t{tag_str}")
         return True
 
     if not entries:

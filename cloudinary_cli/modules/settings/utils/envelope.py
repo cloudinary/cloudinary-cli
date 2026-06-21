@@ -1,14 +1,12 @@
 """
-Snapshot envelope: v2 schema with v1 backwards-compatible loader.
+Snapshot envelope: v1 schema.
 
 See settings-design.md §4.
 
 Envelope fields (in addition to component bundles):
-    schema_version   : int          (2)
+    schema_version   : int          (1)
     type             : str          ("settings_snapshot")
     name             : str
-    lineage          : str (UUID)   stable across copies/renames
-    serial           : int          bumps each save under the same lineage
     created_at       : ISO8601 str
     writer           : { cli_version, sdk_version, user }
     source           : { cloud_name, config_settings? }
@@ -25,16 +23,16 @@ import hashlib
 import json
 import os
 import socket
-import uuid
 from datetime import datetime, timezone
 from typing import Optional, Iterable, Dict, Any, List
 
+import click
 import cloudinary
 
 from cloudinary_cli.version import __version__ as _CLI_VERSION
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 1
 SNAPSHOT_TYPE = "settings_snapshot"
 
 
@@ -104,13 +102,11 @@ def make_envelope(
     components: List[str],
     selection: Optional[Dict[str, Any]] = None,
     metadata: Optional[Dict[str, Any]] = None,
-    lineage: Optional[str] = None,
-    serial: int = 1,
     config_settings: Optional[Dict[str, Any]] = None,
     created_at: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Build the v2 envelope dict (without component bundles).
+    Build the v1 envelope dict (without component bundles).
 
     Callers fill in component sections, then call `finalize_envelope()` to
     add `fingerprints` + `checksum`.
@@ -119,8 +115,6 @@ def make_envelope(
         "schema_version": SCHEMA_VERSION,
         "type": SNAPSHOT_TYPE,
         "name": name,
-        "lineage": lineage or str(uuid.uuid4()),
-        "serial": int(serial),
         "created_at": created_at or datetime.now(timezone.utc).isoformat(),
         "writer": make_writer(),
         "source": {"cloud_name": cloud_name},
@@ -146,59 +140,23 @@ def finalize_envelope(snapshot: Dict[str, Any], component_keys: Iterable[str]) -
     return snapshot
 
 
-# ---------------------------------------------------------------------------
-# Loader (v1 backcompat)
-# ---------------------------------------------------------------------------
-
 def load_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Normalize a loaded snapshot to the v2 envelope shape.
+    Validate a loaded snapshot's envelope shape and return it unchanged.
 
-    v1 (smd-only) snapshots are upgraded on read: missing envelope fields
-    are filled with `None`, the component list is inferred from present keys,
-    and a fresh lineage/serial is *not* invented (stays None) so we can tell
-    older files apart later.
+    Rejects any `schema_version` other than the current one with a
+    `click.UsageError`. There is no soft-upgrade path.
     """
     if not isinstance(snapshot, dict):
         return snapshot
 
     schema = snapshot.get("schema_version")
-    if schema in (None, 1):
-        # Soft upgrade. Don't mutate the underlying file; produce an in-memory
-        # v2 view that callers can use uniformly.
-        upgraded = dict(snapshot)
-        upgraded.setdefault("schema_version", 1)
-        upgraded.setdefault("type", SNAPSHOT_TYPE)
-        upgraded.setdefault("lineage", None)
-        upgraded.setdefault("serial", None)
-        upgraded.setdefault("writer", None)
-        upgraded.setdefault("metadata", {"notes": None, "tags": []})
-        if "selection" not in upgraded:
-            upgraded["selection"] = {
-                "components": upgraded.get("components") or [],
-                "picks": [],
-            }
-        # v1 used a `types` field for SMD-only; map to `components` if present.
-        if "components" not in upgraded and "types" in upgraded:
-            upgraded["components"] = upgraded.get("types") or []
-        return upgraded
-
+    if schema != SCHEMA_VERSION:
+        raise click.UsageError(
+            "This snapshot was written by an older or newer CLI: "
+            f"schema_version={schema!r}; expected {SCHEMA_VERSION}."
+        )
     return snapshot
-
-
-def previous_serial_for_lineage(existing_path: Optional[str]) -> tuple:
-    """
-    Inspect an existing snapshot file and return (lineage, serial) so callers
-    can bump serial on overwrite. Returns (None, 0) if file missing or unparseable.
-    """
-    if not existing_path or not os.path.exists(existing_path):
-        return None, 0
-    try:
-        with open(existing_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data.get("lineage"), int(data.get("serial") or 0)
-    except Exception:
-        return None, 0
 
 
 def collect_component_bundles(snapshot: Dict[str, Any], component_keys: Iterable[str]) -> Dict[str, Any]:

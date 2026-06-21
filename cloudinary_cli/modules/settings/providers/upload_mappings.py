@@ -68,7 +68,7 @@ def export_upload_mappings(folders=None):
 def _filter_list(mappings, folders):
     if not folders:
         return mappings
-    if any(f in ("*", "all", PICK_ALL_SENTINEL, "__ALL__") for f in folders):
+    if any(f in ("*", "all", PICK_ALL_SENTINEL) for f in folders):
         return mappings
     universe = [m.get("folder") for m in mappings if m.get("folder")]
     expanded = expand_names_with_patterns(universe, set(folders))
@@ -263,13 +263,13 @@ def delete_upload_mappings(
 
     universe = list(target_by_folder.keys())
     expanded = set()
-    if any(n in ("*", "all", PICK_ALL_SENTINEL, "__ALL__") for n in requested):
+    if any(n in ("*", "all", PICK_ALL_SENTINEL) for n in requested):
         expanded |= set(universe)
     else:
         expanded |= expand_names_with_patterns(universe, set(requested))
 
     to_delete = sorted(expanded)
-    missing = [n for n in requested if n not in universe and n not in ("*", "all", PICK_ALL_SENTINEL, "__ALL__") and not any(ch in n for ch in "*?[")]
+    missing = [n for n in requested if n not in universe and n not in ("*", "all", PICK_ALL_SENTINEL) and not any(ch in n for ch in "*?[")]
     if missing:
         logger.warning(f"Upload mappings: not found (skipping): {', '.join(missing)}")
 

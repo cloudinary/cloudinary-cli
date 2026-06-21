@@ -164,7 +164,7 @@ def _filter_transformation_list(all_transformations, transformation_names):
     if not transformation_names:
         return all_transformations
 
-    if any(p in ("*", "all", PICK_ALL_SENTINEL, "__ALL__") for p in transformation_names):
+    if any(p in ("*", "all", PICK_ALL_SENTINEL) for p in transformation_names):
         return all_transformations
 
     universe = [t.get("name") for t in all_transformations if t.get("name")]
@@ -489,13 +489,13 @@ def delete_transformations(
         return True
 
     expanded = expand_names_with_patterns(universe, set(
-        n for n in requested if n not in ("*", "all", PICK_ALL_SENTINEL, "__ALL__")
+        n for n in requested if n not in ("*", "all", PICK_ALL_SENTINEL)
     ))
-    if any(n in ("*", "all", PICK_ALL_SENTINEL, "__ALL__") for n in requested):
+    if any(n in ("*", "all", PICK_ALL_SENTINEL) for n in requested):
         expanded |= set(universe)
 
     to_delete = sorted(expanded)
-    missing = sorted(set(requested) - set(universe) - {p for p in requested if any(ch in p for ch in "*?[")} - {"*", "all", PICK_ALL_SENTINEL, "__ALL__"})
+    missing = sorted(set(requested) - set(universe) - {p for p in requested if any(ch in p for ch in "*?[")} - {"*", "all", PICK_ALL_SENTINEL})
     if missing:
         logger.warning(
             f"Transformations: not found (skipping): {', '.join(missing)}"

@@ -207,7 +207,7 @@ def _expand_selection(listed, profile_names):
     """
     if not profile_names:
         return None
-    if any(n in ("*", "all", PICK_ALL_SENTINEL, "__ALL__") for n in profile_names):
+    if any(n in ("*", "all", PICK_ALL_SENTINEL) for n in profile_names):
         return None
     universe = [p.get("name") for p in listed if p.get("name")]
     return expand_names_with_patterns(universe, set(profile_names))
@@ -272,7 +272,7 @@ def apply_streaming_profiles(
     custom_profiles = list(bundle.get("custom_profiles") or [])
     overridden_builtins = list(bundle.get("overridden_builtins") or [])
 
-    if profile_names and not any(n in ("*", "all", PICK_ALL_SENTINEL, "__ALL__") for n in profile_names):
+    if profile_names and not any(n in ("*", "all", PICK_ALL_SENTINEL) for n in profile_names):
         sel_universe = [p["name"] for p in custom_profiles + overridden_builtins if p.get("name")]
         keep = expand_names_with_patterns(sel_universe, set(profile_names))
         custom_profiles = [p for p in custom_profiles if p.get("name") in keep]
@@ -504,7 +504,7 @@ def delete_streaming_profiles(
 
     universe = list(target_by_name.keys())
     expanded = set()
-    if any(n in ("*", "all", PICK_ALL_SENTINEL, "__ALL__") for n in requested):
+    if any(n in ("*", "all", PICK_ALL_SENTINEL) for n in requested):
         expanded |= set(universe)
     else:
         expanded |= expand_names_with_patterns(universe, set(requested))
@@ -525,7 +525,7 @@ def delete_streaming_profiles(
         else:
             to_delete_custom.append(name)
 
-    missing = [n for n in requested if n not in universe and n not in ("*", "all", PICK_ALL_SENTINEL, "__ALL__") and not any(ch in n for ch in "*?[")]
+    missing = [n for n in requested if n not in universe and n not in ("*", "all", PICK_ALL_SENTINEL) and not any(ch in n for ch in "*?[")]
     if missing:
         logger.warning(f"Streaming profiles: not found (skipping): {', '.join(missing)}")
 

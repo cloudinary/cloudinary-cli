@@ -5,6 +5,11 @@ Groups equal component keys; kinds and `*`/`all` sentinels are documented
 in settings-design.md §3.3. Wildcards (`*`, `?`, `[abc]`) are resolved with
 fnmatch at apply time.
 """
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple, Union
+
 import click
 
 
@@ -22,11 +27,32 @@ SUPPORTED_UPLOAD_PRESETS_PICK_KINDS = ("name",)
 SUPPORTED_STREAMING_PROFILES_PICK_KINDS = ("name",)
 SUPPORTED_UPLOAD_MAPPINGS_PICK_KINDS = ("folder",)
 
-SMD_PICK_ALL_SENTINEL = "__ALL__"
+SMD_PICK_ALL_SENTINEL = "__ALL_SMD__"
 TRANSFORMATIONS_PICK_ALL_SENTINEL = "__ALL_TRANSFORMATIONS__"
 UPLOAD_PRESETS_PICK_ALL_SENTINEL = "__ALL_UPLOAD_PRESETS__"
 STREAMING_PROFILES_PICK_ALL_SENTINEL = "__ALL_STREAMING_PROFILES__"
 UPLOAD_MAPPINGS_PICK_ALL_SENTINEL = "__ALL_UPLOAD_MAPPINGS__"
+
+
+@dataclass(frozen=True, slots=True)
+class Picks:
+    """Parsed `--pick` selections, indexed per component."""
+    selected_components: Optional[List[str]] = None
+    smd_fields: List[str] = field(default_factory=list)
+    smd_rules: List[str] = field(default_factory=list)
+    transformation_names: List[str] = field(default_factory=list)
+    upload_preset_names: List[str] = field(default_factory=list)
+    streaming_profile_names: List[str] = field(default_factory=list)
+    upload_mapping_folders: List[str] = field(default_factory=list)
+
+    def for_component(self, component: str) -> Union[List[str], Tuple[List[str], List[str]], None]:
+        return {
+            "smd": (self.smd_fields, self.smd_rules),
+            "transformations": self.transformation_names,
+            "upload_presets": self.upload_preset_names,
+            "streaming_profiles": self.streaming_profile_names,
+            "upload_mappings": self.upload_mapping_folders,
+        }.get(component)
 
 
 def _expand(value, all_sentinel):
@@ -39,24 +65,18 @@ def parse_picks(picks):
     """
     Parse hierarchical selections passed via --pick <group> <kind> <value>.
 
-    Returns a `Picks` namedtuple-like dict with one key per component plus
-    `selected_components`. Lists are returned in source order, with `*`/`all`
-    expanded to the corresponding sentinel.
-
-    Backwards-compat: callers that used the legacy 4-tuple
-    `(selected_components, smd_fields, smd_rules, transformation_names)`
-    keep working via `Picks.__iter__` (yields exactly those 4 in that order).
+    Returns a `Picks` instance.
     """
     if not picks:
         return Picks(selected_components=None)
 
     groups = set()
-    smd_fields = []
-    smd_rules = []
-    transformation_names = []
-    upload_preset_names = []
-    streaming_profile_names = []
-    upload_mapping_folders = []
+    smd_fields: List[str] = []
+    smd_rules: List[str] = []
+    transformation_names: List[str] = []
+    upload_preset_names: List[str] = []
+    streaming_profile_names: List[str] = []
+    upload_mapping_folders: List[str] = []
 
     for group, kind, value in picks:
         if group not in SUPPORTED_PICK_GROUPS:
@@ -119,61 +139,3 @@ def parse_picks(picks):
         streaming_profile_names=streaming_profile_names,
         upload_mapping_folders=upload_mapping_folders,
     )
-
-
-class Picks:
-    """
-    Tiny container for parsed selections.
-
-    Iterable for legacy 4-tuple unpacking:
-        selected_components, smd_fields, smd_rules, transformation_names = parse_picks(...)
-    """
-    __slots__ = (
-        "selected_components",
-        "smd_fields",
-        "smd_rules",
-        "transformation_names",
-        "upload_preset_names",
-        "streaming_profile_names",
-        "upload_mapping_folders",
-    )
-
-    def __init__(
-        self,
-        selected_components=None,
-        smd_fields=None,
-        smd_rules=None,
-        transformation_names=None,
-        upload_preset_names=None,
-        streaming_profile_names=None,
-        upload_mapping_folders=None,
-    ):
-        self.selected_components = selected_components
-        self.smd_fields = smd_fields
-        self.smd_rules = smd_rules
-        self.transformation_names = transformation_names
-        self.upload_preset_names = upload_preset_names
-        self.streaming_profile_names = streaming_profile_names
-        self.upload_mapping_folders = upload_mapping_folders
-
-    def __iter__(self):
-        # Legacy 4-tuple unpacking order.
-        yield self.selected_components
-        yield self.smd_fields
-        yield self.smd_rules
-        yield self.transformation_names
-
-    def __getitem__(self, idx):
-        return tuple(iter(self))[idx]
-
-    def for_component(self, component):
-        """
-        Return the raw pick list for a component, or None.
-        """
-        return {
-            "smd": (self.smd_fields, self.smd_rules),
-            "transformations": self.transformation_names,
-            "upload_presets": self.upload_preset_names,
-            "streaming_profiles": self.streaming_profile_names,
-            "upload_mappings": self.upload_mapping_folders,
-        }.get(component)

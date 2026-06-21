@@ -1,5 +1,15 @@
 # `cld settings` — User Guide
 
+> **Maintainer notes:**
+> - [`settings-design.md`](settings-design.md) — current technical design.
+> - [`settings-implementation.md`](settings-implementation.md) — current
+>   implementation log, decisions, and known stubs.
+> - [`settings-fix-plan.md`](settings-fix-plan.md) — proposed phased fixes.
+> - [`settings-redesign.md`](settings-redesign.md) — proposed new internal
+>   architecture.
+> - [`settings-test-plan.md`](settings-test-plan.md) — coverage matrix and
+>   integration harness.
+
 The `settings` command set saves, restores, diffs, and clones Cloudinary
 **product‑environment configuration** between accounts and snapshots. Use it
 to:
