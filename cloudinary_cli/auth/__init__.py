@@ -14,23 +14,55 @@ from cloudinary_cli.auth.session import (
     is_oauth_url,
 )
 from cloudinary_cli.defaults import logger, normalize_region, DEFAULT_REGION, CLOUDINARY_REGION
-from cloudinary_cli.utils.config_utils import load_config, update_config, remove_config_keys, config_lock
+from cloudinary_cli.utils.config_utils import (
+    load_config,
+    update_config,
+    remove_config_keys,
+    config_lock,
+    user_config_names,
+    get_default_config_name,
+    set_default_config,
+    is_reserved_config_name,
+    is_env_configured,
+)
 from cloudinary_cli.utils.utils import log_exception
 
 
-def login(region=None, name=None):
+def login(region=None, name=None, set_default=False):
     """
     Run the interactive browser login and persist the resulting session as a named config entry.
 
     Returns the saved config name, or None on failure.
     """
+    if name and is_reserved_config_name(name):
+        raise RuntimeError(f"'{name}' is a reserved configuration name.")
     region = normalize_region(region or CLOUDINARY_REGION)
     session = _run_browser_flow(region)
     if not session.cloud_name:
         raise RuntimeError("Login token did not include a cloud name; cannot save this login.")
     config_name = name or _derive_config_name(session.cloud_name, region)
     update_config({config_name: to_cloudinary_url(session)})
+
+    if set_default or _should_auto_default(config_name):
+        set_default_config(config_name)
     return config_name
+
+
+def _should_auto_default(name):
+    """
+    True when the just-saved login should become the default without an explicit flag: it is the
+    only saved config, the environment configures nothing, and no default is already stored.
+
+    A stored default outranks the environment, so auto-defaulting is suppressed when an env config
+    is present: a single `cld login` must not silently override a user's CLOUDINARY_URL. They can
+    still opt in with `--set-default`.
+    """
+    cfg = load_config()
+    return (
+        user_config_names(cfg) == [name]
+        and not is_env_configured()
+        and not get_default_config_name()
+    )
 
 
 def logout(name):
@@ -44,10 +76,11 @@ def logout(name):
     return "removed"
 
 
-def refresh_url_if_stale(name, url):
+def refresh_url_if_stale(name, url, force=False):
     """
     Given a saved config value, refresh it if it is a stale OAuth login (rewriting the stored
-    URL on token rotation). Non-OAuth and still-fresh URLs are returned unchanged.
+    URL on token rotation). Non-OAuth and still-fresh URLs are returned unchanged. With force=True
+    a still-fresh token is refreshed too (used by the explicit `config --refresh --force`).
 
     The refresh consumes a single-use refresh token, so the whole read-refresh-write runs under
     a cross-process lock with the freshness re-checked inside it: a peer that refreshed while we
@@ -57,13 +90,13 @@ def refresh_url_if_stale(name, url):
         return url
 
     session = from_cloudinary_url(url)
-    if session.is_fresh() or not session.refresh_token:
+    if (session.is_fresh() and not force) or not session.refresh_token:
         return url
 
     with config_lock():
         url = load_config().get(name, url)  # re-read: a peer may have refreshed while we waited
         session = from_cloudinary_url(url)
-        if session.is_fresh() or not session.refresh_token:
+        if (session.is_fresh() and not force) or not session.refresh_token:
             return url
 
         try:
@@ -79,15 +112,51 @@ def refresh_url_if_stale(name, url):
         return refreshed_url
 
 
-def find_sole_oauth_login():
-    """Return (name, url) of the only saved OAuth login, or None if there are zero or many."""
-    oauth_logins = [(name, url) for name, url in load_config().items() if is_oauth_url(url)]
-    return oauth_logins[0] if len(oauth_logins) == 1 else None
+def refresh_config(name, force=False):
+    """
+    Refresh a single saved OAuth config by name and report the outcome. Returns one of:
+      "not_found", "not_oauth", "fresh" (skipped, still valid), "refreshed", or "failed"
+    ("failed" = stale/forced but no refresh token, or the network refresh did not rotate it).
+    """
+    cfg = load_config()
+    if name not in user_config_names(cfg):
+        return "not_found"
+    url = cfg[name]
+    if not is_oauth_url(url):
+        return "not_oauth"
+
+    session = from_cloudinary_url(url)
+    if session.is_fresh() and not force:
+        return "fresh"
+    if not session.refresh_token:
+        return "failed"
+
+    new_url = refresh_url_if_stale(name, url, force=force)
+    return "refreshed" if new_url != url else "failed"
+
+
+def refresh_configs(force=False):
+    """Refresh every saved OAuth config. Returns {name: outcome} (see refresh_config)."""
+    return {name: refresh_config(name, force=force) for name in list_oauth_login_names()}
+
+
+def relogin_command(name):
+    """
+    Build the `cld login` command to re-authenticate a saved OAuth config, preserving its region
+    (a non-default region must be passed explicitly so the right OAuth host is used).
+    """
+    cmd = f"cld login {name}"
+    url = load_config().get(name)
+    region = from_cloudinary_url(url).region if url and is_oauth_url(url) else None
+    if region and region != DEFAULT_REGION:
+        cmd += f" --region {region}"
+    return cmd
 
 
 def list_oauth_login_names():
     """Return the names of all saved OAuth logins."""
-    return [name for name, url in load_config().items() if is_oauth_url(url)]
+    cfg = load_config()
+    return [name for name in user_config_names(cfg) if is_oauth_url(cfg[name])]
 
 
 def _run_browser_flow(region):

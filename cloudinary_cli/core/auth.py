@@ -11,9 +11,12 @@ from cloudinary_cli.utils.utils import log_exception
 @option("--region",
         help="Cloudinary region to log in to (e.g. eu, ap, or api-eu). Defaults to the "
              "global region (api).")
-def login(name, region):
+@option("--set-default", "set_default", is_flag=True,
+        help="Set this login as the default configuration used when no -c/-C and no environment "
+             "config is given.")
+def login(name, region, set_default):
     try:
-        config_name = run_login(region=region, name=name)
+        config_name = run_login(region=region, name=name, set_default=set_default)
     except Exception as e:
         log_exception(e, "Login failed")
         return False

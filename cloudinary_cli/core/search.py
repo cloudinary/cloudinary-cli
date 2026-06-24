@@ -7,6 +7,7 @@ from cloudinary_cli.utils.json_utils import write_json_to_file, print_json
 from cloudinary_cli.utils.utils import write_json_list_to_csv, confirm_action, whitelist_keys, \
     normalize_list_params
 from cloudinary_cli.utils.search_utils import parse_aggregate
+from cloudinary_cli.utils.config_resolver import ensure_active_config_fresh
 
 DEFAULT_MAX_RESULTS = 500
 
@@ -134,6 +135,7 @@ def _perform_search(query, with_field, fields, sort_by, aggregate, max_results, 
 
 
 def execute_single_request(expression, fields_to_keep, result_field='resources'):
+    ensure_active_config_fresh()
     res = expression.execute()
 
     if fields_to_keep:

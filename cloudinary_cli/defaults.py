@@ -24,6 +24,10 @@ if CLOUDINARY_HOME is None:
 
 CLOUDINARY_CLI_CONFIG_FILE = abspath(path_join(CLOUDINARY_HOME, 'config.json'))
 
+# Reserved key inside config.json that names the default saved configuration. Double-underscore
+# names are rejected as user config names, so this can't collide with a saved config.
+DEFAULT_CONFIG_KEY = "__default__"
+
 # OAuth (ORY Hydra) configuration for `cld login`. The region string derives both the API and
 # OAuth hosts; an unknown region simply fails to resolve.
 DEFAULT_REGION = 'api'

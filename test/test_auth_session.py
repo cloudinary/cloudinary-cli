@@ -4,7 +4,13 @@ from unittest.mock import patch
 
 import cloudinary
 
-from cloudinary_cli.auth import login, refresh_url_if_stale, _derive_config_name
+from cloudinary_cli.auth import (
+    login,
+    refresh_url_if_stale,
+    refresh_config,
+    refresh_configs,
+    _derive_config_name,
+)
 from cloudinary_cli.auth.session import (
     Session,
     to_cloudinary_url,
@@ -99,6 +105,16 @@ class TestRefreshUrlIfStale(unittest.TestCase):
             self.assertEqual(url, refresh_url_if_stale("eu-cloud", url))
             refresh.assert_not_called()
 
+    def test_force_refreshes_fresh_token(self):
+        url = to_cloudinary_url(_session())  # fresh
+        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
+        with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": url}), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response) as refresh, \
+                patch("cloudinary_cli.auth.update_config"):
+            new_url = refresh_url_if_stale("eu-cloud", url, force=True)
+        refresh.assert_called_once()
+        self.assertIn("oauth_token=eyJ.new.tok", new_url)
+
     def test_stale_refreshes_and_rewrites(self):
         stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
         token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
@@ -144,6 +160,72 @@ class TestRefreshUrlIfStale(unittest.TestCase):
         self.assertIn("oauth_token=eyJ.new.tok", result)
         refresh.assert_called_once()
         update_config.assert_called_once()
+
+
+class TestRefreshConfig(unittest.TestCase):
+    def _cfg(self, **extra):
+        cfg = {
+            "stale": to_cloudinary_url(_session(cloud_name="stale", expires_at=int(time.time()) - 10)),
+            "fresh": to_cloudinary_url(_session(cloud_name="fresh")),
+            "key": "cloudinary://k:s@kc",
+        }
+        cfg.update(extra)
+        return cfg
+
+    def test_not_found(self):
+        with patch("cloudinary_cli.auth.load_config", return_value=self._cfg()):
+            self.assertEqual("not_found", refresh_config("ghost"))
+
+    def test_not_oauth(self):
+        with patch("cloudinary_cli.auth.load_config", return_value=self._cfg()):
+            self.assertEqual("not_oauth", refresh_config("key"))
+
+    def test_fresh_skipped(self):
+        with patch("cloudinary_cli.auth.load_config", return_value=self._cfg()), \
+                patch("cloudinary_cli.auth.flow.refresh") as refresh:
+            self.assertEqual("fresh", refresh_config("fresh"))
+            refresh.assert_not_called()
+
+    def test_stale_refreshed(self):
+        token_response = {"access_token": "new", "refresh_token": "rt_new", "expires_in": 300}
+        with patch("cloudinary_cli.auth.load_config", return_value=self._cfg()), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
+                patch("cloudinary_cli.auth.update_config"):
+            self.assertEqual("refreshed", refresh_config("stale"))
+
+    def test_force_refreshes_fresh(self):
+        token_response = {"access_token": "new", "refresh_token": "rt_new", "expires_in": 300}
+        with patch("cloudinary_cli.auth.load_config", return_value=self._cfg()), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response) as refresh, \
+                patch("cloudinary_cli.auth.update_config"):
+            self.assertEqual("refreshed", refresh_config("fresh", force=True))
+            refresh.assert_called_once()
+
+    def test_failed_when_no_refresh_token(self):
+        cfg = self._cfg(stale=to_cloudinary_url(_session(
+            cloud_name="stale", expires_at=int(time.time()) - 10, refresh_token=None)))
+        with patch("cloudinary_cli.auth.load_config", return_value=cfg):
+            self.assertEqual("failed", refresh_config("stale"))
+
+    def test_relogin_command_includes_non_default_region(self):
+        from cloudinary_cli.auth import relogin_command
+        cfg = {
+            "global": to_cloudinary_url(_session(cloud_name="global", region="api")),
+            "stg": to_cloudinary_url(_session(cloud_name="stg", region="api-staging")),
+            "key": "cloudinary://k:s@kc",
+        }
+        with patch("cloudinary_cli.auth.load_config", return_value=cfg):
+            self.assertEqual("cld login global", relogin_command("global"))
+            self.assertEqual("cld login stg --region api-staging", relogin_command("stg"))
+            self.assertEqual("cld login key", relogin_command("key"))  # non-oauth: no region
+
+    def test_refresh_configs_sweeps_oauth_only(self):
+        token_response = {"access_token": "new", "refresh_token": "rt_new", "expires_in": 300}
+        with patch("cloudinary_cli.auth.load_config", return_value=self._cfg()), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
+                patch("cloudinary_cli.auth.update_config"):
+            results = refresh_configs()
+        self.assertEqual({"stale": "refreshed", "fresh": "fresh"}, results)  # "key" not swept
 
 
 class TestLoginGuards(unittest.TestCase):
