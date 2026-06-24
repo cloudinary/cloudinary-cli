@@ -5,10 +5,21 @@ import re
 import cloudinary
 from click import echo
 from cloudinary import api
+from filelock import FileLock
 
 from cloudinary_cli.defaults import CLOUDINARY_CLI_CONFIG_FILE, OLD_CLOUDINARY_CLI_CONFIG_FILE, logger
 from cloudinary_cli.utils.json_utils import write_json_to_file, read_json_from_file
 from cloudinary_cli.utils.utils import log_exception
+
+# Cross-process lock guarding read-modify-write of the config file. Reentrant within a process,
+# so callers may hold it across a multi-step update (e.g. token refresh) without deadlocking.
+_config_lock = FileLock(CLOUDINARY_CLI_CONFIG_FILE + ".lock")
+
+
+def config_lock():
+    # The lock file lives in the config dir, which may not exist yet on a fresh install.
+    _verify_file_path(CLOUDINARY_CLI_CONFIG_FILE)
+    return _config_lock
 
 
 def load_config():
@@ -17,24 +28,26 @@ def load_config():
 
 def save_config(config):
     _verify_file_path(CLOUDINARY_CLI_CONFIG_FILE)
-    write_json_to_file(config, CLOUDINARY_CLI_CONFIG_FILE)
+    write_json_to_file(config, CLOUDINARY_CLI_CONFIG_FILE, atomic=True)
     _restrict_permissions(CLOUDINARY_CLI_CONFIG_FILE)
 
 
 def update_config(new_config):
-    curr_config = load_config()
-    curr_config.update(new_config)
-    save_config(curr_config)
+    with config_lock():
+        curr_config = load_config()
+        curr_config.update(new_config)
+        save_config(curr_config)
 
 
 def remove_config_keys(*keys):
-    curr_config = load_config()
-    not_found = []
-    for key in keys:
-        if not curr_config.pop(key, None):
-            not_found.append(key)
+    with config_lock():
+        curr_config = load_config()
+        not_found = []
+        for key in keys:
+            if not curr_config.pop(key, None):
+                not_found.append(key)
 
-    save_config(curr_config)
+        save_config(curr_config)
 
     return not_found
 

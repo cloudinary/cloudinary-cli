@@ -60,7 +60,7 @@ def oauth_token_url_for_region(region):
 CLOUDINARY_REGION = normalize_region(os.environ.get('CLOUDINARY_REGION'))
 
 # Public PKCE client (no secret).
-OAUTH_CLIENT_ID = 'cld_cli'
+OAUTH_CLIENT_ID = 'a920ea9c-531b-4613-9783-1d4f4cc10655'
 OAUTH_SCOPES = 'openid offline_access asset_management upload'
 
 # Hydra requires an exact redirect match, so the port is fixed and must match the registered client.

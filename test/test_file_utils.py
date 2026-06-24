@@ -1,7 +1,16 @@
+import os
+import stat
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
-from cloudinary_cli.utils.file_utils import get_destination_folder, walk_dir, normalize_file_extension
+from cloudinary_cli.utils.file_utils import (
+    get_destination_folder,
+    walk_dir,
+    normalize_file_extension,
+    atomic_write,
+)
 from test.helper_test import RESOURCES_DIR
 
 
@@ -33,3 +42,110 @@ class FileUtilsTest(unittest.TestCase):
             "SAMPLE.JPEG": "SAMPLE.jpg",
         }.items():
             self.assertEqual(expected, normalize_file_extension(value))
+
+
+class AtomicWriteTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.path = os.path.join(self.dir, "out.txt")
+
+    def _leftover(self):
+        return [f for f in os.listdir(self.dir) if f != os.path.basename(self.path)]
+
+    def test_writes_content(self):
+        atomic_write(self.path, lambda f: f.write("hello"))
+        with open(self.path) as f:
+            self.assertEqual("hello", f.read())
+
+    def test_overwrite_replaces_contents(self):
+        atomic_write(self.path, lambda f: f.write("old"))
+        atomic_write(self.path, lambda f: f.write("new"))
+        with open(self.path) as f:
+            self.assertEqual("new", f.read())
+
+    def test_leaves_no_temp_files(self):
+        atomic_write(self.path, lambda f: f.write("x"))
+        self.assertEqual([], self._leftover())
+
+    def test_failed_write_removes_temp_and_keeps_original(self):
+        atomic_write(self.path, lambda f: f.write("keep"))
+
+        def boom(f):
+            f.write("partial")
+            raise ValueError("write failed")
+
+        with self.assertRaises(ValueError):
+            atomic_write(self.path, boom)
+
+        with open(self.path) as f:
+            self.assertEqual("keep", f.read())
+        self.assertEqual([], self._leftover())
+
+    def test_missing_target_is_not_created_on_failure(self):
+        with self.assertRaises(ValueError):
+            atomic_write(self.path, lambda f: (_ for _ in ()).throw(ValueError()))
+        self.assertFalse(os.path.exists(self.path))
+        self.assertEqual([], os.listdir(self.dir))
+
+    def test_normalizes_to_umask_mode(self):
+        # mkstemp creates the temp as 0600; atomic_write must relax it to the umask default
+        # so output files are not silently owner-only.
+        old_umask = os.umask(0o022)
+        try:
+            atomic_write(self.path, lambda f: f.write("x"))
+        finally:
+            os.umask(old_umask)
+        mode = stat.S_IMODE(os.stat(self.path).st_mode)
+        self.assertEqual(0o644, mode)
+
+    def test_respects_restrictive_umask(self):
+        old_umask = os.umask(0o077)
+        try:
+            atomic_write(self.path, lambda f: f.write("x"))
+        finally:
+            os.umask(old_umask)
+        mode = stat.S_IMODE(os.stat(self.path).st_mode)
+        self.assertEqual(0o600, mode)
+
+    def test_writes_to_filename_in_cwd_without_dir(self):
+        # path.dirname("") is "" -> must fall back to "." rather than failing.
+        old_cwd = os.getcwd()
+        os.chdir(self.dir)
+        try:
+            atomic_write("bare.txt", lambda f: f.write("x"))
+            with open("bare.txt") as f:
+                self.assertEqual("x", f.read())
+        finally:
+            os.chdir(old_cwd)
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX directory modes not applicable on Windows")
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root bypasses permission bits")
+    def test_readonly_directory_raises_and_leaves_nothing(self):
+        # mkstemp needs to create the temp inside the directory, so a read-only directory must
+        # fail loudly rather than silently writing nothing, and must not leave a temp file behind.
+        os.chmod(self.dir, 0o500)
+        try:
+            with self.assertRaises(OSError):
+                atomic_write(self.path, lambda f: f.write("x"))
+            self.assertFalse(os.path.exists(self.path))
+            self.assertEqual([], os.listdir(self.dir))
+        finally:
+            os.chmod(self.dir, 0o700)
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX file modes not applicable on Windows")
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root bypasses permission bits")
+    def test_overwrites_readonly_target_in_writable_dir(self):
+        # os.replace only needs write permission on the directory, not the target, so atomic_write
+        # can replace a read-only file (where a plain open(file, 'w') would fail) and normalizes
+        # the result to the umask default.
+        old_umask = os.umask(0o022)
+        try:
+            atomic_write(self.path, lambda f: f.write("old"))
+            os.chmod(self.path, 0o400)
+            atomic_write(self.path, lambda f: f.write("new"))
+        finally:
+            os.umask(old_umask)
+        with open(self.path) as f:
+            self.assertEqual("new", f.read())
+        self.assertEqual(0o644, stat.S_IMODE(os.stat(self.path).st_mode))
+        self.assertEqual([], self._leftover())

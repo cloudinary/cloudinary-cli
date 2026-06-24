@@ -4,6 +4,8 @@ from os import path
 import click
 from pygments import highlight, lexers, formatters
 
+from cloudinary_cli.utils.file_utils import atomic_write
+
 
 def read_json_from_file(filename, does_not_exist_ok=False):
     if does_not_exist_ok and (not path.exists(filename) or path.getsize(filename) < 1):
@@ -13,15 +15,21 @@ def read_json_from_file(filename, does_not_exist_ok=False):
         return json.loads(file.read() or "{}")
 
 
-def write_json_to_file(json_obj, filename, indent=2, sort_keys=False):
-    with open(filename, 'w') as file:
+def write_json_to_file(json_obj, filename, indent=2, sort_keys=False, atomic=False):
+    def dump(file):
         json.dump(json_obj, file, indent=indent, sort_keys=sort_keys)
 
+    if atomic:
+        atomic_write(filename, dump)
+    else:
+        with open(filename, 'w') as file:
+            dump(file)
 
-def update_json_file(json_obj, filename, indent=2, sort_keys=False):
+
+def update_json_file(json_obj, filename, indent=2, sort_keys=False, atomic=False):
     curr_obj = read_json_from_file(filename, True)
     curr_obj.update(json_obj)
-    write_json_to_file(curr_obj, filename, indent, sort_keys)
+    write_json_to_file(curr_obj, filename, indent, sort_keys, atomic)
 
 
 def print_json(res):

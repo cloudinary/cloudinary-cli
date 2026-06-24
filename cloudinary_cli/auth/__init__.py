@@ -14,7 +14,7 @@ from cloudinary_cli.auth.session import (
     is_oauth_url,
 )
 from cloudinary_cli.defaults import logger, normalize_region, DEFAULT_REGION, CLOUDINARY_REGION
-from cloudinary_cli.utils.config_utils import load_config, update_config, remove_config_keys
+from cloudinary_cli.utils.config_utils import load_config, update_config, remove_config_keys, config_lock
 from cloudinary_cli.utils.utils import log_exception
 
 
@@ -48,27 +48,35 @@ def refresh_url_if_stale(name, url):
     """
     Given a saved config value, refresh it if it is a stale OAuth login (rewriting the stored
     URL on token rotation). Non-OAuth and still-fresh URLs are returned unchanged.
+
+    The refresh consumes a single-use refresh token, so the whole read-refresh-write runs under
+    a cross-process lock with the freshness re-checked inside it: a peer that refreshed while we
+    waited leaves a fresh token we adopt instead of refreshing (and burning) it again.
     """
     if not is_oauth_url(url):
         return url
 
     session = from_cloudinary_url(url)
-    if session.is_fresh():
-        return url
-    if not session.refresh_token:
+    if session.is_fresh() or not session.refresh_token:
         return url
 
-    try:
-        token_response = flow.refresh(session.refresh_token, session.region)
-    except requests.RequestException as e:
-        log_exception(e, debug_message="OAuth token refresh failed")
-        return url
+    with config_lock():
+        url = load_config().get(name, url)  # re-read: a peer may have refreshed while we waited
+        session = from_cloudinary_url(url)
+        if session.is_fresh() or not session.refresh_token:
+            return url
 
-    # Hydra rotates refresh tokens; keep the old one only if a new one was not returned.
-    token_response.setdefault("refresh_token", session.refresh_token)
-    refreshed_url = to_cloudinary_url(session.updated_from(token_response))
-    update_config({name: refreshed_url})
-    return refreshed_url
+        try:
+            token_response = flow.refresh(session.refresh_token, session.region)
+        except requests.RequestException as e:
+            log_exception(e, debug_message="OAuth token refresh failed")
+            return url
+
+        # Hydra rotates refresh tokens; keep the old one only if a new one was not returned.
+        token_response.setdefault("refresh_token", session.refresh_token)
+        refreshed_url = to_cloudinary_url(session.updated_from(token_response))
+        update_config({name: refreshed_url})
+        return refreshed_url
 
 
 def find_sole_oauth_login():

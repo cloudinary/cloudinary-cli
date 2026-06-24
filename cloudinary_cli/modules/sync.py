@@ -336,7 +336,7 @@ class SyncDir:
             current_diverse_files.update(diverse_filenames)
             try:
                 logger.debug(f"Updating '{self.sync_meta_file}' file")
-                write_json_to_file(current_diverse_files, self.sync_meta_file)
+                write_json_to_file(current_diverse_files, self.sync_meta_file, atomic=True)
                 logger.debug(f"Updated '{self.sync_meta_file}' file")
             except Exception as e:
                 # Meta file is not critical for the sync itself, in case we cannot write it, we just log a warning

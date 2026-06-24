@@ -121,6 +121,30 @@ class TestRefreshUrlIfStale(unittest.TestCase):
             self.assertEqual(stale_url, refresh_url_if_stale("eu-cloud", stale_url))
             update_config.assert_not_called()
 
+    def test_adopts_peer_refresh_without_calling_refresh(self):
+        # Peer already rewrote the saved URL to a fresh token while we waited for the lock.
+        stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
+        peer_fresh_url = to_cloudinary_url(_session(
+            access_token="eyJ.peer.tok", expires_at=int(time.time()) + 300))
+        with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": peer_fresh_url}), \
+                patch("cloudinary_cli.auth.flow.refresh") as refresh, \
+                patch("cloudinary_cli.auth.update_config") as update_config:
+            result = refresh_url_if_stale("eu-cloud", stale_url)
+        self.assertEqual(peer_fresh_url, result)
+        refresh.assert_not_called()      # we did not burn the (already-rotated) refresh token
+        update_config.assert_not_called()
+
+    def test_refreshes_when_peer_value_still_stale(self):
+        stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
+        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
+        with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": stale_url}), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response) as refresh, \
+                patch("cloudinary_cli.auth.update_config") as update_config:
+            result = refresh_url_if_stale("eu-cloud", stale_url)
+        self.assertIn("oauth_token=eyJ.new.tok", result)
+        refresh.assert_called_once()
+        update_config.assert_called_once()
+
 
 class TestLoginGuards(unittest.TestCase):
     def test_missing_cloud_name_raises_and_saves_nothing(self):
