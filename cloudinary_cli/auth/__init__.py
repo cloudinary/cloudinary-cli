@@ -118,7 +118,7 @@ def refresh_url_if_stale(name, url, force=False):
 
         _refresh_warned.discard(name)  # a later success re-arms the warning for this config
 
-        # Hydra rotates refresh tokens; keep the old one only if a new one was not returned.
+        # The authorization server rotates refresh tokens; keep the old one only if a new one was not returned.
         token_response.setdefault("refresh_token", session.refresh_token)
         refreshed_url = to_cloudinary_url(session.updated_from(token_response))
         update_config({name: refreshed_url})

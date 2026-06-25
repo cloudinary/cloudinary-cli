@@ -28,7 +28,7 @@ CLOUDINARY_CLI_CONFIG_FILE = abspath(path_join(CLOUDINARY_HOME, 'config.json'))
 # names are rejected as user config names, so this can't collide with a saved config.
 DEFAULT_CONFIG_KEY = "__default__"
 
-# OAuth (ORY Hydra) configuration for `cld login`. The region string derives both the API and
+# OAuth configuration for `cld login`. The region string derives both the API and
 # OAuth hosts; an unknown region simply fails to resolve.
 DEFAULT_REGION = 'api'
 
@@ -63,11 +63,14 @@ def oauth_token_url_for_region(region):
 
 CLOUDINARY_REGION = normalize_region(os.environ.get('CLOUDINARY_REGION'))
 
-# Public PKCE client (no secret).
-OAUTH_CLIENT_ID = 'a920ea9c-531b-4613-9783-1d4f4cc10655'
-OAUTH_SCOPES = 'openid offline_access asset_management upload'
+# Public PKCE client (no secret). Overridable for testing against a non-prod authorization server
+# registered with a different client; production uses the single registered client below.
+OAUTH_DEFAULT_CLIENT_ID = 'a920ea9c-531b-4613-9783-1d4f4cc10655'
+OAUTH_CLIENT_ID = os.environ.get('CLOUDINARY_OAUTH_CLIENT_ID', OAUTH_DEFAULT_CLIENT_ID)
+OAUTH_DEFAULT_SCOPES = 'openid offline_access asset_management upload'
+OAUTH_SCOPES = os.environ.get('CLOUDINARY_OAUTH_SCOPES', OAUTH_DEFAULT_SCOPES)
 
-# Hydra requires an exact redirect match, so the port is fixed and must match the registered client.
+# The authorization server requires an exact redirect match, so the port is fixed and must match the registered client.
 OAUTH_DEFAULT_REDIRECT_HOST = '127.0.0.1'
 OAUTH_REDIRECT_HOST = os.environ.get('CLOUDINARY_OAUTH_REDIRECT_HOST', OAUTH_DEFAULT_REDIRECT_HOST)
 OAUTH_DEFAULT_REDIRECT_PORT = 49421
