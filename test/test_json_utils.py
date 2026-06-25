@@ -1,6 +1,5 @@
 import json
 import os
-import stat
 import sys
 import tempfile
 import unittest
@@ -121,6 +120,25 @@ class PrintJsonColorTest(unittest.TestCase):
         with patch("cloudinary_cli.utils.json_utils.sys.stdout.isatty", return_value=True):
             out = self._captured()
         self.assertIn("\x1b[", out)  # colorized for an interactive terminal
+
+    def test_non_tty_is_plain_on_windows_too(self):
+        # The automation guarantee must hold on every OS: a non-terminal stdout yields plain JSON
+        # regardless of platform (the old code special-cased Windows; the branch is OS-independent now).
+        with patch("cloudinary_cli.utils.json_utils.sys.platform", "win32"), \
+                patch("cloudinary_cli.utils.json_utils.sys.stdout.isatty", return_value=False):
+            out = self._captured()
+        self.assertNotIn("\x1b[", out)
+        self.assertEqual(self.DATA, json.loads(out))
+
+    def test_colorization_is_decided_by_isatty_not_os(self):
+        # Same isatty() value -> same colorization decision under any reported platform, so Windows
+        # interactive consoles get color (click.echo translates ANSI) and Windows pipes stay plain.
+        for plat in ("win32", "darwin", "linux"):
+            with patch("cloudinary_cli.utils.json_utils.sys.platform", plat):
+                with patch("cloudinary_cli.utils.json_utils.sys.stdout.isatty", return_value=True):
+                    self.assertIn("\x1b[", self._captured(), f"expected color on tty ({plat})")
+                with patch("cloudinary_cli.utils.json_utils.sys.stdout.isatty", return_value=False):
+                    self.assertNotIn("\x1b[", self._captured(), f"expected plain off tty ({plat})")
 
 
 if __name__ == "__main__":

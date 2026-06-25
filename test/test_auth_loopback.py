@@ -1,11 +1,9 @@
-import socket
 import threading
 import unittest
 import urllib.request
 from http.server import HTTPServer
 from unittest.mock import patch
 
-import cloudinary_cli.auth.loopback_server as loopback_server
 from cloudinary_cli.auth.loopback_server import _CallbackHandler, start_callback_server, wait_for_callback
 
 
@@ -70,17 +68,16 @@ class TestLoopbackServer(unittest.TestCase):
 
 
 class TestStartCallbackServerPortBusy(unittest.TestCase):
-    """A2: a busy redirect port must surface a clear RuntimeError, not a raw OSError."""
+    """A2: a failed bind (e.g. busy redirect port) must surface a clear RuntimeError, not a raw
+    OSError. The bind is mocked to fail so the test is deterministic across OSes (Windows does not
+    raise on a double-bind the way POSIX does)."""
 
-    def test_port_in_use_raises_friendly_error(self):
-        busy = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        busy.bind(("127.0.0.1", 0))
-        busy.listen(1)
-        port = busy.getsockname()[1]
-        self.addCleanup(busy.close)
-        with patch.object(loopback_server, "OAUTH_REDIRECT_HOST", "127.0.0.1"), \
-                patch.object(loopback_server, "OAUTH_REDIRECT_PORT", port):
+    def test_bind_failure_raises_friendly_error(self):
+        with patch("cloudinary_cli.auth.loopback_server.HTTPServer",
+                   side_effect=OSError(48, "Address already in use")):
             with self.assertRaises(RuntimeError) as ctx:
                 start_callback_server()
-        self.assertIn("local login server", str(ctx.exception))
-        self.assertIn("in use", str(ctx.exception))
+        msg = str(ctx.exception)
+        self.assertIn("local login server", msg)
+        self.assertIn("in use", msg)
+        self.assertIsInstance(ctx.exception.__cause__, OSError)  # chains the original

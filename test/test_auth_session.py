@@ -159,7 +159,6 @@ class TestRefreshUrlIfStale(unittest.TestCase):
 
     def test_refresh_success_rearms_the_warning(self):
         # After a successful refresh the warning is re-armed, so a later failure warns again.
-        import requests
         import cloudinary_cli.auth as auth
         auth._refresh_warned.add("eu-cloud")
         self.addCleanup(auth._refresh_warned.discard, "eu-cloud")

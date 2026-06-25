@@ -88,6 +88,7 @@ class AtomicWriteTest(unittest.TestCase):
         self.assertFalse(os.path.exists(self.path))
         self.assertEqual([], os.listdir(self.dir))
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX file modes not applicable on Windows")
     def test_normalizes_to_umask_mode(self):
         # mkstemp creates the temp as 0600; atomic_write must relax it to the umask default
         # so output files are not silently owner-only.
@@ -99,6 +100,7 @@ class AtomicWriteTest(unittest.TestCase):
         mode = stat.S_IMODE(os.stat(self.path).st_mode)
         self.assertEqual(0o644, mode)
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX file modes not applicable on Windows")
     def test_respects_restrictive_umask(self):
         old_umask = os.umask(0o077)
         try:
