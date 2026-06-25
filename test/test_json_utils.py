@@ -1,13 +1,16 @@
+import json
 import os
 import stat
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from cloudinary_cli.utils.json_utils import (
     write_json_to_file,
     read_json_from_file,
     update_json_file,
+    print_json,
 )
 
 
@@ -95,6 +98,29 @@ class UpdateJsonFileTest(unittest.TestCase):
         self.assertEqual({"a": 1, "b": 2}, read_json_from_file(self.path))
         leftover = [f for f in os.listdir(self.dir) if f != "data.json"]
         self.assertEqual([], leftover)
+
+
+class PrintJsonColorTest(unittest.TestCase):
+    """print_json must emit plain (parseable) JSON when stdout is not a terminal, so piped/captured
+    output (LLM agents, `| jq`, redirects) is never corrupted by ANSI color escapes."""
+
+    DATA = {"a": 1, "b": "two", "nested": {"c": True}}
+
+    def _captured(self):
+        with patch("cloudinary_cli.utils.json_utils.click.echo") as echo:
+            print_json(self.DATA)
+        return echo.call_args[0][0]
+
+    def test_non_tty_is_plain_parseable_json(self):
+        with patch("cloudinary_cli.utils.json_utils.sys.stdout.isatty", return_value=False):
+            out = self._captured()
+        self.assertNotIn("\x1b[", out)               # no ANSI escapes
+        self.assertEqual(self.DATA, json.loads(out))  # round-trips cleanly
+
+    def test_tty_is_colorized(self):
+        with patch("cloudinary_cli.utils.json_utils.sys.stdout.isatty", return_value=True):
+            out = self._captured()
+        self.assertIn("\x1b[", out)  # colorized for an interactive terminal
 
 
 if __name__ == "__main__":

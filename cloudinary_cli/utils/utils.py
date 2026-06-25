@@ -2,6 +2,7 @@
 import builtins
 import json
 import os
+import sys
 from collections import OrderedDict
 from csv import DictWriter
 from functools import reduce
@@ -198,6 +199,26 @@ def run_tasks_concurrently(func, tasks, concurrent_workers):
         thread_pool.starmap(func, tasks)
 
 
+def is_interactive():
+    """True when we can prompt the user (stdin is an interactive terminal). The single home for the
+    interactivity check, so flow code never pokes sys.stdin directly."""
+    return sys.stdin.isatty()
+
+
+def prompt_user(message, noninteractive_hint=None):
+    """
+    Read a line of user input. The single place that calls input(): returns None when no input can
+    be read (closed/non-interactive stdin), logging noninteractive_hint (if given) so the caller's
+    decision is never a silent no-op.
+    """
+    try:
+        return input(message)
+    except EOFError:
+        if noninteractive_hint:
+            logger.warning(f"No input available (non-interactive terminal). {noninteractive_hint}")
+        return None
+
+
 def confirm_action(message="Continue? (y/N)"):
     """
     Confirms whether the user wants to continue.
@@ -208,10 +229,12 @@ def confirm_action(message="Continue? (y/N)"):
     :return: Boolean indicating whether user wants to continue.
     :rtype bool
     """
-    return get_user_action(message, {"y": True, "default": False})
+    return get_user_action(
+        message, {"y": True, "default": False},
+        noninteractive_hint="Pass --force (-F) to skip this confirmation in non-interactive runs.")
 
 
-def get_user_action(message, options):
+def get_user_action(message, options, noninteractive_hint=None):
     """
     Reads user input and returns value specified in options.
 
@@ -222,10 +245,14 @@ def get_user_action(message, options):
     :type message: string
     :param options: Options mapping.
     :type options: dict
+    :param noninteractive_hint: Logged when no input can be read (closed/non-interactive stdin), to
+        point the user at the flag or piped input that replaces this prompt. The default option is
+        then applied.
 
     :return: Value according to the user selection.
     """
-    r = input(message).lower()
+    r = prompt_user(message, noninteractive_hint)
+    r = r.lower() if r is not None else ""  # no input -> apply the default option
     return options.get(r, options.get("default"))
 
 

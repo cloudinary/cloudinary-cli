@@ -25,7 +25,7 @@ from cloudinary_cli.utils.config_utils import (
     is_reserved_config_name,
     is_env_configured,
 )
-from cloudinary_cli.utils.utils import log_exception
+from cloudinary_cli.utils.utils import log_exception, is_interactive
 
 # Names already warned about a failed background refresh, so a bulk run (many workers, each reading
 # the token) logs the re-login hint once per config instead of once per asset. Mutated only under
@@ -179,7 +179,18 @@ def _run_browser_flow(region):
 
     authorize_url = flow.build_authorize_url(challenge, state, redirect_uri, region)
     logger.info("Opening browser to log in to Cloudinary...")
-    if not webbrowser.open(authorize_url):
+    opened = webbrowser.open(authorize_url)
+    if not opened and not is_interactive():
+        # No browser and no interactive terminal: nobody can complete the redirect, so fail fast
+        # instead of blocking until the callback times out. Headless runs use a pre-set config.
+        httpd.server_close()
+        raise RuntimeError(
+            "cld login needs an interactive browser session, but no browser could be opened and "
+            "this is not an interactive terminal. For headless/CI use, configure credentials with "
+            "an API-key URL instead: `cld -c cloudinary://<key>:<secret>@<cloud> <command>` or save "
+            "one with `cld config -n <name> <url>` and select it via `-C <name>`."
+        )
+    if not opened:
         logger.info(f"Could not open a browser. Visit this URL to log in:\n{authorize_url}")
     else:
         logger.info(f"If it doesn't open automatically, visit:\n{authorize_url}")

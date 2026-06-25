@@ -2,7 +2,7 @@ from click import command, argument, option, echo
 
 from cloudinary_cli.auth import login as run_login, logout as run_logout, list_oauth_login_names
 from cloudinary_cli.defaults import logger
-from cloudinary_cli.utils.utils import log_exception
+from cloudinary_cli.utils.utils import log_exception, prompt_user
 
 
 @command("login", help="Log in to Cloudinary via OAuth (opens a browser). The session is saved "
@@ -64,7 +64,14 @@ def _select_oauth_login():
     for i, name in enumerate(names, start=1):
         echo(f"  {i}) {name}")
 
-    choice = input(f"Select a login to log out of [1-{len(names)}] (or Enter to cancel): ").strip()
+    # The selection needs real input that no flag replaces, so on non-interactive stdin prompt_user
+    # returns None (after logging the hint) and we report it as an invalid (non-zero) outcome.
+    choice = prompt_user(
+        f"Select a login to log out of [1-{len(names)}] (or Enter to cancel): ",
+        noninteractive_hint="Pass the configuration name directly: `cld logout <name>`.")
+    if choice is None:
+        return "invalid", None
+    choice = choice.strip()
     if not choice:
         return "cancelled", None
     if not (choice.isdigit() and 1 <= int(choice) <= len(names)):

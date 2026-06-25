@@ -1,5 +1,6 @@
 import time
 import unittest
+from unittest import mock
 from unittest.mock import patch
 
 import cloudinary
@@ -269,6 +270,39 @@ class TestLoginGuards(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 login(region="api-eu")
             update_config.assert_not_called()
+
+
+class TestBrowserFlowNonInteractive(unittest.TestCase):
+    """No browser + no TTY: _run_browser_flow must fail fast with a headless-usage hint, never block
+    in wait_for_callback until the callback times out."""
+
+    def test_no_browser_no_tty_fails_fast_without_waiting(self):
+        from cloudinary_cli.auth import _run_browser_flow
+        fake_httpd = mock.Mock()
+        with patch("cloudinary_cli.auth.start_callback_server",
+                   return_value=(fake_httpd, "http://127.0.0.1:49421/callback")), \
+                patch("cloudinary_cli.auth.webbrowser.open", return_value=False), \
+                patch("cloudinary_cli.auth.is_interactive", return_value=False), \
+                patch("cloudinary_cli.auth.wait_for_callback") as wait:
+            with self.assertRaises(RuntimeError) as ctx:
+                _run_browser_flow("api-eu")
+        wait.assert_not_called()                 # fails fast: no 5-minute callback wait
+        fake_httpd.server_close.assert_called_once()  # releases the bound port
+        self.assertIn("-c", str(ctx.exception))  # points at the headless API-key alternative
+
+    def test_no_browser_but_tty_still_waits(self):
+        # A human at a TTY can paste the printed URL, so we must NOT fail fast here.
+        from cloudinary_cli.auth import _run_browser_flow
+        with patch("cloudinary_cli.auth.start_callback_server",
+                   return_value=(mock.Mock(), "http://127.0.0.1:49421/callback")), \
+                patch("cloudinary_cli.auth.webbrowser.open", return_value=False), \
+                patch("cloudinary_cli.auth.is_interactive", return_value=True), \
+                patch("cloudinary_cli.auth.wait_for_callback", return_value=("code", "st")) as wait, \
+                patch("cloudinary_cli.auth.flow.exchange_code", return_value={"access_token": "x"}):
+            # state mismatch is irrelevant here; we only assert it reached the wait (did not fast-fail)
+            with patch("cloudinary_cli.auth.secrets.token_urlsafe", return_value="st"):
+                _run_browser_flow("api-eu")
+        wait.assert_called_once()
 
 
 class TestDeriveConfigName(unittest.TestCase):

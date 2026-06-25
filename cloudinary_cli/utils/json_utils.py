@@ -1,5 +1,5 @@
 import json
-from platform import system
+import sys
 from os import path
 import click
 from pygments import highlight, lexers, formatters
@@ -35,7 +35,9 @@ def update_json_file(json_obj, filename, indent=2, sort_keys=False, atomic=False
 def print_json(res):
     res_str = json.dumps(res, indent=2)
 
-    if system() != "Windows":
+    # Colorize only for an interactive terminal. When stdout is piped/redirected/captured (e.g. an
+    # LLM agent or `| jq`), emit plain JSON so ANSI escapes never corrupt the parsed output.
+    if sys.stdout.isatty():
         res_str = highlight(res_str.encode('UTF-8'), lexers.JsonLexer(), formatters.TerminalFormatter()).strip()
 
     click.echo(res_str)

@@ -109,6 +109,18 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
         self.assertFalse(result.return_value)
         remove.assert_not_called()
 
+    def test_noninteractive_stdin_errors_with_hint(self):
+        # Closed stdin (no input at all): the selection cannot be made, so error with the
+        # non-interactive form (`cld logout <name>`) and exit non-zero, not a silent no-op.
+        import builtins
+        with patch("cloudinary_cli.auth.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
+                patch("cloudinary_cli.auth.remove_config_keys") as remove, \
+                patch.object(builtins, "input", side_effect=EOFError()):
+            result = self.runner.invoke(cli, ["logout"], standalone_mode=False)
+        self.assertIn("cld logout <name>", result.output)
+        self.assertFalse(result.return_value)  # main() maps falsy -> exit 1
+        remove.assert_not_called()
+
 
 class TestLoginSetDefault(unittest.TestCase):
     """`login` sets the default explicitly with --set-default and auto-defaults a sole login."""
