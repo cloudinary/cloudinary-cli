@@ -55,8 +55,8 @@ e.g. cld config -n <NAME> <CLOUDINARY_URL>""", nargs=2)
         help="Refresh every saved OAuth configuration whose token is stale.")
 @option("-f", "--force", "force", is_flag=True,
         help="With --refresh/--refresh-all, refresh even tokens that are still fresh.")
-def config(new, ls, as_json, show, rm, from_url, default, set_default, unset_default,
-           refresh, refresh_all, force):
+def config_command(new, ls, as_json, show, rm, from_url, default, set_default, unset_default,
+                   refresh, refresh_all, force):
     if set_default and not (new or from_url):
         raise UsageError("--set-default requires -n or --from_url; "
                          "to default an existing config use -d <name>.")
