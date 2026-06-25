@@ -12,7 +12,7 @@ It is fully documented at [https://cloudinary.com/documentation/cloudinary_cli](
 ## Requirements
 Your own Cloudinary account.  If you don't already have one, sign up at [https://cloudinary.com/users/register/free](https://cloudinary.com/users/register/free).
 
-Python 3.6 or later.  You can install Python from [https://www.python.org/](https://www.python.org/). Note that the Python Package Installer (pip) is installed with it.
+Python 3.8 or later.  You can install Python from [https://www.python.org/](https://www.python.org/). Note that the Python Package Installer (pip) is installed with it.
 
 ## Setup and Installation
 
