@@ -17,7 +17,17 @@ Python 3.6 or later.  You can install Python from [https://www.python.org/](http
 ## Setup and Installation
 
 1. To install this package, run: `pip3 install cloudinary-cli`
-2. To make all your `cld` commands point to your Cloudinary account, set up your CLOUDINARY\_URL environment variable. For example:
+2. Point your `cld` commands at a Cloudinary account using **either** of the following:
+
+    **Option A — Log in with OAuth (recommended).** Run:
+
+    ```
+    cld login
+    ```
+
+    This opens your browser to authorize the CLI, then saves the login as a configuration (named after the cloud) and sets it as the default. No API secret is stored on disk — the saved login holds a short-lived token that the CLI refreshes automatically. For an account in a non-default region, pass `--region`, for example `cld login --region eu`.
+
+    **Option B — Set your CLOUDINARY\_URL environment variable.** For example:
     * On Mac or Linux:<br>`export CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
     * On Windows (cmd.exe):<br>`set CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
     * On Windows (PowerShell):<br>`$Env:CLOUDINARY_URL="cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name"`
@@ -47,6 +57,8 @@ Usage: cld [cli options] [command] [command options] [method] [method parameters
 
 ```
 cld --help         # Lists available commands.
+cld login          # Logs in to a Cloudinary account via OAuth in your browser.
+cld logout         # Removes a saved OAuth login.
 cld search --help  # Shows usage for the Search API.
 cld admin          # Lists Admin API methods.
 cld uploader       # Lists Upload API methods.
@@ -243,7 +255,7 @@ Whereas using the saved configuration "accountx":
 cld -C accountx admin usage
 ```
 
-_**Caution:** Creating a saved configuration may put your API secret at risk as it is stored in a local plain text file._
+_**Caution:** A saved API-key configuration stores your API secret in a local file. An OAuth login (see below) avoids this by storing a short-lived, auto-refreshed token instead._
 
 You can create, delete and list saved configurations using the `config` command.
 
@@ -252,3 +264,41 @@ cld config [options]
 ```
 
 For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#config).
+
+### Logging in with OAuth
+
+Instead of saving an API key and secret, you can log in to a Cloudinary account through your browser. The CLI saves the resulting session as a named configuration and refreshes its token automatically.
+
+```
+cld login                  # Log in and save the configuration (named after the cloud).
+cld login --region eu      # Log in to an account in a non-default region.
+cld login my-account       # Save the login under a specific name.
+cld logout                 # Choose a saved OAuth login to remove.
+cld logout my-account      # Remove a specific saved OAuth login.
+```
+
+Once saved, an OAuth login is selected with `-C <name>` just like any other saved configuration.
+
+### Choosing a default configuration
+
+The default configuration is used when no `-c`/`-C` option is given and no `CLOUDINARY_URL` environment variable is set. The first OAuth login becomes the default automatically; you can change it at any time.
+
+```
+cld config -d <name>           # Set an existing saved configuration as the default.
+cld config --unset-default     # Clear the stored default.
+cld config -ls                 # List saved configurations, marking the default and the active one.
+```
+
+When creating a configuration with `-n` or `--from_url`, add `--set-default` to make it the default in the same step. Resolution precedence is: `-c` (inline URL) > `-C` (saved name) > stored default > `CLOUDINARY_URL` environment variable.
+
+### Refreshing OAuth tokens
+
+OAuth tokens are refreshed automatically as needed, but you can refresh them manually.
+
+```
+cld config --refresh <name>    # Refresh a saved OAuth configuration's token.
+cld config --refresh-all       # Refresh every saved OAuth configuration whose token is stale.
+cld config --refresh <name> --force   # Refresh even if the token is still fresh.
+```
+
+If a token can no longer be refreshed (for example, the login was revoked), the CLI reports the configuration and the `cld login` command to use to log in again.
