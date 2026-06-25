@@ -25,7 +25,7 @@ Python 3.6 or later.  You can install Python from [https://www.python.org/](http
     cld login
     ```
 
-    This opens your browser to authorize the CLI, then saves the login as a configuration (named after the cloud) and sets it as the default. No API secret is stored on disk — the saved login holds a short-lived token that the CLI refreshes automatically. For an account in a non-default region, pass `--region`, for example `cld login --region eu`.
+    This opens your browser to authorize the CLI, then saves the login as a configuration (named after the cloud) and sets it as the default. No API secret is stored on disk — the saved login holds a short-lived token that the CLI refreshes automatically.
 
     **Option B — Set your CLOUDINARY\_URL environment variable.** For example:
     * On Mac or Linux:<br>`export CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
@@ -271,7 +271,6 @@ Instead of saving an API key and secret, you can log in to a Cloudinary account 
 
 ```
 cld login                  # Log in and save the configuration (named after the cloud).
-cld login --region eu      # Log in to an account in a non-default region.
 cld login my-account       # Save the login under a specific name.
 cld logout                 # Choose a saved OAuth login to remove.
 cld logout my-account      # Remove a specific saved OAuth login.
