@@ -55,3 +55,15 @@ class TestAuthFlow(unittest.TestCase):
         self.assertEqual("refresh_token", data["grant_type"])
         self.assertEqual("rt_abc", data["refresh_token"])
         self.assertIn("timeout", post.call_args.kwargs)
+
+    def test_revoke_posts_token_to_revoke_endpoint(self):
+        resp = MagicMock()
+        with patch("cloudinary_cli.auth.flow.requests.post", return_value=resp) as post:
+            flow.revoke("rt_abc", "api-eu")
+        self.assertEqual("https://oauth.cloudinary.com/oauth2/revoke", post.call_args.args[0])
+        data = post.call_args.kwargs["data"]
+        self.assertEqual("rt_abc", data["token"])
+        self.assertEqual("refresh_token", data["token_type_hint"])
+        self.assertIn("client_id", data)
+        self.assertIn("timeout", post.call_args.kwargs)
+        resp.raise_for_status.assert_called_once()

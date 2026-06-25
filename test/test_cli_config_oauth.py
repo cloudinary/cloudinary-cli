@@ -42,9 +42,21 @@ class TestLogoutScope(unittest.TestCase):
         from cloudinary_cli.auth import logout
         saved = {"eu-cloud": _oauth_url()}
         with patch("cloudinary_cli.auth.load_config", return_value=saved), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove:
+                patch("cloudinary_cli.auth.remove_config_keys") as remove, \
+                patch("cloudinary_cli.auth.flow.revoke") as revoke:
             self.assertEqual("removed", logout("eu-cloud"))
             remove.assert_called_once_with("eu-cloud")
+            revoke.assert_called_once_with("rt_secret_value", "api-eu")
+
+    def test_revoke_failure_still_removes_locally(self):
+        import requests
+        from cloudinary_cli.auth import logout
+        saved = {"eu-cloud": _oauth_url()}
+        with patch("cloudinary_cli.auth.load_config", return_value=saved), \
+                patch("cloudinary_cli.auth.remove_config_keys") as remove, \
+                patch("cloudinary_cli.auth.flow.revoke", side_effect=requests.ConnectionError()):
+            self.assertEqual("revoke_failed", logout("eu-cloud"))
+            remove.assert_called_once_with("eu-cloud")  # local entry removed despite revoke failure
 
     def test_refuses_non_oauth_config(self):
         from cloudinary_cli.auth import logout
@@ -71,7 +83,8 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
         saved = {"mykey": "cloudinary://key:secret@cloud",
                  "cloud-a": _oauth_url("cloud-a"), "cloud-b": _oauth_url("cloud-b")}
         with patch("cloudinary_cli.auth.load_config", return_value=saved), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove:
+                patch("cloudinary_cli.auth.remove_config_keys") as remove, \
+                patch("cloudinary_cli.auth.flow.revoke"):
             result = self.runner.invoke(cli, ["logout"], input="2\n")
         self.assertIn("cloud-a", result.output)
         self.assertIn("cloud-b", result.output)
@@ -150,8 +163,17 @@ class TestLoginSetDefault(unittest.TestCase):
         with self._patches({"eu-cloud": _oauth_url()}), \
                 patch("cloudinary_cli.auth.set_default_config") as set_default, \
                 patch("cloudinary_cli.auth.get_default_config_name", return_value=None):
-            auth.login(region="eu", name="eu-cloud")
+            name, is_default = auth.login(region="eu", name="eu-cloud")
         set_default.assert_called_once_with("eu-cloud")
+        self.assertEqual(("eu-cloud", True), (name, is_default))
+
+    def test_returns_not_default_when_other_configs_exist(self):
+        from cloudinary_cli import auth
+        with self._patches({"eu-cloud": _oauth_url(), "other": _oauth_url("other")}), \
+                patch("cloudinary_cli.auth.set_default_config"), \
+                patch("cloudinary_cli.auth.get_default_config_name", return_value=None):
+            name, is_default = auth.login(region="eu", name="eu-cloud")
+        self.assertEqual(("eu-cloud", False), (name, is_default))
 
     def test_no_auto_default_when_other_configs_exist(self):
         from cloudinary_cli import auth
@@ -183,6 +205,17 @@ class TestLoginSetDefault(unittest.TestCase):
         with patch("cloudinary_cli.auth._run_browser_flow"):
             with self.assertRaises(RuntimeError):
                 auth.login(region="eu", name="__default__")
+
+    def test_cli_message_when_default(self):
+        with patch("cloudinary_cli.core.auth.run_login", return_value=("tttt", True)):
+            result = CliRunner().invoke(cli, ["login", "tttt"])
+        self.assertIn("default configuration", result.output)
+
+    def test_cli_message_when_not_default_shows_how_to_default(self):
+        with patch("cloudinary_cli.core.auth.run_login", return_value=("tttt", False)):
+            result = CliRunner().invoke(cli, ["login", "tttt"])
+        self.assertIn("cld -C tttt", result.output)
+        self.assertIn("cld config -d tttt", result.output)  # how to make it default
 
 
 class TestConfigSecretMasking(_RestoresSdkConfig):

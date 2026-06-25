@@ -25,7 +25,7 @@ Python 3.8 or later.  You can install Python from [https://www.python.org/](http
     cld login
     ```
 
-    This opens your browser to authorize the CLI, then saves the login as a configuration (named after the cloud) and sets it as the default. No API secret is stored on disk — the saved login holds a short-lived token that the CLI refreshes automatically.
+    This opens your browser to authorize the CLI, then saves the login as a configuration (named after the cloud) and sets it as the default. The CLI refreshes the token automatically, and you can remove the login at any time with `cld logout`.
 
     **Option B — Set your CLOUDINARY\_URL environment variable.** For example:
     * On Mac or Linux:<br>`export CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
@@ -58,7 +58,7 @@ Usage: cld [cli options] [command] [command options] [method] [method parameters
 ```
 cld --help         # Lists available commands.
 cld login          # Logs in to a Cloudinary account via OAuth in your browser.
-cld logout         # Removes a saved OAuth login.
+cld logout         # Revokes and removes a saved OAuth login.
 cld search --help  # Shows usage for the Search API.
 cld admin          # Lists Admin API methods.
 cld uploader       # Lists Upload API methods.
@@ -255,7 +255,7 @@ Whereas using the saved configuration "accountx":
 cld -C accountx admin usage
 ```
 
-_**Caution:** A saved API-key configuration stores your API secret in a local file. An OAuth login (see below) avoids this by storing a short-lived, auto-refreshed token instead._
+_**Caution:** Creating a saved configuration may put your credentials at risk as they are stored in a local plain text file. This applies to both API-key configurations and OAuth logins._
 
 You can create, delete and list saved configurations using the `config` command.
 
@@ -272,11 +272,13 @@ Instead of saving an API key and secret, you can log in to a Cloudinary account 
 ```
 cld login                  # Log in and save the configuration (named after the cloud).
 cld login my-account       # Save the login under a specific name.
-cld logout                 # Choose a saved OAuth login to remove.
-cld logout my-account      # Remove a specific saved OAuth login.
+cld logout                 # Choose a saved OAuth login to log out of.
+cld logout my-account      # Log out of a specific saved OAuth login.
 ```
 
-Once saved, an OAuth login is selected with `-C <name>` just like any other saved configuration.
+The first login becomes the default automatically. When other configurations already exist, the new login is saved but not made the default; `cld login` tells you so and prints the command to make it the default. Once saved, an OAuth login is selected with `-C <name>` just like any other saved configuration.
+
+`cld logout` revokes the login's token at the server and removes the saved configuration. If the token cannot be revoked (for example, you are offline), the saved configuration is still removed.
 
 ### Choosing a default configuration
 

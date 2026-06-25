@@ -61,6 +61,10 @@ def oauth_token_url_for_region(region):
     return f'{oauth_base_url_for_region(region)}/oauth2/token'
 
 
+def oauth_revoke_url_for_region(region):
+    return f'{oauth_base_url_for_region(region)}/oauth2/revoke'
+
+
 CLOUDINARY_REGION = normalize_region(os.environ.get('CLOUDINARY_REGION'))
 
 # Public PKCE client (no secret). Overridable for testing against a non-prod authorization server

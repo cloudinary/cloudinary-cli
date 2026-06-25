@@ -16,17 +16,22 @@ from cloudinary_cli.utils.utils import log_exception, prompt_user
              "config is given.")
 def login(name, region, set_default):
     try:
-        config_name = run_login(region=region, name=name, set_default=set_default)
+        config_name, is_default = run_login(region=region, name=name, set_default=set_default)
     except Exception as e:
         log_exception(e, "Login failed")
         return False
 
     logger.info(f"Logged in. Saved as '{config_name}'.")
-    logger.info(f"Example usage: cld -C {config_name} <command>")
+    if is_default:
+        logger.info(f"This is now the default configuration. Run `cld <command>` to use it, "
+                    f"or `cld -C {config_name} <command>` to select it explicitly.")
+    else:
+        logger.info(f"Run `cld -C {config_name} <command>` to use it, "
+                    f"or make it the default with `cld config -d {config_name}`.")
     return True
 
 
-@command("logout", help="Log out by removing a saved OAuth configuration. "
+@command("logout", help="Log out: revoke a saved OAuth login's token and remove its configuration. "
                         "Run without a name to choose from the saved logins.")
 @argument("name", required=False)
 def logout(name):
@@ -39,7 +44,10 @@ def logout(name):
 
     status = run_logout(name)
     if status == "removed":
-        logger.info(f"Logged out of '{name}'.")
+        logger.info(f"Logged out of '{name}'. Its token was revoked and the saved login removed.")
+    elif status == "revoke_failed":
+        logger.warning(f"Removed '{name}', but could not revoke its token at the server "
+                       f"(it may still be valid until it expires).")
     elif status == "not_oauth":
         logger.error(f"'{name}' is not an OAuth login; refusing to remove it. "
                      f"Use `config -rm {name}` to delete a saved configuration.")

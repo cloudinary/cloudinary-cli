@@ -37,7 +37,8 @@ def login(region=None, name=None, set_default=False):
     """
     Run the interactive browser login and persist the resulting session as a named config entry.
 
-    Returns the saved config name, or None on failure.
+    Returns (config_name, is_default), where is_default is True when this login was made the default
+    configuration (explicitly with set_default, or automatically as the sole login).
     """
     if name and is_reserved_config_name(name):
         raise RuntimeError(f"'{name}' is a reserved configuration name.")
@@ -48,9 +49,10 @@ def login(region=None, name=None, set_default=False):
     config_name = name or _derive_config_name(session.cloud_name, region)
     update_config({config_name: to_cloudinary_url(session)})
 
-    if set_default or _should_auto_default(config_name):
+    is_default = bool(set_default or _should_auto_default(config_name))
+    if is_default:
         set_default_config(config_name)
-    return config_name
+    return config_name, is_default
 
 
 def _should_auto_default(name):
@@ -71,14 +73,37 @@ def _should_auto_default(name):
 
 
 def logout(name):
-    """Remove a saved OAuth login by name. Returns "removed", "not_found", or "not_oauth"."""
+    """
+    Log out of a saved OAuth login by name: revoke its refresh token at the authorization server,
+    then remove the saved configuration. The local entry is always removed even if revocation fails
+    (offline, server error), so logout never leaves a stale entry behind.
+
+    Returns "removed" (revoked and removed), "revoke_failed" (removed locally but the token could not
+    be revoked), "not_found", or "not_oauth".
+    """
     saved = load_config()
     if name not in saved:
         return "not_found"
     if not is_oauth_url(saved[name]):
         return "not_oauth"
+
+    revoked = _revoke_login(name, saved[name])
     remove_config_keys(name)
-    return "removed"
+    return "removed" if revoked else "revoke_failed"
+
+
+def _revoke_login(name, url):
+    """Best-effort revocation of a saved login's refresh token. Returns True on success (or when
+    there is nothing to revoke), False if the revoke request failed."""
+    session = from_cloudinary_url(url)
+    if not session.refresh_token:
+        return True
+    try:
+        flow.revoke(session.refresh_token, session.region)
+        return True
+    except requests.RequestException as e:
+        log_exception(e, debug_message=f"Could not revoke the OAuth token for '{name}'")
+        return False
 
 
 def refresh_url_if_stale(name, url, force=False):

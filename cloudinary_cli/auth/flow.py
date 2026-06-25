@@ -10,6 +10,7 @@ import requests
 from cloudinary_cli.defaults import (
     oauth_authorize_url_for_region,
     oauth_token_url_for_region,
+    oauth_revoke_url_for_region,
     OAUTH_CLIENT_ID,
     OAUTH_SCOPES,
     OAUTH_HTTP_TIMEOUT_SECONDS,
@@ -58,3 +59,14 @@ def refresh(refresh_token, region):
     }, timeout=OAUTH_HTTP_TIMEOUT_SECONDS)
     resp.raise_for_status()
     return resp.json()
+
+
+def revoke(token, region, token_type_hint="refresh_token"):
+    """Revoke a token at the authorization server (RFC 7009). Revoking the refresh token ends the
+    offline-access grant so it can no longer mint new access tokens."""
+    resp = requests.post(oauth_revoke_url_for_region(region), data={
+        "token": token,
+        "token_type_hint": token_type_hint,
+        "client_id": OAUTH_CLIENT_ID,
+    }, timeout=OAUTH_HTTP_TIMEOUT_SECONDS)
+    resp.raise_for_status()
