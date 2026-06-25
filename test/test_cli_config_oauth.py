@@ -22,6 +22,11 @@ def _oauth_url(cloud="eu-cloud", region="api-eu"):
 class _RestoresSdkConfig(unittest.TestCase):
     def setUp(self):
         self._env_snapshot = dict(os.environ)
+        # Strip ambient CLOUDINARY_* so a bare cloudinary.Config() built in a test is not polluted by
+        # the developer's env (e.g. a real account_url leaking into masking/display assertions).
+        for key in [k for k in os.environ if k.startswith("CLOUDINARY_")]:
+            del os.environ[key]
+        cloudinary.reset_config()
         self.addCleanup(self._restore_sdk_config)
 
     def _restore_sdk_config(self):
@@ -168,7 +173,7 @@ class TestLoginSetDefault(unittest.TestCase):
                 auth.login(region="eu", name="__default__")
 
 
-class TestConfigSecretMasking(unittest.TestCase):
+class TestConfigSecretMasking(_RestoresSdkConfig):
     """show_cloudinary_config must never print a secret in the clear."""
 
     def test_masks_api_secret(self):
@@ -476,8 +481,10 @@ class TestResolverNoNetworkIO(_RestoresSdkConfig):
             from cloudinary_cli.utils.config_resolver import resolve_cli_config
             resolve_cli_config()
         refresh.assert_not_called()
-        # The stale token is loaded as-is, awaiting lazy refresh at point-of-use.
-        self.assertEqual("eyJ.old.tok", cloudinary.config().oauth_token)
+        # The stale token is loaded as-is (presence check is refresh-free), awaiting a lazy refresh
+        # only when the SDK reads oauth_token at request time.
+        self.assertTrue(cloudinary.config().has_oauth)
+        self.assertEqual("eyJ.old.tok", cloudinary.config().__dict__.get("oauth_token"))
 
     def test_help_does_not_reach_phase_b(self):
         with patch("cloudinary_cli.auth.flow.refresh") as refresh:
@@ -485,8 +492,9 @@ class TestResolverNoNetworkIO(_RestoresSdkConfig):
         refresh.assert_not_called()
 
 
-class TestEnsureActiveConfigFresh(_RestoresSdkConfig):
-    """Phase B: the lazy freshen shim refreshes a stale active OAuth token, no-op otherwise."""
+class TestSelfRefreshingOAuthToken(_RestoresSdkConfig):
+    """The active OAuth config refreshes its token lazily when the SDK reads oauth_token at request
+    time; presence/type checks (has_oauth) never trigger a refresh."""
 
     def _stale_url(self):
         return to_cloudinary_url(Session(
@@ -494,32 +502,46 @@ class TestEnsureActiveConfigFresh(_RestoresSdkConfig):
             expires_at=int(time.time()) - 10, region="api-eu",
             issuer="https://oauth.cloudinary.com/"))
 
-    def test_refreshes_stale_active_login(self):
+    def test_reading_oauth_token_refreshes_stale_active_login(self):
         import cloudinary_cli.utils.config_resolver as resolver
         saved = {"eu-cloud": self._stale_url()}
         token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_resolver.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
                 patch("cloudinary_cli.auth.update_config"):
             resolver.resolve_cli_config(config_saved="eu-cloud")
-            resolver.ensure_active_config_fresh()
-        self.assertEqual("eyJ.new.tok", cloudinary.config().oauth_token)
+            # The read of oauth_token is what triggers the refresh (as the SDK does per request).
+            self.assertEqual("eyJ.new.tok", cloudinary.config().oauth_token)
+
+    def test_presence_check_does_not_refresh(self):
+        """has_oauth (used by type/validity/-ls) must NOT touch the network on a stale token."""
+        import cloudinary_cli.utils.config_resolver as resolver
+        saved = {"eu-cloud": self._stale_url()}
+        with patch("cloudinary_cli.utils.config_resolver.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.flow.refresh") as refresh:
+            resolver.resolve_cli_config(config_saved="eu-cloud")
+            self.assertTrue(cloudinary.config().has_oauth)
+        refresh.assert_not_called()
 
     def test_noop_for_inline_url(self):
         import cloudinary_cli.utils.config_resolver as resolver
         with patch("cloudinary_cli.auth.flow.refresh") as refresh:
             resolver.resolve_cli_config(config="cloudinary://key:secret@cloud")
-            resolver.ensure_active_config_fresh()
+            _ = cloudinary.config().oauth_token
         refresh.assert_not_called()
 
     def test_noop_for_api_key_config(self):
         import cloudinary_cli.utils.config_resolver as resolver
         saved = {"mykey": "cloudinary://key:secret@cloud"}
         with patch("cloudinary_cli.utils.config_resolver.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh") as refresh:
             resolver.resolve_cli_config(config_saved="mykey")
-            resolver.ensure_active_config_fresh()
+            _ = cloudinary.config().oauth_token
         refresh.assert_not_called()
 
 

@@ -3,6 +3,7 @@ import unittest
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
+from test.helper_test import CONFIG_PRESENT, REQUIRES_CONFIG
 
 
 class TestCLIUtils(unittest.TestCase):
@@ -26,6 +27,7 @@ class TestCLIUtils(unittest.TestCase):
         for util in self.UTILS:
             self.assertIn(util, result.output)
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     def test_utils_cloudinary_url(self):
         result = self.runner.invoke(cli, ['utils', 'cloudinary_url', 'sample'])
 

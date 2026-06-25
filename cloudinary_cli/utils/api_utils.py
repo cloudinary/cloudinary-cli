@@ -8,7 +8,6 @@ from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
 from cloudinary_cli.utils.config_utils import is_valid_cloudinary_config
-from cloudinary_cli.utils.config_resolver import ensure_active_config_fresh
 from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel_path, get_destination_folder,
                                              populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
@@ -66,7 +65,6 @@ def query_cld_folder(folder, folder_mode, status=None):
 
     logger.debug(f"Search expression: {search.to_json()}")
 
-    ensure_active_config_fresh()
     next_cursor = True
     while next_cursor:
         res = search.execute()
@@ -106,7 +104,6 @@ def cld_folder_exists(folder):
     if not folder:
         return True  # root folder
 
-    ensure_active_config_fresh()
     res = SearchFolders().expression(f"path=\"{folder}\"").execute()
 
     return res.get("total_count", 0) > 0
@@ -292,7 +289,6 @@ def get_folder_mode():
 
 
 def call_api(func, args, kwargs):
-    ensure_active_config_fresh()
     try:
         return func(*args, **kwargs)
     except Exception as e:

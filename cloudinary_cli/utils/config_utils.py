@@ -29,14 +29,42 @@ def config_lock():
     return _config_lock
 
 
+# Parsed-config cache keyed on the file's (mtime_ns, size). The config file is read on nearly every
+# code path; caching skips the re-read + JSON parse when it has not changed on disk (including
+# changes written by a peer process, which os.replace stamps with a new mtime).
+_config_cache = None
+_config_cache_stat = None
+
+
+def _config_stat():
+    try:
+        st = os.stat(CLOUDINARY_CLI_CONFIG_FILE)
+        return st.st_mtime_ns, st.st_size
+    except FileNotFoundError:
+        return None
+
+
+def _invalidate_config_cache():
+    global _config_cache, _config_cache_stat
+    _config_cache = None
+    _config_cache_stat = None
+
+
 def load_config():
-    return read_json_from_file(CLOUDINARY_CLI_CONFIG_FILE, does_not_exist_ok=True)
+    global _config_cache, _config_cache_stat
+    stat = _config_stat()
+    if stat is not None and stat == _config_cache_stat and _config_cache is not None:
+        return dict(_config_cache)  # copy: callers mutate the result in place (e.g. cfg.update(...))
+    cfg = read_json_from_file(CLOUDINARY_CLI_CONFIG_FILE, does_not_exist_ok=True)
+    _config_cache, _config_cache_stat = cfg, stat
+    return dict(cfg)
 
 
 def save_config(config):
     _verify_file_path(CLOUDINARY_CLI_CONFIG_FILE)
     write_json_to_file(config, CLOUDINARY_CLI_CONFIG_FILE, atomic=True)
     _restrict_permissions(CLOUDINARY_CLI_CONFIG_FILE)
+    _invalidate_config_cache()  # next load_config re-stats and reloads our own write
 
 
 def update_config(new_config):
@@ -83,9 +111,11 @@ def is_reserved_config_name(name):
     return name.startswith("__") and name.endswith("__")
 
 
-def refresh_cloudinary_config(cloudinary_url):
-    cloudinary.reset_config()
-    cloudinary.config()._load_from_url(cloudinary_url)
+def refresh_cloudinary_config(cloudinary_url, saved_name=None):
+    """Install cloudinary_url as the active config. OAuth URLs install a self-refreshing config
+    bound to saved_name (so token rotations persist); other URLs use the plain SDK config."""
+    from cloudinary_cli.auth.oauth_config import install_oauth_config
+    install_oauth_config(cloudinary_url, saved_name=saved_name)
 
 
 def verify_cloudinary_url(cloudinary_url):
@@ -280,9 +310,13 @@ def migrate_old_config():
 
 
 def is_valid_cloudinary_config():
-    if cloudinary.config().cloud_name and cloudinary.config().oauth_token:
+    config = cloudinary.config()
+    # has_oauth reports token presence without triggering OAuthConfig's refresh-on-read. Fall back
+    # to a refresh-free __dict__ read for a plain SDK Config (e.g. before any config is installed).
+    has_oauth = config.has_oauth if hasattr(config, "has_oauth") else bool(config.__dict__.get("oauth_token"))
+    if config.cloud_name and has_oauth:
         return True
-    return None not in [cloudinary.config().cloud_name, cloudinary.config().api_key, cloudinary.config().api_secret]
+    return None not in [config.cloud_name, config.api_key, config.api_secret]
 
 
 def is_env_configured():

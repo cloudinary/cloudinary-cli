@@ -25,6 +25,7 @@ from cloudinary_cli.utils.config_listing import (
     render_config_table,
     config_meta,
     active_config_meta,
+    config_type_label,
     SYNTHETIC_NAMES,
 )
 
@@ -188,6 +189,6 @@ def _show_active_header():
         _show_config_header(name, load_config())
         return
     active = cloudinary.config()
-    type_label = "oauth" if active.oauth_token else "api_key"
+    type_label = config_type_label(active)
     label = SYNTHETIC_NAMES["url"] if active_config_is_url() else SYNTHETIC_NAMES["env"]
     echo(f"name: {label} ({type_label}) [active]\n")

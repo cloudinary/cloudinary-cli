@@ -118,7 +118,8 @@ class TestRefreshUrlIfStale(unittest.TestCase):
     def test_stale_refreshes_and_rewrites(self):
         stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
         token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
-        with patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
+        with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": stale_url}), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
                 patch("cloudinary_cli.auth.update_config") as update_config:
             new_url = refresh_url_if_stale("eu-cloud", stale_url)
         self.assertIn("oauth_token=eyJ.new.tok", new_url)
@@ -132,7 +133,8 @@ class TestRefreshUrlIfStale(unittest.TestCase):
     def test_refresh_timeout_returns_stale_url(self):
         import requests
         stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
-        with patch("cloudinary_cli.auth.flow.refresh", side_effect=requests.Timeout()), \
+        with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": stale_url}), \
+                patch("cloudinary_cli.auth.flow.refresh", side_effect=requests.Timeout()), \
                 patch("cloudinary_cli.auth.update_config") as update_config:
             self.assertEqual(stale_url, refresh_url_if_stale("eu-cloud", stale_url))
             update_config.assert_not_called()

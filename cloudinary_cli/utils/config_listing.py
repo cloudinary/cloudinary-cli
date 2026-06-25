@@ -3,6 +3,7 @@
 and the per-config metadata used for `config`/`config -s` (text headers and JSON)."""
 import cloudinary
 
+from cloudinary_cli.auth.oauth_config import OAuthConfig
 from cloudinary_cli.defaults import DEFAULT_CONFIG_KEY
 from cloudinary_cli.utils.config_utils import (
     load_config,
@@ -21,6 +22,12 @@ from cloudinary_cli.utils.config_resolver import (
 # Display names for the synthetic (non-saved) configs. Parenthesized so they read as a source
 # label, not a saved config name, in both the table and JSON.
 SYNTHETIC_NAMES = {"env": "(environment)", "url": "(command-line)"}
+
+
+def config_type_label(config_obj):
+    """oauth/api_key for a config OBJECT. Every active config the CLI installs is an OAuthConfig, so
+    presence is read via has_oauth (refresh-free). (config_utils.config_type classifies a URL str.)"""
+    return "oauth" if config_obj.has_oauth else "api_key"
 
 _TABLE_COLUMNS = [("name", "NAME"), ("cloud_name", "CLOUD"), ("type", "TYPE"),
                   ("default", "DEFAULT"), ("active", "ACTIVE")]
@@ -73,7 +80,7 @@ def active_config_meta(config_obj):
     return {
         "name": SYNTHETIC_NAMES[source],
         "source": source,
-        "type": "oauth" if config_obj.oauth_token else "api_key",
+        "type": config_type_label(config_obj),
         "default": False,
         "active": True,
         **cloudinary_config_details(config_obj),
@@ -94,7 +101,7 @@ def _url_row():
     return {
         "name": SYNTHETIC_NAMES["url"],
         "cloud_name": active.cloud_name or "",
-        "type": "oauth" if active.oauth_token else "api_key",
+        "type": config_type_label(active),
         "source": "url",
         "default": False,  # an inline URL is never the stored default
         "active": True,    # it outranks everything else for this invocation
@@ -102,11 +109,11 @@ def _url_row():
 
 
 def _env_row(env_active):
-    env_config = cloudinary.Config()  # constructed fresh from the environment, not the CLI global
+    env_config = OAuthConfig.from_env()  # constructed fresh from the environment, not the CLI global
     return {
         "name": SYNTHETIC_NAMES["env"],
         "cloud_name": env_config.cloud_name or "",
-        "type": "oauth" if env_config.oauth_token else "api_key",
+        "type": config_type_label(env_config),
         "source": "env",
         "default": False,       # the environment is never the *stored* default
         "active": env_active,   # active only when no stored default outranks it

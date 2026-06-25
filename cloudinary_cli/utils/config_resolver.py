@@ -23,13 +23,14 @@ _UNCONFIGURED_MESSAGE = (
     "    as the default:           cld config -d <name>"
 )
 
-# What the last resolve_cli_config (Phase A) selected, by precedence. One of:
+# What the last resolve_cli_config selected, by precedence. One of:
 #   "url"   -> an inline -c CLOUDINARY_URL
 #   "env"   -> the environment fallback
 #   None    -> nothing configured
-# plus _active_name, the saved-config name when a -C/default saved entry was selected (else None).
-# Read by ensure_active_config_fresh (Phase B) to know which saved login may need a lazy refresh,
-# and by `config -ls` to mark the row that is actually active for this invocation.
+# plus _active_name, the saved-config name when a -C/default saved entry was selected (else None),
+# read by `config -ls` to mark the row active for this invocation. Token freshness is no longer
+# handled here: a saved OAuth config installs a self-refreshing OAuthConfig that refreshes lazily
+# when the SDK reads its oauth_token at request time.
 _active_name = None
 _active_source = None
 
@@ -52,20 +53,23 @@ def resolve_cli_config(config=None, config_saved=None):
             raise Exception(f"Config {config_saved} does not exist")
         _active_name = config_saved
         _active_source = "saved"
-        refresh_cloudinary_config(cfg[config_saved])
+        refresh_cloudinary_config(cfg[config_saved], saved_name=config_saved)
         return _format_ok()
 
     default = cfg.get(DEFAULT_CONFIG_KEY)
     if default and default in cfg:
         _active_name = default
         _active_source = "saved"
-        refresh_cloudinary_config(cfg[default])
+        refresh_cloudinary_config(cfg[default], saved_name=default)
         return _format_ok()
 
-    # No stored default: the SDK global already holds the environment config (if any), so
-    # _format_ok validates it; otherwise it warns that nothing is configured.
+    # No stored default: fall back to the environment. Install it as an OAuthConfig (static, no
+    # saved name -> never refreshes) so the active global is always an OAuthConfig and exposes
+    # has_oauth uniformly; if nothing is configured, _format_ok warns.
     if is_env_configured():
         _active_source = "env"
+        from cloudinary_cli.auth.oauth_config import install_env_config
+        install_env_config()
     return _format_ok()
 
 
@@ -90,19 +94,6 @@ def _format_ok():
         logger.warning(_UNCONFIGURED_MESSAGE)
         return False
     return True
-
-
-def ensure_active_config_fresh():
-    """Refresh the active OAuth token if stale, just before an API call. No-op otherwise."""
-    name = _active_name
-    if name is None:
-        return
-    url = load_config().get(name)
-    if url is None:
-        return
-    fresh = refresh_url_if_stale(name, url)
-    if fresh != url:
-        refresh_cloudinary_config(fresh)
 
 
 def get_cloudinary_config(target):
