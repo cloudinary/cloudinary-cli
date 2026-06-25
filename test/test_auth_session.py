@@ -139,6 +139,37 @@ class TestRefreshUrlIfStale(unittest.TestCase):
             self.assertEqual(stale_url, refresh_url_if_stale("eu-cloud", stale_url))
             update_config.assert_not_called()
 
+    def test_refresh_failure_warns_once_per_config(self):
+        # A3a: a failed background refresh must surface a re-login hint (not just a debug line), but
+        # only once per config so a bulk run does not log it per asset.
+        import requests
+        import cloudinary_cli.auth as auth
+        auth._refresh_warned.discard("eu-cloud")
+        self.addCleanup(auth._refresh_warned.discard, "eu-cloud")
+        stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
+        with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": stale_url}), \
+                patch("cloudinary_cli.auth.flow.refresh", side_effect=requests.ConnectionError()), \
+                patch("cloudinary_cli.auth.update_config"), \
+                patch("cloudinary_cli.auth.logger.warning") as warn:
+            refresh_url_if_stale("eu-cloud", stale_url)
+            refresh_url_if_stale("eu-cloud", stale_url)  # second stale read in the same run
+        warn.assert_called_once()
+        self.assertIn("cld login eu-cloud", warn.call_args[0][0])
+
+    def test_refresh_success_rearms_the_warning(self):
+        # After a successful refresh the warning is re-armed, so a later failure warns again.
+        import requests
+        import cloudinary_cli.auth as auth
+        auth._refresh_warned.add("eu-cloud")
+        self.addCleanup(auth._refresh_warned.discard, "eu-cloud")
+        stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
+        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
+        with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": stale_url}), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
+                patch("cloudinary_cli.auth.update_config"):
+            refresh_url_if_stale("eu-cloud", stale_url)
+        self.assertNotIn("eu-cloud", auth._refresh_warned)
+
     def test_adopts_peer_refresh_without_calling_refresh(self):
         # Peer already rewrote the saved URL to a fresh token while we waited for the lock.
         stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))

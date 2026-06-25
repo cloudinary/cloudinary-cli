@@ -27,6 +27,11 @@ from cloudinary_cli.utils.config_utils import (
 )
 from cloudinary_cli.utils.utils import log_exception
 
+# Names already warned about a failed background refresh, so a bulk run (many workers, each reading
+# the token) logs the re-login hint once per config instead of once per asset. Mutated only under
+# config_lock, so no extra synchronization is needed.
+_refresh_warned = set()
+
 
 def login(region=None, name=None, set_default=False):
     """
@@ -102,8 +107,16 @@ def refresh_url_if_stale(name, url, force=False):
         try:
             token_response = flow.refresh(session.refresh_token, session.region)
         except requests.RequestException as e:
+            # Serve the stale token (a bulk run survives a transient blip) but make the failure
+            # visible once per config, not a silent debug line followed by a bare downstream 401.
             log_exception(e, debug_message="OAuth token refresh failed")
+            if name not in _refresh_warned:
+                _refresh_warned.add(name)
+                logger.warning(f"Could not refresh the OAuth token for '{name}'; using the existing "
+                               f"token, which may be expired. Re-login with `{relogin_command(name)}`.")
             return url
+
+        _refresh_warned.discard(name)  # a later success re-arms the warning for this config
 
         # Hydra rotates refresh tokens; keep the old one only if a new one was not returned.
         token_response.setdefault("refresh_token", session.refresh_token)

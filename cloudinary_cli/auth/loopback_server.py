@@ -44,7 +44,14 @@ class _CallbackHandler(BaseHTTPRequestHandler):
 
 def start_callback_server():
     """Bind the loopback server and return (httpd, redirect_uri)."""
-    httpd = HTTPServer((OAUTH_REDIRECT_HOST, OAUTH_REDIRECT_PORT), _CallbackHandler)
+    try:
+        httpd = HTTPServer((OAUTH_REDIRECT_HOST, OAUTH_REDIRECT_PORT), _CallbackHandler)
+    except OSError as e:
+        raise RuntimeError(
+            f"Could not start the local login server on {OAUTH_REDIRECT_HOST}:{OAUTH_REDIRECT_PORT} "
+            f"({e.strerror or e}). Another login may be in progress, or the port is in use. "
+            f"Close it and retry."
+        ) from e
     httpd.auth_code = httpd.auth_state = httpd.auth_error = None
     httpd.timeout = OAUTH_CALLBACK_TIMEOUT_SECONDS
     redirect_uri = f"http://{OAUTH_REDIRECT_HOST}:{OAUTH_REDIRECT_PORT}{OAUTH_CALLBACK_PATH}"

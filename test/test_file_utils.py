@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from cloudinary_cli.utils.file_utils import (
     get_destination_folder,
@@ -106,6 +107,36 @@ class AtomicWriteTest(unittest.TestCase):
             os.umask(old_umask)
         mode = stat.S_IMODE(os.stat(self.path).st_mode)
         self.assertEqual(0o600, mode)
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX permission bits")
+    def test_explicit_mode_overrides_umask(self):
+        # A4: with an explicit mode the result is that mode regardless of a permissive umask, so the
+        # config file is never widened to the umask default.
+        old_umask = os.umask(0o000)
+        try:
+            atomic_write(self.path, lambda f: f.write("x"), mode=0o600)
+        finally:
+            os.umask(old_umask)
+        self.assertEqual(0o600, stat.S_IMODE(os.stat(self.path).st_mode))
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX permission bits")
+    def test_explicit_mode_temp_file_never_wider_during_write(self):
+        # The temp file must already carry the final mode before the replace, so there is no instant
+        # at which the destination is world-readable. Capture the temp file's mode at replace time.
+        seen = {}
+        real_replace = os.replace
+
+        def capturing_replace(src, dst):
+            seen["mode"] = stat.S_IMODE(os.stat(src).st_mode)
+            return real_replace(src, dst)
+
+        old_umask = os.umask(0o000)
+        try:
+            with patch("cloudinary_cli.utils.file_utils.os.replace", side_effect=capturing_replace):
+                atomic_write(self.path, lambda f: f.write("x"), mode=0o600)
+        finally:
+            os.umask(old_umask)
+        self.assertEqual(0o600, seen["mode"])  # 0600 on the temp file, before it becomes the target
 
     def test_writes_to_filename_in_cwd_without_dir(self):
         # path.dirname("") is "" -> must fall back to "." rather than failing.

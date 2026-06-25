@@ -15,12 +15,12 @@ def read_json_from_file(filename, does_not_exist_ok=False):
         return json.loads(file.read() or "{}")
 
 
-def write_json_to_file(json_obj, filename, indent=2, sort_keys=False, atomic=False):
+def write_json_to_file(json_obj, filename, indent=2, sort_keys=False, atomic=False, mode=None):
     def dump(file):
         json.dump(json_obj, file, indent=indent, sort_keys=sort_keys)
 
     if atomic:
-        atomic_write(filename, dump)
+        atomic_write(filename, dump, mode=mode)
     else:
         with open(filename, 'w') as file:
             dump(file)

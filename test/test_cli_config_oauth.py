@@ -457,6 +457,14 @@ class TestDefaultConfigResolution(_RestoresSdkConfig):
         result = self._invoke(['url', 'sample'], saved=saved)
         self.assertIn("No Cloudinary configuration found.", result.output)
 
+    def test_inline_url_and_saved_together_errors(self):
+        # A1: -c and -C are mutually exclusive; passing both must error, not silently drop one.
+        saved = {"eu-cloud": _oauth_url()}
+        result = self._invoke(
+            ['-c', 'cloudinary://a:b@inline', '-C', 'eu-cloud', 'url', 'sample'], saved=saved)
+        self.assertEqual(2, result.exit_code)
+        self.assertIn("mutually exclusive", result.output)
+
 
 class TestResolverNoNetworkIO(_RestoresSdkConfig):
     """Finding 1 regression: resolution never refreshes a stale OAuth token (no network I/O)."""

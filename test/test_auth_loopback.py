@@ -1,9 +1,12 @@
+import socket
 import threading
 import unittest
 import urllib.request
 from http.server import HTTPServer
+from unittest.mock import patch
 
-from cloudinary_cli.auth.loopback_server import _CallbackHandler, wait_for_callback
+import cloudinary_cli.auth.loopback_server as loopback_server
+from cloudinary_cli.auth.loopback_server import _CallbackHandler, start_callback_server, wait_for_callback
 
 
 class TestLoopbackServer(unittest.TestCase):
@@ -64,3 +67,20 @@ class TestLoopbackServer(unittest.TestCase):
         waiter.join(timeout=5)
         self.assertIsInstance(error.get("e"), RuntimeError)
         self.assertIn("access_denied", str(error["e"]))
+
+
+class TestStartCallbackServerPortBusy(unittest.TestCase):
+    """A2: a busy redirect port must surface a clear RuntimeError, not a raw OSError."""
+
+    def test_port_in_use_raises_friendly_error(self):
+        busy = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        busy.bind(("127.0.0.1", 0))
+        busy.listen(1)
+        port = busy.getsockname()[1]
+        self.addCleanup(busy.close)
+        with patch.object(loopback_server, "OAUTH_REDIRECT_HOST", "127.0.0.1"), \
+                patch.object(loopback_server, "OAUTH_REDIRECT_PORT", port):
+            with self.assertRaises(RuntimeError) as ctx:
+                start_callback_server()
+        self.assertIn("local login server", str(ctx.exception))
+        self.assertIn("in use", str(ctx.exception))

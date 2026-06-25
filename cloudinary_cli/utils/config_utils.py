@@ -61,9 +61,11 @@ def load_config():
 
 
 def save_config(config):
+    # 0600 from the start: the config file holds secrets (api_secret, account_url, OAuth tokens),
+    # and writing the temp file 0600 before the atomic replace means it is never momentarily
+    # world-readable (unlike a chmod applied after the replace).
     _verify_file_path(CLOUDINARY_CLI_CONFIG_FILE)
-    write_json_to_file(config, CLOUDINARY_CLI_CONFIG_FILE, atomic=True)
-    _restrict_permissions(CLOUDINARY_CLI_CONFIG_FILE)
+    write_json_to_file(config, CLOUDINARY_CLI_CONFIG_FILE, atomic=True, mode=0o600)
     _invalidate_config_cache()  # next load_config re-stats and reloads our own write
 
 
@@ -337,11 +339,3 @@ def ping_cloudinary(**options):
 
 def _verify_file_path(file):
     os.makedirs(os.path.dirname(file), exist_ok=True)
-
-
-def _restrict_permissions(file):
-    # The config file holds secrets (api_secret, account_url, OAuth tokens), so keep it 0600.
-    try:
-        os.chmod(file, 0o600)
-    except OSError as e:
-        logger.debug(f"Could not restrict permissions on {file}: {e}")

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import cloudinary
+from click import UsageError
 
 from cloudinary_cli.auth import refresh_url_if_stale
 from cloudinary_cli.auth.session import strip_oauth_internal_keys
@@ -40,6 +41,9 @@ def resolve_cli_config(config=None, config_saved=None):
     global _active_name, _active_source
     _active_name = None
     _active_source = None
+
+    if config and config_saved:
+        raise UsageError("-c/--config and -C/--config_saved are mutually exclusive; pass only one.")
 
     if config:
         _active_source = "url"

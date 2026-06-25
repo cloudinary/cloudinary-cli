@@ -40,20 +40,27 @@ FORMAT_ALIASES = {
 }
 
 
-def atomic_write(filename, write_fn):
+def atomic_write(filename, write_fn, mode=None):
     """
     Writes via a temp file in the same directory, then atomically replaces the target, so a
     concurrent reader never sees a half-written file and an interleaved write can't truncate it.
 
     :param filename: The destination file path.
     :param write_fn: Callable receiving the open temp file object; performs the actual write.
+    :param mode:     Final permission bits to set on the file. When given, the temp file is set to
+                     this mode before the replace, so the destination is never momentarily wider
+                     (mkstemp creates it 0600, so a secret file is never world-readable mid-write).
+                     When omitted, normalize to the process umask default like a plain open().
     """
     directory = path.dirname(filename) or "."
     fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".tmp-")
     try:
         with os.fdopen(fd, 'w') as file:
             write_fn(file)
-        _apply_umask_permissions(tmp_path)
+        if mode is not None:
+            os.chmod(tmp_path, mode)
+        else:
+            _apply_umask_permissions(tmp_path)
         os.replace(tmp_path, filename)
     except BaseException:
         try:
