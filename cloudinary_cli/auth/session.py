@@ -8,16 +8,14 @@ import urllib.parse
 from dataclasses import dataclass
 
 from cloudinary_cli.defaults import (
-    logger,
     OAUTH_EXPIRY_SKEW_SECONDS,
-    OAUTH_FALLBACK_EXPIRES_IN_SECONDS,
     api_host_for_region,
 )
 
 # Query-string keys that carry the OAuth session inside a cloudinary:// URL.
 _OAUTH_MARKER = "oauth_token"
 
-_OAUTH_INTERNAL_KEYS = frozenset({"refresh_token", "expires_at", "region", "issuer"})
+_OAUTH_INTERNAL_KEYS = frozenset({"refresh_token", "issued_at", "expires_at", "region", "issuer"})
 
 
 def strip_oauth_internal_keys(config_dict):
@@ -29,6 +27,7 @@ class Session:
     cloud_name: str
     access_token: str
     refresh_token: str = None
+    issued_at: int = 0
     expires_at: int = 0
     region: str = "api"
     issuer: str = None
@@ -37,16 +36,22 @@ class Session:
         return int(self.expires_at or 0) - skew > int(time.time())
 
     @classmethod
-    def from_token_response(cls, token_response, cloud_name=None, region="api", issuer=None):
+    def from_token_response(cls, token_response, cloud_name=None, region="api"):
+        # exp/iat come from the token's JWT claims, not the local clock.
         access_token = token_response["access_token"]
-        expires_in = int(token_response.get("expires_in") or 0) or OAUTH_FALLBACK_EXPIRES_IN_SECONDS
+        claims = _decode_jwt_payload(access_token)
+        cloud_name = cloud_name or _claim_cloud_name(claims)
+        if not cloud_name:
+            raise ValueError("OAuth access token has no cloud name (ext.cloud_name claim); "
+                             "cannot perform requests without it")
         return cls(
-            cloud_name=cloud_name or decode_cloud_name(access_token),
+            cloud_name=cloud_name,
             access_token=access_token,
             refresh_token=token_response.get("refresh_token"),
-            expires_at=int(time.time()) + expires_in,
+            issued_at=_required_claim(claims, "iat"),
+            expires_at=_required_claim(claims, "exp"),
             region=region,
-            issuer=decode_issuer(access_token),
+            issuer=claims.get("iss"),
         )
 
     def updated_from(self, token_response):
@@ -60,6 +65,7 @@ def to_cloudinary_url(session):
     params = {
         "oauth_token": session.access_token,
         "refresh_token": session.refresh_token or "",
+        "issued_at": session.issued_at,
         "expires_at": session.expires_at,
         "region": session.region,
         "issuer": session.issuer or "",
@@ -76,6 +82,7 @@ def from_cloudinary_url(url):
         cloud_name=parsed.hostname,
         access_token=q.get("oauth_token"),
         refresh_token=q.get("refresh_token") or None,
+        issued_at=int(q.get("issued_at", 0) or 0),
         expires_at=int(q.get("expires_at", 0) or 0),
         region=q.get("region", "api"),
         issuer=q.get("issuer") or None,
@@ -90,24 +97,23 @@ def is_oauth_url(url):
 
 
 def _decode_jwt_payload(access_token):
-    payload_b64 = access_token.split(".")[1]
-    payload_b64 += "=" * (-len(payload_b64) % 4)  # pad to a multiple of 4
-    return json.loads(base64.urlsafe_b64decode(payload_b64))
-
-
-def decode_cloud_name(access_token):
-    """Best-effort extraction of cloud_name from the JWT's `ext` claim."""
+    """Decode the (unverified) JWT payload of an access token; raises ValueError on a non-JWT token."""
     try:
-        payload = _decode_jwt_payload(access_token)
-        return (payload.get("ext") or {}).get("cloud_name") or payload.get("cloud_name")
-    except Exception as e:
-        logger.debug(f"Could not decode cloud_name from token: {e}")
-        return None
+        payload_b64 = access_token.split(".")[1]
+        payload_b64 += "=" * (-len(payload_b64) % 4)  # pad to a multiple of 4
+        return json.loads(base64.urlsafe_b64decode(payload_b64))
+    except (AttributeError, IndexError, ValueError) as e:
+        raise ValueError(f"OAuth access token is not a decodable JWT: {e}") from e
 
 
-def decode_issuer(access_token):
+def _required_claim(claims, name):
+    value = claims.get(name)
     try:
-        return _decode_jwt_payload(access_token).get("iss")
-    except Exception as e:
-        logger.debug(f"Could not decode issuer from token: {e}")
-        return None
+        return int(value)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"OAuth access token has a missing or non-numeric '{name}' claim: {value!r}") from None
+
+
+def _claim_cloud_name(claims):
+    return (claims.get("ext") or {}).get("cloud_name")

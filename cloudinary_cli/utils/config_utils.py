@@ -44,6 +44,13 @@ def _config_stat():
         return None
 
 
+def config_mtime():
+    """The config file's last-modified time in ns (0 if absent). A cheap cross-process signal for
+    whether a peer rotated the token."""
+    stat = _config_stat()
+    return stat[0] if stat else 0
+
+
 def _invalidate_config_cache():
     global _config_cache, _config_cache_stat
     _config_cache = None
@@ -168,31 +175,47 @@ def _mask_url_secret(url):
 _ACCOUNT_URL_RE = re.compile(r'^account://([^:/?#]+):([^@]+)@(.+)$')
 
 
-def _format_account_url(url):
-    """Render the provisioning account URL as a labeled, secret-masked block (or None if unparsable)."""
+def _account_url_fields(url):
+    """The provisioning account URL as labeled, secret-masked fields (None if unparsable)."""
     match = _ACCOUNT_URL_RE.match(str(url))
     if not match:
         return None
     api_key, api_secret, account_id = match.groups()
-    fields = {
+    return {
         "account_id": account_id,
         "provisioning_api_key": api_key,
         "provisioning_api_secret": _mask_secret(api_secret),
     }
+
+
+def _expires_at_fields(value):
+    """An OAuth expiry epoch expanded into {epoch, utc, expired}, or None if not an int."""
+    try:
+        epoch = int(value)
+    except (TypeError, ValueError):
+        return None
+    return {
+        "epoch": epoch,
+        "utc": datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "expired": epoch <= int(time.time()),
+    }
+
+
+def _format_account_url(url):
+    fields = _account_url_fields(url)
+    if fields is None:
+        return None
     width = len(max(fields, key=len)) + 1
     template = "{0:" + str(width) + "} {1}"
     return "\n".join(template.format(f"{k}:", v) for k, v in fields.items())
 
 
 def _format_expires_at(value):
-    # OAuth token expiry: show the raw epoch plus a human-readable UTC time and live/expired state.
-    try:
-        epoch = int(value)
-    except (TypeError, ValueError):
+    parts = _expires_at_fields(value)
+    if parts is None:
         return value
-    human = datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    state = "expired" if epoch <= int(time.time()) else "valid"
-    return f"{epoch} ({human}, {state})"
+    state = "expired" if parts["expired"] else "valid"
+    return f"{parts['epoch']} ({parts['utc']}, {state})"
 
 
 def show_cloudinary_config(cloudinary_config):
@@ -247,41 +270,17 @@ def cloudinary_config_details(cloudinary_config):
         if key in _SECRET_KEYS:
             details[key] = _mask_secret(value)
         elif key == "expires_at":
-            details[key] = _expires_at_details(value)
+            details[key] = _expires_at_fields(value) or value
         else:
             details[key] = value
 
-    account = _account_url_details(account_url) if account_url else None
+    account = _account_url_fields(account_url) if account_url else None
     if account is not None:
         details["account"] = account
     elif account_url:
         details["account_url"] = _mask_url_secret(account_url)
 
     return details
-
-
-def _expires_at_details(value):
-    try:
-        epoch = int(value)
-    except (TypeError, ValueError):
-        return value
-    return {
-        "epoch": epoch,
-        "utc": datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
-        "expired": epoch <= int(time.time()),
-    }
-
-
-def _account_url_details(url):
-    match = _ACCOUNT_URL_RE.match(str(url))
-    if not match:
-        return None
-    api_key, api_secret, account_id = match.groups()
-    return {
-        "account_id": account_id,
-        "provisioning_api_key": api_key,
-        "provisioning_api_secret": _mask_secret(api_secret),
-    }
 
 
 def _display_value(key, value):

@@ -19,6 +19,7 @@ from cloudinary_cli.auth.session import (
     is_oauth_url,
     strip_oauth_internal_keys,
 )
+from test.oauth_helpers import jwt_access_token
 
 
 def _session(**overrides):
@@ -27,6 +28,15 @@ def _session(**overrides):
                 issuer="https://oauth.cloudinary.com/")
     base.update(overrides)
     return Session(**base)
+
+
+# A refresh response carries a real JWT (production reads exp/iat/cloud_name from its claims). Use a
+# distinct cloud_name so the resulting access token differs from the stale one being replaced.
+_NEW_TOKEN = jwt_access_token(cloud_name="eu-cloud", tag="newsig")
+
+
+def _token_response(access_token=_NEW_TOKEN, refresh_token="rt_new"):
+    return {"access_token": access_token, "refresh_token": refresh_token, "expires_in": 300}
 
 
 class TestSessionCodec(unittest.TestCase):
@@ -63,15 +73,47 @@ class TestSessionCodec(unittest.TestCase):
         self.assertTrue(_session().is_fresh())
         self.assertFalse(_session(expires_at=int(time.time()) - 10).is_fresh())
 
-    def test_missing_expires_in_falls_back_to_fresh(self):
-        s = Session.from_token_response({"access_token": "eyJ.aaa.bbb"}, cloud_name="c")
-        self.assertGreater(s.expires_at, int(time.time()))
-        self.assertTrue(s.is_fresh())
+    def test_expiry_and_issued_at_come_from_jwt_not_local_clock(self):
+        # exp/iat are read straight from the token's claims, NOT computed from the local clock or
+        # expires_in — so a skewed local clock can't distort the stored lifetime.
+        token = jwt_access_token(cloud_name="c", iat=1000, exp=1300)
+        s = Session.from_token_response({"access_token": token, "expires_in": 999}, cloud_name="c")
+        self.assertEqual(1000, s.issued_at)
+        self.assertEqual(1300, s.expires_at)  # 1300 from exp, not 1000+999 and not now+999
 
-    def test_zero_expires_in_falls_back_to_fresh(self):
-        s = Session.from_token_response(
-            {"access_token": "eyJ.aaa.bbb", "expires_in": 0}, cloud_name="c")
-        self.assertTrue(s.is_fresh())
+    def test_missing_exp_claim_fails_loudly(self):
+        token = jwt_access_token(cloud_name="c", iat=1000, exp=None)
+        with self.assertRaises(ValueError):
+            Session.from_token_response({"access_token": token}, cloud_name="c")
+
+    def test_non_numeric_exp_claim_fails_loudly(self):
+        token = jwt_access_token(cloud_name="c", iat=1000, exp="soon")
+        with self.assertRaises(ValueError):
+            Session.from_token_response({"access_token": token}, cloud_name="c")
+
+    def test_non_jwt_access_token_fails_loudly(self):
+        with self.assertRaises(ValueError):
+            Session.from_token_response({"access_token": "not-a-jwt"}, cloud_name="c")
+
+    def test_cloud_name_read_from_ext_claim_when_not_passed(self):
+        token = jwt_access_token(cloud_name="from-token", iat=1000, exp=1300)
+        s = Session.from_token_response({"access_token": token})  # no cloud_name arg
+        self.assertEqual("from-token", s.cloud_name)
+
+    def test_missing_cloud_name_fails_loudly(self):
+        # No cloud_name passed and the token carries none -> we cannot address any cloud, so fail.
+        token = jwt_access_token(cloud_name=None, iat=1000, exp=1300)
+        with self.assertRaises(ValueError):
+            Session.from_token_response({"access_token": token})
+
+    def test_refresh_preserves_cloud_name_without_reading_token(self):
+        # updated_from passes the existing cloud_name, so a refreshed token need not re-carry it.
+        original = jwt_access_token(cloud_name="orig", iat=1000, exp=1300)
+        sess = Session.from_token_response({"access_token": original})
+        rotated = jwt_access_token(cloud_name=None, iat=2000, exp=2300, tag="rot")
+        refreshed = sess.updated_from({"access_token": rotated, "refresh_token": "rt"})
+        self.assertEqual("orig", refreshed.cloud_name)
+        self.assertEqual(2300, refreshed.expires_at)
 
 
 class TestStripOAuthInternalKeys(unittest.TestCase):
@@ -108,23 +150,21 @@ class TestRefreshUrlIfStale(unittest.TestCase):
 
     def test_force_refreshes_fresh_token(self):
         url = to_cloudinary_url(_session())  # fresh
-        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": url}), \
-                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response) as refresh, \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=_token_response()) as refresh, \
                 patch("cloudinary_cli.auth.update_config"):
             new_url = refresh_url_if_stale("eu-cloud", url, force=True)
         refresh.assert_called_once()
-        self.assertIn("oauth_token=eyJ.new.tok", new_url)
+        self.assertEqual(_NEW_TOKEN, from_cloudinary_url(new_url).access_token)
 
     def test_stale_refreshes_and_rewrites(self):
         stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
-        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": stale_url}), \
-                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=_token_response()), \
                 patch("cloudinary_cli.auth.update_config") as update_config:
             new_url = refresh_url_if_stale("eu-cloud", stale_url)
-        self.assertIn("oauth_token=eyJ.new.tok", new_url)
-        self.assertIn("refresh_token=rt_new", new_url)
+        self.assertEqual(_NEW_TOKEN, from_cloudinary_url(new_url).access_token)
+        self.assertEqual("rt_new", from_cloudinary_url(new_url).refresh_token)
         update_config.assert_called_once()
 
     def test_no_refresh_token_returns_unchanged(self):
@@ -163,9 +203,8 @@ class TestRefreshUrlIfStale(unittest.TestCase):
         auth._refresh_warned.add("eu-cloud")
         self.addCleanup(auth._refresh_warned.discard, "eu-cloud")
         stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
-        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": stale_url}), \
-                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=_token_response()), \
                 patch("cloudinary_cli.auth.update_config"):
             refresh_url_if_stale("eu-cloud", stale_url)
         self.assertNotIn("eu-cloud", auth._refresh_warned)
@@ -185,12 +224,11 @@ class TestRefreshUrlIfStale(unittest.TestCase):
 
     def test_refreshes_when_peer_value_still_stale(self):
         stale_url = to_cloudinary_url(_session(expires_at=int(time.time()) - 10))
-        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.auth.load_config", return_value={"eu-cloud": stale_url}), \
-                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response) as refresh, \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=_token_response()) as refresh, \
                 patch("cloudinary_cli.auth.update_config") as update_config:
             result = refresh_url_if_stale("eu-cloud", stale_url)
-        self.assertIn("oauth_token=eyJ.new.tok", result)
+        self.assertEqual(_NEW_TOKEN, from_cloudinary_url(result).access_token)
         refresh.assert_called_once()
         update_config.assert_called_once()
 
@@ -220,16 +258,14 @@ class TestRefreshConfig(unittest.TestCase):
             refresh.assert_not_called()
 
     def test_stale_refreshed(self):
-        token_response = {"access_token": "new", "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.auth.load_config", return_value=self._cfg()), \
-                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=_token_response()), \
                 patch("cloudinary_cli.auth.update_config"):
             self.assertEqual("refreshed", refresh_config("stale"))
 
     def test_force_refreshes_fresh(self):
-        token_response = {"access_token": "new", "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.auth.load_config", return_value=self._cfg()), \
-                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response) as refresh, \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=_token_response()) as refresh, \
                 patch("cloudinary_cli.auth.update_config"):
             self.assertEqual("refreshed", refresh_config("fresh", force=True))
             refresh.assert_called_once()
@@ -253,9 +289,8 @@ class TestRefreshConfig(unittest.TestCase):
             self.assertEqual("cld login key", relogin_command("key"))  # non-oauth: no region
 
     def test_refresh_configs_sweeps_oauth_only(self):
-        token_response = {"access_token": "new", "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.auth.load_config", return_value=self._cfg()), \
-                patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
+                patch("cloudinary_cli.auth.flow.refresh", return_value=_token_response()), \
                 patch("cloudinary_cli.auth.update_config"):
             results = refresh_configs()
         self.assertEqual({"stale": "refreshed", "fresh": "fresh"}, results)  # "key" not swept
@@ -297,7 +332,8 @@ class TestBrowserFlowNonInteractive(unittest.TestCase):
                 patch("cloudinary_cli.auth.webbrowser.open", return_value=False), \
                 patch("cloudinary_cli.auth.is_interactive", return_value=True), \
                 patch("cloudinary_cli.auth.wait_for_callback", return_value=("code", "st")) as wait, \
-                patch("cloudinary_cli.auth.flow.exchange_code", return_value={"access_token": "x"}):
+                patch("cloudinary_cli.auth.flow.exchange_code",
+                      return_value={"access_token": jwt_access_token(cloud_name="c")}):
             # state mismatch is irrelevant here; we only assert it reached the wait (did not fast-fail)
             with patch("cloudinary_cli.auth.secrets.token_urlsafe", return_value="st"):
                 _run_browser_flow("api-eu")

@@ -11,6 +11,8 @@ import cloudinary
 from cloudinary_cli.auth.oauth_config import OAuthConfig, install_oauth_config, install_env_config
 from cloudinary_cli.auth.session import Session, to_cloudinary_url
 
+from test.oauth_helpers import jwt_access_token
+
 
 def _url(cloud="eu-cloud", token="eyJ.tok", refresh="rt", region="api-eu", expires_delta=300):
     return to_cloudinary_url(Session(
@@ -44,7 +46,8 @@ class TestSdkSeamTriggersRefresh(_RestoresSdkConfig):
 
     def test_call_api_authorize_path_refreshes_stale_token(self):
         saved = self._saved_stale()
-        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
+        new_token = jwt_access_token(cloud_name="eu-cloud", tag="call-api-new")
+        token_response = {"access_token": new_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
@@ -54,11 +57,12 @@ class TestSdkSeamTriggersRefresh(_RestoresSdkConfig):
             # time (call_api.py:63): options.pop("oauth_token", cloudinary.config().oauth_token).
             options = {}
             oauth_token = options.pop("oauth_token", cloudinary.config().oauth_token)
-        self.assertEqual("eyJ.new.tok", oauth_token)
+        self.assertEqual(new_token, oauth_token)
 
     def test_uploader_header_path_refreshes_stale_token(self):
         saved = self._saved_stale()
-        token_response = {"access_token": "eyJ.fresh.tok", "refresh_token": "rt_new", "expires_in": 300}
+        fresh_token = jwt_access_token(cloud_name="eu-cloud", tag="uploader-fresh")
+        token_response = {"access_token": fresh_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
@@ -69,11 +73,12 @@ class TestSdkSeamTriggersRefresh(_RestoresSdkConfig):
             import cloudinary.uploader  # noqa: F401 (ensures the seam module is importable)
             options = {}
             token = options.get("oauth_token", cloudinary.config().oauth_token)
-        self.assertEqual("eyJ.fresh.tok", token)
+        self.assertEqual(fresh_token, token)
 
     def test_seam_read_refreshes_only_once_then_serves_cached(self):
         saved = self._saved_stale()
-        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
+        new_token = jwt_access_token(cloud_name="eu-cloud", tag="cached-new")
+        token_response = {"access_token": new_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response) as refresh, \
@@ -81,8 +86,8 @@ class TestSdkSeamTriggersRefresh(_RestoresSdkConfig):
             install_oauth_config(saved["eu-cloud"], saved_name="eu-cloud")
             first = cloudinary.config().oauth_token
             second = cloudinary.config().oauth_token
-        self.assertEqual("eyJ.new.tok", first)
-        self.assertEqual("eyJ.new.tok", second)
+        self.assertEqual(new_token, first)
+        self.assertEqual(new_token, second)
         refresh.assert_called_once()  # the now-fresh _session short-circuits the second read
 
 

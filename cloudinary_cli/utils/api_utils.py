@@ -1,9 +1,11 @@
 import logging
 from os import path, makedirs
 
+import cloudinary
 import requests
 from click import style, launch
 from cloudinary import Search, SearchFolders, uploader, api
+from cloudinary.exceptions import AuthorizationRequired
 from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
@@ -12,7 +14,7 @@ from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel
                                              populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
-    normalize_list_params, ConfigurationError, print_api_help, duplicate_values
+    normalize_list_params, ConfigurationError, print_api_help, duplicate_values, should_dump_responses
 import re
 from cloudinary.utils import is_remote_url
 
@@ -158,14 +160,15 @@ def regen_derived_version(public_id, delivery_type, res_type,
 def upload_file(file_path, options, uploaded=None, failed=None):
     uploaded = uploaded if uploaded is not None else {}
     failed = failed if failed is not None else {}
-    verbose = logger.getEffectiveLevel() < logging.INFO
+    verbose = should_dump_responses()
 
     try:
         size = 0 if is_remote_url(file_path) else path.getsize(file_path)
         upload_func = uploader.upload
         if size > 20000000:
             upload_func = uploader.upload_large
-        result = upload_func(file_path, **options)
+        # Fresh options copy: upload_large mutates it (sets public_id), so a retry stays independent.
+        result = _call_with_oauth_retry(upload_func, (file_path,), dict(options))
         disp_path = _display_path(result)
         if "batch_id" in result:
             starting_msg = "Uploading"
@@ -290,10 +293,32 @@ def get_folder_mode():
 
 def call_api(func, args, kwargs):
     try:
-        return func(*args, **kwargs)
+        return _call_with_oauth_retry(func, args, kwargs)
     except Exception as e:
         log_exception(e, debug_message=f"Failed calling '{func.__name__}' with args: {args} and optional args {kwargs}")
         raise
+
+
+# Bounded so a slow call can survive several token rotations without retrying forever.
+_OAUTH_RETRY_LIMIT = 3
+
+
+def _call_with_oauth_retry(func, args, kwargs):
+    """
+    Run an SDK call, recovering from an OAuth token rejection (AuthorizationRequired) by passing the
+    rejected token to invalidate_token (adopt a peer's rotation, else rotate once) and retrying within
+    a bounded budget. No-op for static configs (invalidate_token returns False).
+    """
+    config = cloudinary.config()
+    for attempt in range(_OAUTH_RETRY_LIMIT):
+        rejected = getattr(config, "oauth_token", None)  # the token this request will carry
+        try:
+            return func(*args, **kwargs)
+        except AuthorizationRequired:
+            last_attempt = attempt == _OAUTH_RETRY_LIMIT - 1
+            if last_attempt or not getattr(config, "has_oauth", False) \
+                    or not config.invalidate_token(rejected):
+                raise
 
 
 def handle_command(

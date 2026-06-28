@@ -2,6 +2,7 @@
 `cloudinary://` entry in `config.json`, and refreshes tokens when a saved login is selected."""
 import secrets
 import webbrowser
+from datetime import datetime, timezone
 
 import requests
 
@@ -27,10 +28,22 @@ from cloudinary_cli.utils.config_utils import (
 )
 from cloudinary_cli.utils.utils import log_exception, is_interactive
 
-# Names already warned about a failed background refresh, so a bulk run (many workers, each reading
-# the token) logs the re-login hint once per config instead of once per asset. Mutated only under
-# config_lock, so no extra synchronization is needed.
+# Configs already warned about a failed refresh, so a bulk run warns once per config, not per asset.
 _refresh_warned = set()
+
+
+def _token_hint(token):
+    """Non-sensitive token fingerprint (trailing chars + length) for debug logs."""
+    if not token:
+        return "<none>"
+    return f"…{token[-6:]}({len(token)} chars)"
+
+
+def _expiry_hint(epoch):
+    try:
+        return datetime.fromtimestamp(int(epoch), tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    except (TypeError, ValueError):
+        return str(epoch)
 
 
 def login(region=None, name=None, set_default=False):
@@ -106,34 +119,41 @@ def _revoke_login(name, url):
         return False
 
 
-def refresh_url_if_stale(name, url, force=False):
-    """
-    Given a saved config value, refresh it if it is a stale OAuth login (rewriting the stored
-    URL on token rotation). Non-OAuth and still-fresh URLs are returned unchanged. With force=True
-    a still-fresh token is refreshed too (used by the explicit `config --refresh --force`).
+def _should_refresh(session, expected, force):
+    """Whether `session` should be rotated. `force` rotates any refreshable token; `expected` rotates
+    only while disk still holds that exact token (else a peer rotated -> adopt); otherwise rotate when
+    clock-stale."""
+    if not session.refresh_token:
+        return False
+    if force:
+        return True
+    if expected is not None:
+        return session.access_token == expected
+    return not session.is_fresh()
 
-    The refresh consumes a single-use refresh token, so the whole read-refresh-write runs under
-    a cross-process lock with the freshness re-checked inside it: a peer that refreshed while we
-    waited leaves a fresh token we adopt instead of refreshing (and burning) it again.
+
+def refresh_url_if_stale(name, url, force=False, expected=None):
+    """
+    Refresh a saved config value if its OAuth token should rotate, rewriting the stored URL; other
+    URLs are returned unchanged. The single-use refresh runs under a cross-process lock, re-checking
+    the freshly re-read disk token so a peer's rotation is adopted instead of burning another refresh.
     """
     if not is_oauth_url(url):
         return url
 
-    session = from_cloudinary_url(url)
-    if (session.is_fresh() and not force) or not session.refresh_token:
+    if not _should_refresh(from_cloudinary_url(url), expected, force):
         return url
 
     with config_lock():
-        url = load_config().get(name, url)  # re-read: a peer may have refreshed while we waited
+        url = load_config().get(name, url)  # re-read: a peer may have rotated while we waited
         session = from_cloudinary_url(url)
-        if (session.is_fresh() and not force) or not session.refresh_token:
+        if not _should_refresh(session, expected, force):
             return url
 
         try:
             token_response = flow.refresh(session.refresh_token, session.region)
         except requests.RequestException as e:
-            # Serve the stale token (a bulk run survives a transient blip) but make the failure
-            # visible once per config, not a silent debug line followed by a bare downstream 401.
+            # Serve the stale token but surface the failure once per config.
             log_exception(e, debug_message="OAuth token refresh failed")
             if name not in _refresh_warned:
                 _refresh_warned.add(name)
@@ -141,12 +161,17 @@ def refresh_url_if_stale(name, url, force=False):
                                f"token, which may be expired. Re-login with `{relogin_command(name)}`.")
             return url
 
-        _refresh_warned.discard(name)  # a later success re-arms the warning for this config
+        _refresh_warned.discard(name)
 
-        # The authorization server rotates refresh tokens; keep the old one only if a new one was not returned.
+        # Refresh tokens rotate; keep the old one only if a new one was not returned.
         token_response.setdefault("refresh_token", session.refresh_token)
-        refreshed_url = to_cloudinary_url(session.updated_from(token_response))
+        refreshed = session.updated_from(token_response)
+        refreshed_url = to_cloudinary_url(refreshed)
         update_config({name: refreshed_url})
+        logger.debug(f"Refreshed OAuth token for '{name}': "
+                     f"access {_token_hint(session.access_token)} -> {_token_hint(refreshed.access_token)}, "
+                     f"refresh {_token_hint(session.refresh_token)} -> {_token_hint(refreshed.refresh_token)}, "
+                     f"expires {_expiry_hint(session.expires_at)} -> {_expiry_hint(refreshed.expires_at)}")
         return refreshed_url
 
 

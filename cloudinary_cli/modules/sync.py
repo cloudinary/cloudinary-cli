@@ -14,7 +14,7 @@ from cloudinary_cli.utils.file_utils import (walk_dir, delete_empty_dirs, normal
                                              populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, read_json_from_file, write_json_to_file
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict, chunker, \
-    group_params, parse_option_value, duplicate_values
+    group_params, parse_option_value, duplicate_values, should_dump_responses
 
 _DEFAULT_DELETION_BATCH_SIZE = 30
 _DEFAULT_CONCURRENT_WORKERS = 30
@@ -83,7 +83,7 @@ class SyncDir:
 
         self.sync_meta_file = path.join(self.local_dir, _SYNC_META_FILE)
 
-        self.verbose = logger.getEffectiveLevel() < logging.INFO
+        self.verbose = should_dump_responses()
 
         self.local_files = {}
         self.local_folder_exists = os.path.isdir(path.abspath(self.local_dir))

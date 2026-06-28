@@ -8,6 +8,7 @@ import cloudinary
 from click.testing import CliRunner
 
 from cloudinary_cli.auth.session import Session, to_cloudinary_url
+from test.oauth_helpers import jwt_access_token
 from cloudinary_cli.cli import cli
 from cloudinary_cli.utils.config_resolver import config_to_api_kwargs, get_cloudinary_config
 from cloudinary_cli.utils.config_utils import config_to_dict, show_cloudinary_config
@@ -558,7 +559,8 @@ class TestSelfRefreshingOAuthToken(_RestoresSdkConfig):
     def test_reading_oauth_token_refreshes_stale_active_login(self):
         import cloudinary_cli.utils.config_resolver as resolver
         saved = {"eu-cloud": self._stale_url()}
-        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
+        new_token = jwt_access_token(cloud_name="eu-cloud", tag="resolver-new")
+        token_response = {"access_token": new_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_resolver.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
@@ -566,7 +568,7 @@ class TestSelfRefreshingOAuthToken(_RestoresSdkConfig):
                 patch("cloudinary_cli.auth.update_config"):
             resolver.resolve_cli_config(config_saved="eu-cloud")
             # The read of oauth_token is what triggers the refresh (as the SDK does per request).
-            self.assertEqual("eyJ.new.tok", cloudinary.config().oauth_token)
+            self.assertEqual(new_token, cloudinary.config().oauth_token)
 
     def test_presence_check_does_not_refresh(self):
         """has_oauth (used by type/validity/-ls) must NOT touch the network on a stale token."""
@@ -841,7 +843,8 @@ class TestGetCloudinaryConfigOAuth(_RestoresSdkConfig):
 
     def test_refreshes_stale_target_before_use(self):
         config = {"eu-cloud": self._stale_url()}
-        token_response = {"access_token": "eyJ.new.tok", "refresh_token": "rt_new", "expires_in": 300}
+        new_token = jwt_access_token(cloud_name="eu-cloud", tag="target-new")
+        token_response = {"access_token": new_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_resolver.load_config", return_value=config), \
                 patch("cloudinary_cli.auth.load_config", return_value=config), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
@@ -849,7 +852,7 @@ class TestGetCloudinaryConfigOAuth(_RestoresSdkConfig):
                 patch("cloudinary_cli.utils.config_resolver.ping_cloudinary", return_value=True):
             target_config = get_cloudinary_config("eu-cloud")
         self.assertTrue(target_config)
-        self.assertEqual("eyJ.new.tok", target_config.oauth_token)
+        self.assertEqual(new_token, target_config.oauth_token)
 
     def test_ping_receives_sanitized_config(self):
         config = {"eu-cloud": _oauth_url()}

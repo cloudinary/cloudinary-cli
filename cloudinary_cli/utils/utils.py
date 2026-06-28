@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import builtins
 import json
+import logging
 import os
 import sys
 from collections import OrderedDict
@@ -203,6 +204,15 @@ def is_interactive():
     """True when we can prompt the user (stdin is an interactive terminal). The single home for the
     interactivity check, so flow code never pokes sys.stdin directly."""
     return sys.stdin.isatty()
+
+
+def should_dump_responses():
+    """True when full SDK API responses should be echoed (per-asset JSON under upload/sync). On at
+    DEBUG verbosity, but suppressed by CLOUDINARY_CLI_LOG_ONLY=1 to keep CLI log lines without the
+    bulky response bodies."""
+    if os.environ.get("CLOUDINARY_CLI_LOG_ONLY", "").strip() not in ("", "0", "false", "False"):
+        return False
+    return logger.getEffectiveLevel() < logging.INFO
 
 
 def prompt_user(message, noninteractive_hint=None):
