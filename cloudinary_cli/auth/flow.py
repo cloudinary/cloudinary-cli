@@ -61,6 +61,36 @@ def refresh(refresh_token, region):
     return resp.json()
 
 
+_MAX_OAUTH_DESCRIPTION = 80
+
+
+def oauth_error_body(exc):
+    """The raw response body text from a failed token request, or None if no response is attached.
+    Logged verbatim at debug for investigation - it carries the full server error_description."""
+    resp = getattr(exc, "response", None)
+    return resp.text if resp is not None else None
+
+
+def oauth_error_detail(exc):
+    """The server's OAuth error code from a failed token request (RFC 6749 §5.2), or None when the
+    response carries no parseable OAuth error body. The error_description is appended only when it is
+    short; the endpoint often returns a multi-sentence boilerplate paragraph that is noise in a log."""
+    resp = getattr(exc, "response", None)
+    if resp is None:
+        return None
+    try:
+        body = resp.json()
+    except ValueError:
+        return None
+    error = body.get("error")
+    if not error:
+        return None
+    description = body.get("error_description")
+    if description and len(description) <= _MAX_OAUTH_DESCRIPTION:
+        return f"{error}: {description}"
+    return error
+
+
 def revoke(token, region, token_type_hint="refresh_token"):
     """Revoke a token at the authorization server (RFC 7009). Revoking the refresh token ends the
     offline-access grant so it can no longer mint new access tokens."""

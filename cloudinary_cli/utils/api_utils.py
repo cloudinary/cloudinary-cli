@@ -164,11 +164,13 @@ def upload_file(file_path, options, uploaded=None, failed=None):
 
     try:
         size = 0 if is_remote_url(file_path) else path.getsize(file_path)
-        upload_func = uploader.upload
-        if size > 20000000:
-            upload_func = uploader.upload_large
         # Fresh options copy: upload_large mutates it (sets public_id), so a retry stays independent.
-        result = _call_with_oauth_retry(upload_func, (file_path,), dict(options))
+        if size > 20000000:
+            # upload_large recovers from a token 401 per chunk (SDK oauth_token_refresh_callback),
+            # resuming the upload; a whole-file retry here would restart from byte 0.
+            result = uploader.upload_large(file_path, **dict(options))
+        else:
+            result = _call_with_oauth_retry(uploader.upload, (file_path,), dict(options))
         disp_path = _display_path(result)
         if "batch_id" in result:
             starting_msg = "Uploading"
@@ -299,26 +301,27 @@ def call_api(func, args, kwargs):
         raise
 
 
-# Bounded so a slow call can survive several token rotations without retrying forever.
-_OAUTH_RETRY_LIMIT = 3
-
-
 def _call_with_oauth_retry(func, args, kwargs):
     """
     Run an SDK call, recovering from an OAuth token rejection (AuthorizationRequired) by passing the
-    rejected token to invalidate_token (adopt a peer's rotation, else rotate once) and retrying within
-    a bounded budget. No-op for static configs (invalidate_token returns False).
+    rejected token to invalidate_token (adopt a peer's rotation, else rotate once) and retrying once.
+    No-op for static configs (invalidate_token returns False).
+
+    The token is pinned: the value read here is the value passed to the SDK and to invalidate_token,
+    so the token handed to invalidate_token is provably the one the request carried. Without pinning,
+    the SDK re-reads the self-refreshing oauth_token property independently, so a peer rotation between
+    the two reads makes invalidate_token mis-decide "adopt" for a token the wire never sent, and the
+    retry re-fails.
     """
     config = cloudinary.config()
-    for attempt in range(_OAUTH_RETRY_LIMIT):
-        rejected = getattr(config, "oauth_token", None)  # the token this request will carry
-        try:
-            return func(*args, **kwargs)
-        except AuthorizationRequired:
-            last_attempt = attempt == _OAUTH_RETRY_LIMIT - 1
-            if last_attempt or not getattr(config, "has_oauth", False) \
-                    or not config.invalidate_token(rejected):
-                raise
+    token = getattr(config, "oauth_token", None)  # the token this request will carry
+    pinned = dict(kwargs, oauth_token=token) if token else kwargs
+    try:
+        return func(*args, **pinned)
+    except AuthorizationRequired:
+        if not getattr(config, "has_oauth", False) or not config.invalidate_token(token):
+            raise
+        return func(*args, **kwargs)  # retry unpinned: the SDK re-reads the freshly rotated token
 
 
 def handle_command(

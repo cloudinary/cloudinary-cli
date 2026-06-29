@@ -6,6 +6,7 @@ import os
 import sys
 from collections import OrderedDict
 from csv import DictWriter
+from datetime import datetime, timezone
 from functools import reduce
 from hashlib import md5
 from inspect import signature, getfullargspec
@@ -70,6 +71,20 @@ def get_help_str(module, block_list=(), allow_list=()):
 
 def print_api_help(api, block_list=not_callable, allow_list=()):
     logger.info(get_help_str(api, block_list=block_list, allow_list=allow_list))
+
+
+def token_hint(token):
+    """Non-sensitive token fingerprint (trailing chars + length) for debug logs."""
+    if not token:
+        return "<none>"
+    return f"…{token[-6:]}({len(token)} chars)"
+
+
+def expiry_hint(epoch):
+    try:
+        return datetime.fromtimestamp(int(epoch), tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    except (TypeError, ValueError):
+        return str(epoch)
 
 
 def log_exception(e, message=None, debug_message=None):

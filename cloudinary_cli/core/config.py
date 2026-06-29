@@ -137,7 +137,7 @@ _REFRESH_MESSAGES = {
     "not_oauth": ("info", "'{name}' is an api-key config; nothing to refresh."),
     "fresh": ("info", "'{name}' token is still fresh; nothing to refresh (use --force to refresh anyway)."),
     "refreshed": ("info", "Refreshed '{name}'."),
-    "failed": ("error", "Could not refresh '{name}'. Please re-login with `{relogin}`."),
+    "failed": ("error", "'{name}' could not be refreshed; re-login with `{relogin}`."),
 }
 
 

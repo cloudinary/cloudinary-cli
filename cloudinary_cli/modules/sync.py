@@ -6,6 +6,7 @@ from itertools import groupby
 from os import path, remove
 
 from click import command, argument, option, style, UsageError, Choice
+import cloudinary
 from cloudinary import api
 
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file, get_folder_mode, \
@@ -177,7 +178,8 @@ class SyncDir:
                 logger.info(f"{file}")
             return True
 
-        logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}'")
+        logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}' "
+                    f"in cloud '{cloudinary.config().cloud_name}'")
 
         options = {
             **get_default_upload_options(self.folder_mode),

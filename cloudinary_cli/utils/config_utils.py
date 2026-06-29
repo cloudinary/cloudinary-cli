@@ -210,6 +210,25 @@ def _format_account_url(url):
     return "\n".join(template.format(f"{k}:", v) for k, v in fields.items())
 
 
+def _issued_at_fields(value):
+    """An OAuth issued-at epoch expanded into {epoch, utc}, or None if not an int."""
+    try:
+        epoch = int(value)
+    except (TypeError, ValueError):
+        return None
+    return {
+        "epoch": epoch,
+        "utc": datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+    }
+
+
+def _format_epoch(value):
+    parts = _issued_at_fields(value)
+    if parts is None:
+        return value
+    return f"{parts['epoch']} ({parts['utc']})"
+
+
 def _format_expires_at(value):
     parts = _expires_at_fields(value)
     if parts is None:
@@ -271,6 +290,8 @@ def cloudinary_config_details(cloudinary_config):
             details[key] = _mask_secret(value)
         elif key == "expires_at":
             details[key] = _expires_at_fields(value) or value
+        elif key == "issued_at":
+            details[key] = _issued_at_fields(value) or value
         else:
             details[key] = value
 
@@ -288,6 +309,8 @@ def _display_value(key, value):
         return _mask_secret(value)
     if key == "expires_at":
         return _format_expires_at(value)
+    if key == "issued_at":
+        return _format_epoch(value)
     return value
 
 

@@ -84,6 +84,7 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
         saved = {"mykey": "cloudinary://key:secret@cloud",
                  "cloud-a": _oauth_url("cloud-a"), "cloud-b": _oauth_url("cloud-b")}
         with patch("cloudinary_cli.auth.load_config", return_value=saved), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=saved), \
                 patch("cloudinary_cli.auth.remove_config_keys") as remove, \
                 patch("cloudinary_cli.auth.flow.revoke"):
             result = self.runner.invoke(cli, ["logout"], input="2\n")
@@ -93,7 +94,7 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
         remove.assert_called_once_with("cloud-b")
 
     def test_no_oauth_logins(self):
-        with patch("cloudinary_cli.auth.load_config",
+        with patch("cloudinary_cli.auth.refresh.load_config",
                    return_value={"mykey": "cloudinary://key:secret@cloud"}), \
                 patch("cloudinary_cli.auth.remove_config_keys") as remove:
             result = self.runner.invoke(cli, ["logout"], input="\n")
@@ -101,14 +102,14 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
         remove.assert_not_called()
 
     def test_cancel_on_empty_input(self):
-        with patch("cloudinary_cli.auth.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
                 patch("cloudinary_cli.auth.remove_config_keys") as remove:
             result = self.runner.invoke(cli, ["logout"], input="\n")
         remove.assert_not_called()
         self.assertEqual(0, result.exit_code)
 
     def test_invalid_non_numeric_errors(self):
-        with patch("cloudinary_cli.auth.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
                 patch("cloudinary_cli.auth.remove_config_keys") as remove:
             result = self.runner.invoke(cli, ["logout"], input="sdfdsf\n", standalone_mode=False)
         self.assertIn("Invalid selection", result.output)
@@ -116,7 +117,7 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
         remove.assert_not_called()
 
     def test_out_of_range_errors(self):
-        with patch("cloudinary_cli.auth.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
                 patch("cloudinary_cli.auth.remove_config_keys") as remove:
             result = self.runner.invoke(cli, ["logout"], input="5\n", standalone_mode=False)
         self.assertIn("Invalid selection", result.output)
@@ -127,7 +128,7 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
         # Closed stdin (no input at all): the selection cannot be made, so error with the
         # non-interactive form (`cld logout <name>`) and exit non-zero, not a silent no-op.
         import builtins
-        with patch("cloudinary_cli.auth.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
                 patch("cloudinary_cli.auth.remove_config_keys") as remove, \
                 patch.object(builtins, "input", side_effect=EOFError()):
             result = self.runner.invoke(cli, ["logout"], standalone_mode=False)
@@ -289,6 +290,26 @@ class TestConfigSecretMasking(_RestoresSdkConfig):
         self.assertIn("2026-06-24", out)            # human-readable date
         self.assertIn("expired", out)
 
+    def test_issued_at_human_readable_no_state(self):
+        config = cloudinary.Config()
+        config.update(cloud_name="c", oauth_token="eyJ.tok", issued_at=1782310673)
+        with patch("cloudinary_cli.utils.config_utils.echo") as echo:
+            show_cloudinary_config(config)
+        out = echo.call_args[0][0]
+        self.assertIn("1782310673", out)            # raw epoch kept
+        self.assertIn("2026-06-24", out)            # human-readable date
+        self.assertIn("UTC", out)
+        self.assertNotIn("valid", out)              # issuance has no validity state
+        self.assertNotIn("expired", out)
+
+    def test_issued_at_non_numeric_left_as_is(self):
+        config = cloudinary.Config()
+        config.update(cloud_name="c", oauth_token="eyJ.tok", issued_at="not-an-epoch")
+        with patch("cloudinary_cli.utils.config_utils.echo") as echo:
+            show_cloudinary_config(config)
+        out = echo.call_args[0][0]
+        self.assertIn("not-an-epoch", out)
+
     def test_account_url_shown_as_structured_section(self):
         config = cloudinary.Config()
         config.update(cloud_name="c", api_key="k", api_secret="abcdefghIJKLMNOP",
@@ -417,6 +438,22 @@ class TestOAuthConfigCoexistence(_RestoresSdkConfig):
         # expires_at expanded into a structured object
         self.assertIn("epoch", data["expires_at"])
         self.assertIn("expired", data["expires_at"])
+
+    def test_details_expands_issued_at_without_state(self):
+        from cloudinary_cli.utils.config_utils import cloudinary_config_details
+        config = cloudinary.Config()
+        config.update(cloud_name="c", oauth_token="eyJ.tok", issued_at=1782310673)
+        details = cloudinary_config_details(config)
+        self.assertEqual(1782310673, details["issued_at"]["epoch"])
+        self.assertIn("2026-06-24", details["issued_at"]["utc"])
+        self.assertNotIn("expired", details["issued_at"])  # issuance has no validity state
+
+    def test_details_issued_at_non_numeric_left_as_is(self):
+        from cloudinary_cli.utils.config_utils import cloudinary_config_details
+        config = cloudinary.Config()
+        config.update(cloud_name="c", oauth_token="eyJ.tok", issued_at="bogus")
+        details = cloudinary_config_details(config)
+        self.assertEqual("bogus", details["issued_at"])
 
     def test_bare_config_json_matches_show_json(self):
         cfg = {"__default__": "eu-cloud", "eu-cloud": _oauth_url()}
@@ -562,10 +599,10 @@ class TestSelfRefreshingOAuthToken(_RestoresSdkConfig):
         new_token = jwt_access_token(cloud_name="eu-cloud", tag="resolver-new")
         token_response = {"access_token": new_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_resolver.load_config", return_value=dict(saved)), \
-                patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             resolver.resolve_cli_config(config_saved="eu-cloud")
             # The read of oauth_token is what triggers the refresh (as the SDK does per request).
             self.assertEqual(new_token, cloudinary.config().oauth_token)
@@ -846,9 +883,9 @@ class TestGetCloudinaryConfigOAuth(_RestoresSdkConfig):
         new_token = jwt_access_token(cloud_name="eu-cloud", tag="target-new")
         token_response = {"access_token": new_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_resolver.load_config", return_value=config), \
-                patch("cloudinary_cli.auth.load_config", return_value=config), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=config), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
-                patch("cloudinary_cli.auth.update_config"), \
+                patch("cloudinary_cli.auth.refresh.update_config"), \
                 patch("cloudinary_cli.utils.config_resolver.ping_cloudinary", return_value=True):
             target_config = get_cloudinary_config("eu-cloud")
         self.assertTrue(target_config)

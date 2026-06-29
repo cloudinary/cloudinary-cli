@@ -9,7 +9,7 @@ from cloudinary.exceptions import AuthorizationRequired
 
 from cloudinary_cli.auth.oauth_config import OAuthConfig, install_oauth_config, install_env_config
 from cloudinary_cli.auth.session import Session, to_cloudinary_url, from_cloudinary_url
-from cloudinary_cli.utils.api_utils import call_api, _OAUTH_RETRY_LIMIT
+from cloudinary_cli.utils.api_utils import call_api
 
 from test.oauth_helpers import jwt_access_token
 
@@ -50,9 +50,9 @@ class TestSingleFlightRefresh(_RestoresSdkConfig):
             return dict(token_response)
 
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
-                patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", side_effect=slow_refresh) as refresh, \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             install_oauth_config(saved["eu-cloud"], saved_name="eu-cloud")
             config = cloudinary.config()
 
@@ -88,8 +88,9 @@ class TestRetryOn401(_RestoresSdkConfig):
             return {"public_id": "ok"}
 
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh") as refresh, \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             result = call_api(func, ("file.mp4",), {})
 
         self.assertEqual({"public_id": "ok"}, result)
@@ -112,10 +113,11 @@ class TestRetryOn401(_RestoresSdkConfig):
             return {"public_id": "ok"}
 
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh",
                       return_value={"access_token": new_token, "refresh_token": "rt_new",
                                     "expires_in": 300}) as refresh, \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             result = call_api(func, ("file.mp4",), {})
 
         self.assertEqual({"public_id": "ok"}, result)
@@ -136,17 +138,17 @@ class TestRetryOn401(_RestoresSdkConfig):
             raise AuthorizationRequired("Invalid token [expired]")
 
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
-                patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh",
                       side_effect=requests.RequestException("refresh token revoked")), \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             with self.assertRaises(AuthorizationRequired):
                 call_api(func, ("file.mp4",), {})
 
         self.assertEqual(1, calls["n"])  # nothing to adopt -> fail fast
 
-    def test_retry_is_bounded_under_repeated_rotation(self):
-        # Every retry's token is rejected again: recovery stops after _OAUTH_RETRY_LIMIT attempts.
+    def test_one_refresh_and_retry_then_propagates(self):
+        # Refresh succeeds (new token) but the server rejects it too: one retry, then propagate.
         install_oauth_config(_url(token="eyJ.t0", refresh="rt0", expires_delta=300),
                              saved_name="eu-cloud")
         saved = {"eu-cloud": _url(token="eyJ.t0", refresh="rt0", expires_delta=300)}
@@ -161,13 +163,13 @@ class TestRetryOn401(_RestoresSdkConfig):
                     "refresh_token": f"rt{calls['n']}", "expires_in": 300}
 
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
-                patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", side_effect=ever_new_token), \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             with self.assertRaises(AuthorizationRequired):
                 call_api(func, ("file.mp4",), {})
 
-        self.assertEqual(_OAUTH_RETRY_LIMIT, calls["n"])  # bounded
+        self.assertEqual(2, calls["n"])  # original + one retry, no unbounded rotation
 
     def test_non_oauth_config_propagates_immediately(self):
         install_oauth_config("cloudinary://key:secret@cloud", saved_name=None)  # api-key: has_oauth False
@@ -203,7 +205,32 @@ class TestRetryOn401(_RestoresSdkConfig):
         sentinel = MagicMock(return_value={"public_id": "p"})
         result = call_api(sentinel, ("file",), {"folder": "f"})
         self.assertEqual({"public_id": "p"}, result)
-        sentinel.assert_called_once_with("file", folder="f")  # no retry, args forwarded verbatim
+        # no retry; args forwarded verbatim with the active token pinned so the wire token == rejected
+        sentinel.assert_called_once_with("file", folder="f", oauth_token="eyJ.tok")
+
+    def test_token_pinned_so_wire_token_equals_invalidate_arg(self):
+        # The token sent to the SDK and the token handed to invalidate_token must be identical, even if
+        # a peer rotates the config between our read and the SDK's own read. Pinning closes that gap.
+        config = install_oauth_config(_url(token="eyJ.pin", refresh="rt", expires_delta=300),
+                                      saved_name="eu-cloud")
+        sent = {}
+
+        def func(*a, **k):
+            sent["oauth_token"] = k.get("oauth_token")
+            raise AuthorizationRequired("Invalid token [expired]")
+
+        seen = {}
+
+        def spy(rejected):
+            seen["rejected"] = rejected
+            return False  # stop after one attempt; we only care about the pinned value
+
+        with patch.object(config, "invalidate_token", side_effect=spy):
+            with self.assertRaises(AuthorizationRequired):
+                call_api(func, ("file.mp4",), {})
+
+        self.assertEqual("eyJ.pin", sent["oauth_token"])          # the value the SDK would send
+        self.assertEqual(sent["oauth_token"], seen["rejected"])   # == what invalidate_token is told
 
 
 class TestRefreshDecision(_RestoresSdkConfig):
@@ -218,11 +245,11 @@ class TestRefreshDecision(_RestoresSdkConfig):
         self.url = _url(token="eyJ.cur", refresh="rt", expires_delta=300)
         saved = {"eu-cloud": self.url}
         new_token = jwt_access_token(cloud_name="eu-cloud", tag="expected-matches-new")
-        with patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh",
                       return_value={"access_token": new_token, "refresh_token": "rt2",
                                     "expires_in": 300}) as refresh, \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             new_url = self._refresh(expected="eyJ.cur")
         refresh.assert_called_once()
         self.assertEqual(new_token, from_cloudinary_url(new_url).access_token)
@@ -231,9 +258,9 @@ class TestRefreshDecision(_RestoresSdkConfig):
         # Peer already rotated: disk token != expected -> adopt, no network.
         self.url = _url(token="eyJ.new", refresh="rt2", expires_delta=300)  # what disk now holds
         saved = {"eu-cloud": self.url}
-        with patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh") as refresh, \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             new_url = self._refresh(expected="eyJ.old")  # we were sent the OLD token
         refresh.assert_not_called()
         self.assertEqual(self.url, new_url)
@@ -243,11 +270,11 @@ class TestRefreshDecision(_RestoresSdkConfig):
         self.url = _url(token="eyJ.cur", refresh="rt", expires_delta=300)
         saved = {"eu-cloud": self.url}
         forced_token = jwt_access_token(cloud_name="eu-cloud", tag="forced-new")
-        with patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh",
                       return_value={"access_token": forced_token, "refresh_token": "rt2",
                                     "expires_in": 300}) as refresh, \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             new_url = self._refresh(force=True)
         refresh.assert_called_once()
         self.assertEqual(forced_token, from_cloudinary_url(new_url).access_token)
@@ -256,9 +283,9 @@ class TestRefreshDecision(_RestoresSdkConfig):
         # The proactive sweep with no specific token: a fresh token is left untouched.
         self.url = _url(token="eyJ.cur", refresh="rt", expires_delta=300)
         saved = {"eu-cloud": self.url}
-        with patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh") as refresh, \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             new_url = self._refresh()
         refresh.assert_not_called()
         self.assertEqual(self.url, new_url)

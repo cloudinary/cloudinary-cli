@@ -4,7 +4,24 @@ import unittest
 from unittest.mock import patch, MagicMock
 from urllib.parse import urlparse, parse_qs
 
+import requests
+
 from cloudinary_cli.auth import flow
+
+
+def _http_error(body=None, no_response=False, not_json=False):
+    e = requests.HTTPError("400 Client Error: Bad Request for url: https://oauth.cloudinary.com/oauth2/token")
+    if no_response:
+        return e
+    resp = MagicMock()
+    if not_json:
+        resp.json.side_effect = ValueError("no json")
+        resp.text = body if body is not None else "<html>500</html>"
+    else:
+        resp.json.return_value = body
+        resp.text = str(body)
+    e.response = resp
+    return e
 
 
 class TestAuthFlow(unittest.TestCase):
@@ -67,3 +84,53 @@ class TestAuthFlow(unittest.TestCase):
         self.assertIn("client_id", data)
         self.assertIn("timeout", post.call_args.kwargs)
         resp.raise_for_status.assert_called_once()
+
+
+class TestOAuthErrorDetail(unittest.TestCase):
+    """flow.oauth_error_detail extracts the RFC 6749 error code, appending a short description but
+    never the multi-sentence boilerplate the token endpoint returns for invalid_grant."""
+
+    def test_short_description_is_appended(self):
+        e = _http_error({"error": "invalid_client", "error_description": "Unknown client"})
+        self.assertEqual("invalid_client: Unknown client", flow.oauth_error_detail(e))
+
+    def test_long_description_is_suppressed(self):
+        # The real invalid_grant body is a >80-char paragraph; only the code should surface.
+        long_desc = ("The provided authorization grant or refresh token is invalid, expired, "
+                     "revoked, or was issued to another client. The refresh token is malformed.")
+        e = _http_error({"error": "invalid_grant", "error_description": long_desc})
+        self.assertEqual("invalid_grant", flow.oauth_error_detail(e))
+
+    def test_error_only_no_description(self):
+        e = _http_error({"error": "invalid_grant"})
+        self.assertEqual("invalid_grant", flow.oauth_error_detail(e))
+
+    def test_description_exactly_at_limit_is_kept(self):
+        desc = "x" * 80
+        e = _http_error({"error": "invalid_request", "error_description": desc})
+        self.assertEqual(f"invalid_request: {desc}", flow.oauth_error_detail(e))
+
+    def test_description_one_over_limit_is_dropped(self):
+        e = _http_error({"error": "invalid_request", "error_description": "x" * 81})
+        self.assertEqual("invalid_request", flow.oauth_error_detail(e))
+
+    def test_no_error_key_returns_none(self):
+        self.assertIsNone(flow.oauth_error_detail(_http_error({"foo": "bar"})))
+
+    def test_non_json_body_returns_none(self):
+        self.assertIsNone(flow.oauth_error_detail(_http_error(not_json=True)))
+
+    def test_no_response_returns_none(self):
+        self.assertIsNone(flow.oauth_error_detail(_http_error(no_response=True)))
+
+
+class TestOAuthErrorBody(unittest.TestCase):
+    """flow.oauth_error_body returns the raw response text verbatim for debug logging."""
+
+    def test_returns_raw_text(self):
+        raw = '{"error":"invalid_grant","error_description":"long boilerplate here"}'
+        e = _http_error(not_json=True, body=raw)
+        self.assertEqual(raw, flow.oauth_error_body(e))
+
+    def test_no_response_returns_none(self):
+        self.assertIsNone(flow.oauth_error_body(_http_error(no_response=True)))

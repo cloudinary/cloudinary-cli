@@ -2,8 +2,13 @@
 import threading
 
 import cloudinary
+from cloudinary.exceptions import AuthorizationRequired
 
 from cloudinary_cli.auth.session import is_oauth_url, from_cloudinary_url
+from cloudinary_cli.auth.refresh import refresh_url_if_stale
+from cloudinary_cli.defaults import logger
+from cloudinary_cli.utils import config_utils
+from cloudinary_cli.utils.utils import token_hint
 
 
 class OAuthConfig(cloudinary.Config):
@@ -19,11 +24,26 @@ class OAuthConfig(cloudinary.Config):
     """
 
     def _init_oauth_state(self, name, session):
-        from cloudinary_cli.utils.config_utils import config_mtime
         self._saved_name = name  # None for static configs: they never refresh
         self._session = session
-        self._session_mtime = config_mtime()  # a later config mtime = a peer rotated on disk
+        self._session_mtime = config_utils.config_mtime()  # a later config mtime = a peer rotated on disk
         self._refresh_lock = threading.Lock()
+
+    @property
+    def oauth_token_refresh_callback(self):
+        # SDK hook (uploader.upload_large): rotate on a chunk 401, retrying the chunk to resume.
+        # A property (not a __dict__ entry) so it stays out of config serialization, which dumps
+        # the public keys of __dict__.
+        return self._refresh_for_sdk
+
+    def _refresh_for_sdk(self, rejected):
+        # invalidate_token returns False when no usable token results (static config, dead refresh);
+        # the SDK contract signals that by raising, so the rejected token is not retried.
+        logger.debug(f"Upload chunk got a 401 on token {token_hint(rejected)}; attempting OAuth refresh")
+        if not self.invalidate_token(rejected):
+            logger.debug(f"OAuth refresh did not yield a new token for {token_hint(rejected)}; chunk upload fails")
+            raise AuthorizationRequired("OAuth token refresh produced no usable token")
+        logger.debug(f"OAuth token refreshed to {token_hint(self.__dict__.get('oauth_token'))}; retrying upload chunk")
 
     def bind_saved(self, name, url):
         session = from_cloudinary_url(url) if (name and url and is_oauth_url(url)) else None
@@ -50,10 +70,9 @@ class OAuthConfig(cloudinary.Config):
         return bool(self.__dict__.get("oauth_token"))
 
     def _is_invalid(self, session):
-        from cloudinary_cli.utils.config_utils import config_mtime
         if not session.refresh_token:
             return False  # unrefreshable: serve it and let it fail
-        return not session.is_fresh() or config_mtime() > self._session_mtime
+        return not session.is_fresh() or config_utils.config_mtime() > self._session_mtime
 
     @property
     def oauth_token(self):
@@ -69,16 +88,13 @@ class OAuthConfig(cloudinary.Config):
 
     def _refresh_locked(self, stale_token):
         # Caller holds _refresh_lock. Rotates only while disk still holds `stale_token`, else adopts.
-        from cloudinary_cli.auth import refresh_url_if_stale
-        from cloudinary_cli.utils.config_utils import load_config, config_mtime
-
-        url = load_config().get(self._saved_name)
+        url = config_utils.load_config().get(self._saved_name)
         if not url:
             return self.__dict__.get("oauth_token")  # config removed underneath us; serve what we have
         url = refresh_url_if_stale(self._saved_name, url, expected=stale_token)
         self._session = from_cloudinary_url(url)
         self.__dict__["oauth_token"] = self._session.access_token
-        self._session_mtime = config_mtime()
+        self._session_mtime = config_utils.config_mtime()
         return self.__dict__["oauth_token"]
 
     @oauth_token.setter

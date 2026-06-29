@@ -49,9 +49,9 @@ class TestSdkSeamTriggersRefresh(_RestoresSdkConfig):
         new_token = jwt_access_token(cloud_name="eu-cloud", tag="call-api-new")
         token_response = {"access_token": new_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
-                patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             install_oauth_config(saved["eu-cloud"], saved_name="eu-cloud")
             # Reproduce verbatim the read cloudinary.api_client.call_api performs at request build
             # time (call_api.py:63): options.pop("oauth_token", cloudinary.config().oauth_token).
@@ -64,9 +64,9 @@ class TestSdkSeamTriggersRefresh(_RestoresSdkConfig):
         fresh_token = jwt_access_token(cloud_name="eu-cloud", tag="uploader-fresh")
         token_response = {"access_token": fresh_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
-                patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response), \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             install_oauth_config(saved["eu-cloud"], saved_name="eu-cloud")
             # The uploader reads the same attribute to set the Bearer header (uploader.py:877):
             # oauth_token = options.get("oauth_token", cloudinary.config().oauth_token).
@@ -80,9 +80,9 @@ class TestSdkSeamTriggersRefresh(_RestoresSdkConfig):
         new_token = jwt_access_token(cloud_name="eu-cloud", tag="cached-new")
         token_response = {"access_token": new_token, "refresh_token": "rt_new", "expires_in": 300}
         with patch("cloudinary_cli.utils.config_utils.load_config", return_value=dict(saved)), \
-                patch("cloudinary_cli.auth.load_config", return_value=dict(saved)), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh", return_value=token_response) as refresh, \
-                patch("cloudinary_cli.auth.update_config"):
+                patch("cloudinary_cli.auth.refresh.update_config"):
             install_oauth_config(saved["eu-cloud"], saved_name="eu-cloud")
             first = cloudinary.config().oauth_token
             second = cloudinary.config().oauth_token
