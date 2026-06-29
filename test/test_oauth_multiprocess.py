@@ -123,7 +123,7 @@ def _worker_401(home, token_url, barrier_path, idx, out):
         return {"ok": token}
 
     try:
-        out[idx] = call_api(api_call, (), {})["ok"]
+        out[idx] = call_api(api_call)["ok"]
     except Exception as e:  # noqa: BLE001
         out[idx] = f"ERROR:{e}"
 

@@ -6,6 +6,7 @@ from cloudinary.exceptions import Error
 from cloudinary.utils import cloudinary_url
 from requests import head
 
+from cloudinary_cli.utils.api_utils import call_api
 from cloudinary_cli.utils.utils import logger, log_exception
 
 
@@ -30,7 +31,7 @@ def migrate(upload_mapping, file, delimiter, verbose):
         return False
 
     try:
-        mapping = api.upload_mapping(upload_mapping)
+        mapping = call_api(api.upload_mapping, upload_mapping)
     except Error as e:
         log_exception(e, f"Failed retrieving upload mapping: '{upload_mapping}'")
         return False

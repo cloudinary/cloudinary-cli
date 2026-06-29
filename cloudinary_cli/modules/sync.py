@@ -10,7 +10,7 @@ import cloudinary
 from cloudinary import api
 
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file, get_folder_mode, \
-    get_default_upload_options, get_destination_folder_options, cld_folder_exists
+    get_default_upload_options, get_destination_folder_options, cld_folder_exists, call_api
 from cloudinary_cli.utils.file_utils import (walk_dir, delete_empty_dirs, normalize_file_extension, posix_rel_path,
                                              populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, read_json_from_file, write_json_to_file
@@ -371,7 +371,8 @@ class SyncDir:
                     logger.info(f"Dry run mode enabled. Would delete {len(deletion_batch)} resources:\n" +
                                                 "\n".join(deletion_batch))
                     continue
-                res = api.delete_resources(deletion_batch, invalidate=True, resource_type=attrs[0], type=attrs[1])
+                res = call_api(api.delete_resources, deletion_batch, invalidate=True,
+                               resource_type=attrs[0], type=attrs[1])
                 num_deleted = Counter(res['deleted'].values())["deleted"]
                 if self.verbose:
                     print_json(res)

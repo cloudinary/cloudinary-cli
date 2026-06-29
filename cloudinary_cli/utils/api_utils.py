@@ -69,7 +69,7 @@ def query_cld_folder(folder, folder_mode, status=None):
 
     next_cursor = True
     while next_cursor:
-        res = search.execute()
+        res = call_api(search.execute)
 
         for asset in res['resources']:
             rel_path = _relative_path(asset, folder)
@@ -106,7 +106,7 @@ def cld_folder_exists(folder):
     if not folder:
         return True  # root folder
 
-    res = SearchFolders().expression(f"path=\"{folder}\"").execute()
+    res = call_api(SearchFolders().expression(f"path=\"{folder}\"").execute)
 
     return res.get("total_count", 0) > 0
 
@@ -146,7 +146,7 @@ def regen_derived_version(public_id, delivery_type, res_type,
                "eager_notification_url": eager_notification_url,
                "overwrite": True, "invalidate": True}
     try:
-        exp_res = uploader.explicit(public_id, **options)
+        exp_res = call_api(uploader.explicit, public_id, **options)
         derived_url = f'{exp_res.get("eager")[0].get("secure_url")}'
         msg = ('Processing' if options.get('eager_async') else 'Regenerated') + f' {derived_url}'
         logger.info(style(msg, fg="green"))
@@ -170,7 +170,7 @@ def upload_file(file_path, options, uploaded=None, failed=None):
             # resuming the upload; a whole-file retry here would restart from byte 0.
             result = uploader.upload_large(file_path, **dict(options))
         else:
-            result = _call_with_oauth_retry(uploader.upload, (file_path,), dict(options))
+            result = call_api(uploader.upload, file_path, **dict(options))
         disp_path = _display_path(result)
         if "batch_id" in result:
             starting_msg = "Uploading"
@@ -283,7 +283,7 @@ def get_folder_mode():
     :return: String representing folder mode. Can be "fixed" or "dynamic".
     """
     try:
-        config_res = api.config(settings="true")
+        config_res = call_api(api.config, settings="true")
         mode = config_res["settings"]["folder_mode"]
         logger.debug(f"Using {mode} folder mode")
     except Exception as e:
@@ -293,35 +293,26 @@ def get_folder_mode():
     return mode
 
 
-def call_api(func, args, kwargs):
-    try:
-        return _call_with_oauth_retry(func, args, kwargs)
-    except Exception as e:
-        log_exception(e, debug_message=f"Failed calling '{func.__name__}' with args: {args} and optional args {kwargs}")
-        raise
-
-
-def _call_with_oauth_retry(func, args, kwargs):
+def call_api(func, *args, **kwargs):
     """
-    Run an SDK call, recovering from an OAuth token rejection (AuthorizationRequired) by passing the
-    rejected token to invalidate_token (adopt a peer's rotation, else rotate once) and retrying once.
-    No-op for static configs (invalidate_token returns False).
-
-    The token is pinned: the value read here is the value passed to the SDK and to invalidate_token,
-    so the token handed to invalidate_token is provably the one the request carried. Without pinning,
-    the SDK re-reads the self-refreshing oauth_token property independently, so a peer rotation between
-    the two reads makes invalidate_token mis-decide "adopt" for a token the wire never sent, and the
-    retry re-fails.
+    Run an SDK call (function-style API or Search().execute), retrying once on an OAuth 401 after
+    invalidating the rejected token, then log at debug and re-raise on failure.
     """
     config = cloudinary.config()
     token = getattr(config, "oauth_token", None)  # the token this request will carry
+    # Pin the token so the value sent is provably the value handed to invalidate_token: without it the
+    # SDK re-reads the self-refreshing oauth_token and a peer rotation between reads breaks the decision.
     pinned = dict(kwargs, oauth_token=token) if token else kwargs
     try:
-        return func(*args, **pinned)
-    except AuthorizationRequired:
-        if not getattr(config, "has_oauth", False) or not config.invalidate_token(token):
-            raise
-        return func(*args, **kwargs)  # retry unpinned: the SDK re-reads the freshly rotated token
+        try:
+            return func(*args, **pinned)
+        except AuthorizationRequired:
+            if not getattr(config, "has_oauth", False) or not config.invalidate_token(token):
+                raise
+            return func(*args, **kwargs)  # retry unpinned: the SDK re-reads the freshly rotated token
+    except Exception:
+        logger.debug(f"Failed calling '{func.__name__}' with args: {args} and optional args {kwargs}", exc_info=True)
+        raise
 
 
 def handle_command(
@@ -337,7 +328,11 @@ def handle_command(
         log_exception(e)
         return False
 
-    return call_api(func, args, kwargs)
+    try:
+        return call_api(func, *args, **kwargs)
+    except Exception as e:
+        log_exception(e)
+        return False
 
 
 def handle_api_command(
@@ -377,8 +372,9 @@ def handle_api_command(
         raise ConfigurationError("No Cloudinary configuration found.")
 
     try:
-        res = call_api(func, args, kwargs)
-    except Exception:
+        res = call_api(func, *args, **kwargs)
+    except Exception as e:
+        log_exception(e)
         return False
 
     if auto_paginate:
@@ -421,7 +417,7 @@ def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
     pagination_field = None
     while res.get(cursor_field, None):
         kwargs[cursor_field] = res.get(cursor_field, None)
-        res = call_api(func, args, kwargs)
+        res = call_api(func, *args, **kwargs)
         all_results, pagination_field = merge_responses(all_results, res, fields_to_keep=fields_to_keep,
                                                         pagination_field=pagination_field)
 

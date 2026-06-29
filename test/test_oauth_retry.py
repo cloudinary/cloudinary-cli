@@ -91,7 +91,7 @@ class TestRetryOn401(_RestoresSdkConfig):
                 patch("cloudinary_cli.auth.refresh.load_config", return_value=dict(saved)), \
                 patch("cloudinary_cli.auth.flow.refresh") as refresh, \
                 patch("cloudinary_cli.auth.refresh.update_config"):
-            result = call_api(func, ("file.mp4",), {})
+            result = call_api(func, "file.mp4")
 
         self.assertEqual({"public_id": "ok"}, result)
         self.assertEqual(2, calls["n"])               # original + one retry
@@ -118,7 +118,7 @@ class TestRetryOn401(_RestoresSdkConfig):
                       return_value={"access_token": new_token, "refresh_token": "rt_new",
                                     "expires_in": 300}) as refresh, \
                 patch("cloudinary_cli.auth.refresh.update_config"):
-            result = call_api(func, ("file.mp4",), {})
+            result = call_api(func, "file.mp4")
 
         self.assertEqual({"public_id": "ok"}, result)
         self.assertEqual(2, calls["n"])
@@ -143,7 +143,7 @@ class TestRetryOn401(_RestoresSdkConfig):
                       side_effect=requests.RequestException("refresh token revoked")), \
                 patch("cloudinary_cli.auth.refresh.update_config"):
             with self.assertRaises(AuthorizationRequired):
-                call_api(func, ("file.mp4",), {})
+                call_api(func, "file.mp4")
 
         self.assertEqual(1, calls["n"])  # nothing to adopt -> fail fast
 
@@ -167,7 +167,7 @@ class TestRetryOn401(_RestoresSdkConfig):
                 patch("cloudinary_cli.auth.flow.refresh", side_effect=ever_new_token), \
                 patch("cloudinary_cli.auth.refresh.update_config"):
             with self.assertRaises(AuthorizationRequired):
-                call_api(func, ("file.mp4",), {})
+                call_api(func, "file.mp4")
 
         self.assertEqual(2, calls["n"])  # original + one retry, no unbounded rotation
 
@@ -180,7 +180,7 @@ class TestRetryOn401(_RestoresSdkConfig):
             raise AuthorizationRequired("nope")
 
         with self.assertRaises(AuthorizationRequired):
-            call_api(func, ("x",), {})
+            call_api(func, "x")
         self.assertEqual(1, calls["n"])  # no adopt attempt on a non-OAuth config
 
     def test_env_config_propagates_immediately(self):
@@ -197,13 +197,13 @@ class TestRetryOn401(_RestoresSdkConfig):
             raise AuthorizationRequired("expired")
 
         with self.assertRaises(AuthorizationRequired):
-            call_api(func, ("x",), {})
+            call_api(func, "x")
         self.assertEqual(1, calls["n"])
 
     def test_success_passes_through_without_refresh(self):
         install_oauth_config(_url(), saved_name="eu-cloud")
         sentinel = MagicMock(return_value={"public_id": "p"})
-        result = call_api(sentinel, ("file",), {"folder": "f"})
+        result = call_api(sentinel, "file", folder="f")
         self.assertEqual({"public_id": "p"}, result)
         # no retry; args forwarded verbatim with the active token pinned so the wire token == rejected
         sentinel.assert_called_once_with("file", folder="f", oauth_token="eyJ.tok")
@@ -227,7 +227,7 @@ class TestRetryOn401(_RestoresSdkConfig):
 
         with patch.object(config, "invalidate_token", side_effect=spy):
             with self.assertRaises(AuthorizationRequired):
-                call_api(func, ("file.mp4",), {})
+                call_api(func, "file.mp4")
 
         self.assertEqual("eyJ.pin", sent["oauth_token"])          # the value the SDK would send
         self.assertEqual(sent["oauth_token"], seen["rejected"])   # == what invalidate_token is told
