@@ -161,14 +161,15 @@ class TestCrossProcessSingleFlight(unittest.TestCase):
         self._write_config(expires_delta=-10)
 
     def _run_workers(self, worker, n=6):
-        if multiprocessing.get_start_method(allow_none=True) is None:
-            multiprocessing.set_start_method("spawn", force=True)
+        # Spawn so workers re-import and honor CLOUDINARY_HOME; fork would inherit the parent's
+        # frozen config path and miss "proc-cloud".
+        ctx = multiprocessing.get_context("spawn")
         token_url = f"http://127.0.0.1:{self.port}/oauth2/token"
-        mgr = multiprocessing.Manager()
+        mgr = ctx.Manager()
         out = mgr.dict()
         out["n"] = n
-        procs = [multiprocessing.Process(target=worker,
-                                         args=(self.home, token_url, self.barrier, i, out))
+        procs = [ctx.Process(target=worker,
+                             args=(self.home, token_url, self.barrier, i, out))
                  for i in range(n)]
         for p in procs:
             p.start()
