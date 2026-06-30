@@ -4,6 +4,7 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from cloudinary_cli.auth.callback_page import callback_page
 from cloudinary_cli.defaults import (
     OAUTH_REDIRECT_HOST,
     OAUTH_REDIRECT_PORT,
@@ -32,11 +33,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
-        if self.server.auth_error:
-            body = f"<h2>Login failed</h2><p>{self.server.auth_error}</p>"
-        else:
-            body = "<h2>Login successful</h2><p>You can close this tab and return to the terminal.</p>"
-        self.wfile.write(f"<html><body>{body}</body></html>".encode("utf-8"))
+        self.wfile.write(callback_page(self.server.auth_error).encode("utf-8"))
 
     def log_message(self, *args):
         pass  # silence the default stderr request logging

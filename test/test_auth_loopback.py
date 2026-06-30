@@ -4,7 +4,12 @@ import urllib.request
 from http.server import HTTPServer
 from unittest.mock import patch
 
-from cloudinary_cli.auth.loopback_server import _CallbackHandler, start_callback_server, wait_for_callback
+from cloudinary_cli.auth.callback_page import callback_page
+from cloudinary_cli.auth.loopback_server import (
+    _CallbackHandler,
+    start_callback_server,
+    wait_for_callback,
+)
 
 
 class TestLoopbackServer(unittest.TestCase):
@@ -65,6 +70,25 @@ class TestLoopbackServer(unittest.TestCase):
         waiter.join(timeout=5)
         self.assertIsInstance(error.get("e"), RuntimeError)
         self.assertIn("access_denied", str(error["e"]))
+
+
+class TestCallbackPage(unittest.TestCase):
+    """auth_error comes from the redirect query string (untrusted) and must be HTML-escaped
+    before being rendered into the callback page."""
+
+    def test_error_is_html_escaped(self):
+        page = callback_page("<script>alert(1)</script>")
+        self.assertNotIn("<script>alert(1)</script>", page)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", page)
+
+    def test_normal_error_rendered(self):
+        page = callback_page("access_denied")
+        self.assertIn("Login failed", page)
+        self.assertIn("access_denied", page)
+
+    def test_success_page(self):
+        page = callback_page(None)
+        self.assertIn("Login successful", page)
 
 
 class TestStartCallbackServerPortBusy(unittest.TestCase):
