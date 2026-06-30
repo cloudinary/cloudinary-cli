@@ -1,3 +1,16 @@
+1.15.0 / 2026-06-30
+==================
+
+New functionality and features
+------------------------------
+
+  * Add OAuth login via `cld login` and `cld logout` with automatic token refresh
+
+Other Changes
+-------------
+
+  * Add `pipx` and `uv` installation options to the `README`
+
 1.14.1 / 2026-04-27
 ==================
 
