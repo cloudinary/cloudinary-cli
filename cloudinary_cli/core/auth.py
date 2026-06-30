@@ -16,14 +16,17 @@ from cloudinary_cli.utils.utils import log_exception, prompt_user
              "config is given.")
 def login(name, region, set_default):
     try:
-        config_name, is_default = run_login(region=region, name=name, set_default=set_default)
+        config_name, default_status = run_login(region=region, name=name, set_default=set_default)
     except Exception as e:
         log_exception(e, "Login failed")
         return False
 
     logger.info(f"Logged in. Saved as '{config_name}'.")
-    if is_default:
+    if default_status == "made":
         logger.info(f"This is now the default configuration. Run `cld <command>` to use it, "
+                    f"or `cld -C {config_name} <command>` to select it explicitly.")
+    elif default_status == "already":
+        logger.info(f"This is the default configuration. Run `cld <command>` to use it, "
                     f"or `cld -C {config_name} <command>` to select it explicitly.")
     else:
         logger.info(f"Run `cld -C {config_name} <command>` to use it, "

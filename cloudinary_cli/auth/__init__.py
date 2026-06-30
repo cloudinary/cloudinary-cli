@@ -48,8 +48,11 @@ def login(region=None, name=None, set_default=False):
     """
     Run the interactive browser login and persist the resulting session as a named config entry.
 
-    Returns (config_name, is_default), where is_default is True when this login was made the default
-    configuration (explicitly with set_default, or automatically as the sole login).
+    Returns (config_name, default_status), where default_status is:
+      "made"    - this login just became the default (explicit --set-default, or auto-defaulted as
+                  the sole login),
+      "already" - the re-logged-into config was already the stored default,
+      "no"      - it is not the default.
     """
     if name and is_reserved_config_name(name):
         raise RuntimeError(f"'{name}' is a reserved configuration name.")
@@ -58,12 +61,16 @@ def login(region=None, name=None, set_default=False):
     if not session.cloud_name:
         raise RuntimeError("Login token did not include a cloud name; cannot save this login.")
     config_name = name or _derive_config_name(session.cloud_name, region)
+
+    was_default = get_default_config_name() == config_name  # before we touch the config
     update_config({config_name: to_cloudinary_url(session)})
 
-    is_default = bool(set_default or _should_auto_default(config_name))
-    if is_default:
+    if was_default:
+        return config_name, "already"
+    if set_default or _should_auto_default(config_name):
         set_default_config(config_name)
-    return config_name, is_default
+        return config_name, "made"
+    return config_name, "no"
 
 
 def _should_auto_default(name):

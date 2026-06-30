@@ -165,17 +165,28 @@ class TestLoginSetDefault(unittest.TestCase):
         with self._patches({"eu-cloud": _oauth_url()}), \
                 patch("cloudinary_cli.auth.set_default_config") as set_default, \
                 patch("cloudinary_cli.auth.get_default_config_name", return_value=None):
-            name, is_default = auth.login(region="eu", name="eu-cloud")
+            name, default_status = auth.login(region="eu", name="eu-cloud")
         set_default.assert_called_once_with("eu-cloud")
-        self.assertEqual(("eu-cloud", True), (name, is_default))
+        self.assertEqual(("eu-cloud", "made"), (name, default_status))
 
     def test_returns_not_default_when_other_configs_exist(self):
         from cloudinary_cli import auth
         with self._patches({"eu-cloud": _oauth_url(), "other": _oauth_url("other")}), \
                 patch("cloudinary_cli.auth.set_default_config"), \
                 patch("cloudinary_cli.auth.get_default_config_name", return_value=None):
-            name, is_default = auth.login(region="eu", name="eu-cloud")
-        self.assertEqual(("eu-cloud", False), (name, is_default))
+            name, default_status = auth.login(region="eu", name="eu-cloud")
+        self.assertEqual(("eu-cloud", "no"), (name, default_status))
+
+    def test_relogin_into_existing_default_reports_already(self):
+        """Re-login into a config that is already the stored default must NOT set it again and must
+        report "already" so the CLI doesn't tell the user to make it the default."""
+        from cloudinary_cli import auth
+        with self._patches({"eu-cloud": _oauth_url(), "other": _oauth_url("other")}), \
+                patch("cloudinary_cli.auth.set_default_config") as set_default, \
+                patch("cloudinary_cli.auth.get_default_config_name", return_value="eu-cloud"):
+            name, default_status = auth.login(region="eu", name="eu-cloud")
+        set_default.assert_not_called()
+        self.assertEqual(("eu-cloud", "already"), (name, default_status))
 
     def test_no_auto_default_when_other_configs_exist(self):
         from cloudinary_cli import auth
@@ -208,15 +219,22 @@ class TestLoginSetDefault(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 auth.login(region="eu", name="__default__")
 
-    def test_cli_message_when_default(self):
-        with patch("cloudinary_cli.core.auth.run_login", return_value=("tttt", True)):
+    def test_cli_message_when_made_default(self):
+        with patch("cloudinary_cli.core.auth.run_login", return_value=("tttt", "made")):
             result = CliRunner().invoke(cli, ["login", "tttt"])
-        self.assertIn("default configuration", result.output)
+        self.assertIn("now the default configuration", result.output)
+
+    def test_cli_message_when_already_default_does_not_suggest_setting_it(self):
+        with patch("cloudinary_cli.core.auth.run_login", return_value=("tttt", "already")):
+            result = CliRunner().invoke(cli, ["login", "tttt"])
+        self.assertIn("This is the default configuration", result.output)
+        self.assertNotIn("config -d tttt", result.output)  # don't suggest a no-op
 
     def test_cli_message_when_not_default_shows_how_to_default(self):
-        with patch("cloudinary_cli.core.auth.run_login", return_value=("tttt", False)):
+        with patch("cloudinary_cli.core.auth.run_login", return_value=("tttt", "no")):
             result = CliRunner().invoke(cli, ["login", "tttt"])
         self.assertIn("cld -C tttt", result.output)
+        self.assertIn("config -d tttt", result.output)
         self.assertIn("cld config -d tttt", result.output)  # how to make it default
 
 

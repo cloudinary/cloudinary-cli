@@ -87,13 +87,15 @@ def config_command(new, ls, as_json, show, rm, from_url, default, set_default, u
 
         if set_default:
             set_default_config(config_name)
-            logger.info(f"Default set to '{config_name}'.")
+            logger.info(f"Default set to '{config_name}'. Run `cld <command>` to use it, "
+                        f"or `cld -C {config_name} <command>` to select it explicitly.")
     elif default:
         if default not in user_config_names(load_config()):
             raise BadParameter(f"Configuration {default} does not exist, "
                                f"use -ls to list available configurations.")
         set_default_config(default)
-        logger.info(f"Default set to '{default}'.")
+        logger.info(f"Default set to '{default}'. Run `cld <command>` to use it, "
+                    f"or `cld -C {default} <command>` to select it explicitly.")
     elif unset_default:
         clear_default_config()
         logger.info("Default configuration cleared.")
