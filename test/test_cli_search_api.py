@@ -4,7 +4,8 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
-from test.helper_test import api_response_mock, uploader_response_mock, URLLIB3_REQUEST
+from test.helper_test import api_response_mock, uploader_response_mock, URLLIB3_REQUEST, \
+    CONFIG_PRESENT, REQUIRES_CONFIG
 
 API_MOCK_RESPONSE = api_response_mock()
 UPLOAD_MOCK_RESPONSE = uploader_response_mock()
@@ -13,6 +14,7 @@ UPLOAD_MOCK_RESPONSE = uploader_response_mock()
 class TestCLISearchApi(unittest.TestCase):
     runner = CliRunner()
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(URLLIB3_REQUEST)
     def test_search(self, mocker):
         mocker.return_value = API_MOCK_RESPONSE
@@ -27,6 +29,7 @@ class TestCLISearchApi(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
         self.assertIn('"fields": [\n    "url",\n    "tags",\n    "context"\n  ]', result.output)
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     def test_search_url(self):
         result = self.runner.invoke(cli, ['search', 'cat', '-c', 'NEXT_CURSOR', '--ttl', '1000', '--url'])
 
@@ -37,6 +40,7 @@ class TestCLISearchApi(unittest.TestCase):
         self.assertIn('1000', result.output)
         self.assertIn('NEXT_CURSOR', result.output)
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(URLLIB3_REQUEST)
     def test_search_folders(self, mocker):
         mocker.return_value = API_MOCK_RESPONSE

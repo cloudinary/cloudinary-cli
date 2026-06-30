@@ -1,5 +1,6 @@
 import os
 import stat
+import tempfile
 from os import walk, path, listdir, rmdir, sep
 from os.path import split, relpath, abspath
 from pathlib import PurePath
@@ -37,6 +38,49 @@ FORMAT_ALIASES = {
     'heif': 'heic',
     'mid': 'midi'
 }
+
+
+def atomic_write(filename, write_fn, mode=None):
+    """
+    Writes via a temp file in the same directory, then atomically replaces the target, so a
+    concurrent reader never sees a half-written file and an interleaved write can't truncate it.
+
+    :param filename: The destination file path.
+    :param write_fn: Callable receiving the open temp file object; performs the actual write.
+    :param mode:     Final permission bits to set on the file. When given, the temp file is set to
+                     this mode before the replace, so the destination is never momentarily wider
+                     (mkstemp creates it 0600, so a secret file is never world-readable mid-write).
+                     When omitted, normalize to the process umask default like a plain open().
+    """
+    directory = path.dirname(filename) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".tmp-")
+    try:
+        with os.fdopen(fd, 'w') as file:
+            write_fn(file)
+        if mode is not None:
+            os.chmod(tmp_path, mode)
+        else:
+            _apply_umask_permissions(tmp_path)
+        os.replace(tmp_path, filename)
+    except BaseException:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def _apply_umask_permissions(file):
+    # mkstemp creates the temp file as 0600, and os.replace preserves that mode onto the
+    # destination. Normalize to the process umask default so output files keep the same
+    # permissions a plain open() would have produced; callers needing 0600 (e.g. the config
+    # file) tighten it explicitly afterwards.
+    current_umask = os.umask(0)
+    os.umask(current_umask)
+    try:
+        os.chmod(file, 0o666 & ~current_umask)
+    except OSError as e:
+        logger.debug(f"Could not normalize permissions on {file}: {e}")
 
 
 def walk_dir(root_dir, include_hidden=False):

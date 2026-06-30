@@ -43,6 +43,9 @@ class TestCLISync(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
         self.assertIn("Synced | 12", result.output)
         self.assertIn("Done!", result.output)
+        # the upload banner names both the destination folder and the active cloud
+        self.assertIn(f"to Cloudinary folder '{self.CLD_SYNC_DIR}'", result.output)
+        self.assertIn("in cloud '", result.output)
 
     def test_cli_sync_push_non_existing_folder(self):
         non_existing_dir = self.LOCAL_SYNC_PULL_DIR + "non_existing"

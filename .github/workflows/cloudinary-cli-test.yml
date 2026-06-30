@@ -8,12 +8,32 @@ on:
 
 jobs:
   build:
+    # Run on every branch push, but avoid duplicate runs when a same-repo PR
+    # exists: same-repo changes run via the push event, while fork PRs (which
+    # can't trigger a push in this repo) run via the pull_request event.
+    if: >-
+      (github.event_name == 'push' && !github.event.pull_request.head.repo.fork) ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork)
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        # Full Python matrix on Linux; macOS and Windows get a single latest-Python smoke job each
+        # (enough to catch platform-specific regressions without 3x the runners and test clouds).
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: macos-latest
+            python-version: "3.14"
+          - os: windows-latest
+            python-version: "3.14"
+
+    # Git Bash ships on the GitHub Windows runners, so a single bash shell keeps every step
+    # identical across Linux, macOS, and Windows (no PowerShell variants to maintain).
+    defaults:
+      run:
+        shell: bash
 
     steps:
     - uses: actions/checkout@v4
@@ -35,7 +55,7 @@ jobs:
     - name: Get test cloud
       run: echo "CLOUDINARY_URL=$(bash tools/get_test_cloud.sh)" >> $GITHUB_ENV
     - name: Show test cloud
-      run: echo $CLOUDINARY_URL | cut -d'@' -f2
+      run: echo "$CLOUDINARY_URL" | cut -d'@' -f2
     - name: Test with pytest
       run: |
         pytest

@@ -5,11 +5,17 @@ import time
 from functools import wraps
 from pathlib import Path
 
+import cloudinary
 import cloudinary.api
 from cloudinary import logger
 from cloudinary_cli.utils.api_utils import query_cld_folder
 from urllib3 import HTTPResponse, disable_warnings
 from urllib3._collections import HTTPHeaderDict
+
+# Many CLI tests mock the HTTP layer but still need a resolvable config to run; without one the
+# command exits "No Cloudinary configuration found". Gate those tests on a config being present.
+CONFIG_PRESENT = bool(cloudinary.config().cloud_name)
+REQUIRES_CONFIG = "Requires a Cloudinary configuration (set CLOUDINARY_URL or a saved config)"
 
 SUFFIX = os.environ.get('TRAVIS_JOB_ID') or random.randint(10000, 99999)
 

@@ -1,9 +1,15 @@
+import os
 import unittest
+from unittest.mock import patch
 
 import cloudinary
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
+
+
+def _env_without_cloudinary_vars():
+    return {k: v for k, v in os.environ.items() if not k.startswith("CLOUDINARY_")}
 
 
 def _get_real_cloudinary_url():
@@ -88,9 +94,13 @@ class TestCLIConfig(unittest.TestCase):
 
     @unittest.skipUnless(cloudinary.config().api_secret, "Requires api_key/api_secret")
     def test_cli_config_show_default_no_config(self):
-        self.runner.invoke(cli, ['config', '--from_url', self.EMPTY_CLOUDINARY_URL])
+        # This asserts the "nothing configured" path, so it must run with no environment config:
+        # otherwise the resolver legitimately falls back to CLOUDINARY_URL and the config is valid.
+        with patch.dict(os.environ, _env_without_cloudinary_vars(), clear=True):
+            cloudinary.reset_config()
+            self.runner.invoke(cli, ['config', '--from_url', self.EMPTY_CLOUDINARY_URL])
 
-        result = self.runner.invoke(cli, ['config'])
+            result = self.runner.invoke(cli, ['config'])
 
         self.assertEqual(1, result.exit_code)
 

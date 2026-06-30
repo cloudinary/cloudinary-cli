@@ -12,28 +12,118 @@ It is fully documented at [https://cloudinary.com/documentation/cloudinary_cli](
 ## Requirements
 Your own Cloudinary account.  If you don't already have one, sign up at [https://cloudinary.com/users/register/free](https://cloudinary.com/users/register/free).
 
-Python 3.6 or later.  You can install Python from [https://www.python.org/](https://www.python.org/). Note that the Python Package Installer (pip) is installed with it.
+Python 3.8 or later.  You can install Python from [https://www.python.org/](https://www.python.org/). Note that the Python Package Installer (pip) is installed with it.
 
-## Setup and Installation
+## Installation
 
-1. To install this package, run: `pip3 install cloudinary-cli`
-2. To make all your `cld` commands point to your Cloudinary account, set up your CLOUDINARY\_URL environment variable. For example:
-    * On Mac or Linux:<br>`export CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
-    * On Windows (cmd.exe):<br>`set CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
-    * On Windows (PowerShell):<br>`$Env:CLOUDINARY_URL="cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name"`
+The CLI is published on PyPI as [`cloudinary-cli`](https://pypi.org/project/cloudinary-cli/). The package name (`cloudinary-cli`) is what you install; the command it provides is **`cld`** (it also installs a `cloudinary` alias). Pick the method that fits your setup. If you just want a working `cld` command and aren't sure, use **pipx** or **uv** — they install the CLI in its own isolated environment, so it won't conflict with other Python packages and you don't need to manage a virtual environment yourself.
+
+### Option 1 — pipx (recommended)
+
+[pipx](https://pipx.pypa.io) installs Python CLI tools into isolated environments and puts the `cld` command on your `PATH` automatically.
+
+```sh
+# Install pipx if you don't have it:
+#   macOS:           brew install pipx && pipx ensurepath
+#   Debian/Ubuntu:   sudo apt install pipx && pipx ensurepath
+#   Any platform:    python3 -m pip install --user pipx && python3 -m pipx ensurepath
+
+pipx install cloudinary-cli
+
+# Upgrade later with:
+pipx upgrade cloudinary-cli
+```
+
+After `pipx ensurepath`, open a new terminal so the updated `PATH` takes effect.
+
+### Option 2 — uv
+
+[uv](https://docs.astral.sh/uv/) is a fast Python package manager. Its `uv tool` command installs CLIs in isolation, like pipx:
+
+```sh
+uv tool install cloudinary-cli
+
+# Upgrade later with:
+uv tool upgrade cloudinary-cli
+```
+
+Or run it once without installing. The package's command is `cld`, so name it with `--from`:
+
+```sh
+uvx --from cloudinary-cli cld --help    # uvx is shorthand for `uv tool run`
+```
+
+### Option 3 — pip
+
+A plain `pip` install also works. Prefer a virtual environment so the CLI and its dependencies don't collide with your system or other projects:
+
+```sh
+python3 -m venv ~/.venvs/cloudinary-cli
+source ~/.venvs/cloudinary-cli/bin/activate    # Windows: .\.venvs\cloudinary-cli\Scripts\activate
+pip install cloudinary-cli
+```
+
+To install without a virtual environment, use a per-user install (avoids needing `sudo` and keeps it out of system Python):
+
+```sh
+python3 -m pip install --user cloudinary-cli
+```
+
+If `cld` is not found afterwards, the user scripts directory is not on your `PATH`. See [Troubleshooting](#troubleshooting-the-cld-command).
+
+### Option 4 — Docker (no Python needed)
+
+If you'd rather not install Python at all, run the CLI from the official Docker image. See [Docker Usage](#docker-usage) below.
+
+### Verify the installation
+
+```sh
+cld --version
+```
+
+### Troubleshooting the `cld` command
+
+If your shell reports `cld: command not found` after installing:
+
+- **pipx / uv:** run `pipx ensurepath` (or `uv tool update-shell`), then open a new terminal.
+- **pip `--user` install:** the user scripts directory is not on your `PATH`. Find it with `python3 -m site --user-base` (the scripts live in its `bin` subdirectory on macOS/Linux, or `Scripts` on Windows) and add that to your `PATH`. For example, on macOS/Linux add this to `~/.zshrc` or `~/.bash_profile`:
+
+  ```sh
+  export PATH="$PATH:$(python3 -m site --user-base)/bin"
+  ```
+
+- As a fallback, you can always invoke the CLI through Python: `python3 -m cloudinary_cli.cli <command>`.
+
+## Configuration
+
+Once installed, point your `cld` commands at a Cloudinary account using **either** of the following.
+
+**Option A — Log in with OAuth (recommended).** Run:
+
+```sh
+cld login
+```
+
+This opens your browser to authorize the CLI, then saves the login as a configuration (named after the cloud) and sets it as the default. The CLI refreshes the token automatically, and you can remove the login at any time with `cld logout`.
+
+**Option B — Set your `CLOUDINARY_URL` environment variable.** For example:
+
+* On Mac or Linux:<br>`export CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
+* On Windows (cmd.exe):<br>`set CLOUDINARY_URL=cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name`
+* On Windows (PowerShell):<br>`$Env:CLOUDINARY_URL="cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyzA@cloud_name"`
 
 _**Note:** you can copy and paste your account environment variable from the Account Details section of the Dashboard page in the Cloudinary console._
 
-3. Check your configuration by running `cld config`. A response of the following form is returned:
+Then check your configuration by running `cld config`. A response of the following form is returned:
 
-    ```
-    cloud_name:     <CLOUD_NAME>
-    api_key:        <API_KEY>
-    api_secret:     ***************<LAST_4_DIGITS>
-    private_cdn:    <True|False>
-    ```
+```
+cloud_name:     <CLOUD_NAME>
+api_key:        <API_KEY>
+api_secret:     ***************<LAST_4_DIGITS>
+private_cdn:    <True|False>
+```
 
-    If you get an error message when running `cld config`, you may need to add your Python installation to your $PATH. To do so, you can run `PATH="$PATH:/Library/Python/Versions/3.8/bin"` in your terminal, and add `export PATH="$PATH:/Library/Python/Versions/3.8/bin"` to your `/.bash_profile` or `~/.zshrc`.
+If `cld` itself is not found, see [Troubleshooting the `cld` command](#troubleshooting-the-cld-command).
 
 ## Quickstart
 
@@ -47,6 +137,8 @@ Usage: cld [cli options] [command] [command options] [method] [method parameters
 
 ```
 cld --help         # Lists available commands.
+cld login          # Logs in to a Cloudinary account via OAuth in your browser.
+cld logout         # Revokes and removes a saved OAuth login.
 cld search --help  # Shows usage for the Search API.
 cld admin          # Lists Admin API methods.
 cld uploader       # Lists Upload API methods.
@@ -243,7 +335,7 @@ Whereas using the saved configuration "accountx":
 cld -C accountx admin usage
 ```
 
-_**Caution:** Creating a saved configuration may put your API secret at risk as it is stored in a local plain text file._
+_**Caution:** Creating a saved configuration may put your credentials at risk as they are stored in a local plain text file. This applies to both API-key configurations and OAuth logins._
 
 You can create, delete and list saved configurations using the `config` command.
 
@@ -252,3 +344,42 @@ cld config [options]
 ```
 
 For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#config).
+
+### Logging in with OAuth
+
+Instead of saving an API key and secret, you can log in to a Cloudinary account through your browser. The CLI saves the resulting session as a named configuration and refreshes its token automatically.
+
+```
+cld login                  # Log in and save the configuration (named after the cloud).
+cld login my-account       # Save the login under a specific name.
+cld logout                 # Choose a saved OAuth login to log out of.
+cld logout my-account      # Log out of a specific saved OAuth login.
+```
+
+The first login becomes the default automatically. When other configurations already exist, the new login is saved but not made the default; `cld login` tells you so and prints the command to make it the default. Once saved, an OAuth login is selected with `-C <name>` just like any other saved configuration.
+
+`cld logout` revokes the login's token at the server and removes the saved configuration. If the token cannot be revoked (for example, you are offline), the saved configuration is still removed.
+
+### Choosing a default configuration
+
+The default configuration is used when no `-c`/`-C` option is given and no `CLOUDINARY_URL` environment variable is set. The first OAuth login becomes the default automatically; you can change it at any time.
+
+```
+cld config -d <name>           # Set an existing saved configuration as the default.
+cld config --unset-default     # Clear the stored default.
+cld config -ls                 # List saved configurations, marking the default and the active one.
+```
+
+When creating a configuration with `-n` or `--from_url`, add `--set-default` to make it the default in the same step. Resolution precedence is: `-c` (inline URL) > `-C` (saved name) > stored default > `CLOUDINARY_URL` environment variable.
+
+### Refreshing OAuth tokens
+
+OAuth tokens are refreshed automatically as needed, but you can refresh them manually.
+
+```
+cld config --refresh <name>    # Refresh a saved OAuth configuration's token.
+cld config --refresh-all       # Refresh every saved OAuth configuration whose token is stale.
+cld config --refresh <name> --force   # Refresh even if the token is still fresh.
+```
+
+If a token can no longer be refreshed (for example, the login was revoked), the CLI reports the configuration and the `cld login` command to use to log in again.

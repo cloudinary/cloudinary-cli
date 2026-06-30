@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 import builtins
 import json
+import logging
 import os
+import sys
 from collections import OrderedDict
 from csv import DictWriter
+from datetime import datetime, timezone
 from functools import reduce
 from hashlib import md5
 from inspect import signature, getfullargspec
@@ -68,6 +71,20 @@ def get_help_str(module, block_list=(), allow_list=()):
 
 def print_api_help(api, block_list=not_callable, allow_list=()):
     logger.info(get_help_str(api, block_list=block_list, allow_list=allow_list))
+
+
+def token_hint(token):
+    """Non-sensitive token fingerprint (trailing chars + length) for debug logs."""
+    if not token:
+        return "<none>"
+    return f"…{token[-6:]}({len(token)} chars)"
+
+
+def expiry_hint(epoch):
+    try:
+        return datetime.fromtimestamp(int(epoch), tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    except (TypeError, ValueError):
+        return str(epoch)
 
 
 def log_exception(e, message=None, debug_message=None):
@@ -198,6 +215,35 @@ def run_tasks_concurrently(func, tasks, concurrent_workers):
         thread_pool.starmap(func, tasks)
 
 
+def is_interactive():
+    """True when we can prompt the user (stdin is an interactive terminal). The single home for the
+    interactivity check, so flow code never pokes sys.stdin directly."""
+    return sys.stdin.isatty()
+
+
+def should_dump_responses():
+    """True when full SDK API responses should be echoed (per-asset JSON under upload/sync). On at
+    DEBUG verbosity, but suppressed by CLOUDINARY_CLI_LOG_ONLY=1 to keep CLI log lines without the
+    bulky response bodies."""
+    if os.environ.get("CLOUDINARY_CLI_LOG_ONLY", "").strip() not in ("", "0", "false", "False"):
+        return False
+    return logger.getEffectiveLevel() < logging.INFO
+
+
+def prompt_user(message, noninteractive_hint=None):
+    """
+    Read a line of user input. The single place that calls input(): returns None when no input can
+    be read (closed/non-interactive stdin), logging noninteractive_hint (if given) so the caller's
+    decision is never a silent no-op.
+    """
+    try:
+        return input(message)
+    except EOFError:
+        if noninteractive_hint:
+            logger.warning(f"No input available (non-interactive terminal). {noninteractive_hint}")
+        return None
+
+
 def confirm_action(message="Continue? (y/N)"):
     """
     Confirms whether the user wants to continue.
@@ -208,10 +254,12 @@ def confirm_action(message="Continue? (y/N)"):
     :return: Boolean indicating whether user wants to continue.
     :rtype bool
     """
-    return get_user_action(message, {"y": True, "default": False})
+    return get_user_action(
+        message, {"y": True, "default": False},
+        noninteractive_hint="Pass --force (-F) to skip this confirmation in non-interactive runs.")
 
 
-def get_user_action(message, options):
+def get_user_action(message, options, noninteractive_hint=None):
     """
     Reads user input and returns value specified in options.
 
@@ -222,10 +270,14 @@ def get_user_action(message, options):
     :type message: string
     :param options: Options mapping.
     :type options: dict
+    :param noninteractive_hint: Logged when no input can be read (closed/non-interactive stdin), to
+        point the user at the flag or piped input that replaces this prompt. The default option is
+        then applied.
 
     :return: Value according to the user selection.
     """
-    r = input(message).lower()
+    r = prompt_user(message, noninteractive_hint)
+    r = r.lower() if r is not None else ""  # no input -> apply the default option
     return options.get(r, options.get("default"))
 
 

@@ -35,7 +35,7 @@ setuptools.setup(
     keywords='cloudinary cli pycloudinary image video digital asset management command line interface transformation '
              'friendly easy flexible',
     license="MIT",
-    python_requires='>=3.6.0',
+    python_requires='>=3.8.0',
     setup_requires=["pytest-runner"],
     tests_require=["pytest", "mock", "urllib3"],
     install_requires=requirements,

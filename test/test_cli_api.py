@@ -6,7 +6,8 @@ import cloudinary.provisioning
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
-from test.helper_test import api_response_mock, uploader_response_mock, URLLIB3_REQUEST
+from test.helper_test import api_response_mock, uploader_response_mock, URLLIB3_REQUEST, \
+    CONFIG_PRESENT, REQUIRES_CONFIG
 
 API_MOCK_RESPONSE = api_response_mock()
 UPLOAD_MOCK_RESPONSE = uploader_response_mock()
@@ -17,6 +18,7 @@ CONFIRM_ACTION_PATCH = "cloudinary_cli.utils.api_utils.confirm_action"
 class TestCLIApi(unittest.TestCase):
     runner = CliRunner()
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(URLLIB3_REQUEST)
     def test_admin(self, mocker):
         mocker.return_value = API_MOCK_RESPONSE
@@ -25,6 +27,7 @@ class TestCLIApi(unittest.TestCase):
         self.assertEqual(0, result.exit_code, result.output)
         self.assertIn('"foo": "bar"', result.output)
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(URLLIB3_REQUEST)
     def test_upload(self, mocker):
         mocker.return_value = UPLOAD_MOCK_RESPONSE
@@ -56,6 +59,7 @@ class TestDestructiveBulkConfirmation(unittest.TestCase):
         confirm_mock.assert_called_once()
         self.assertFalse(http_mock.called, "SDK should not be called when user declines")
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(CONFIRM_ACTION_PATCH, return_value=True)
     @patch(URLLIB3_REQUEST)
     def test_delete_all_resources_accept_calls_sdk(self, http_mock, confirm_mock):
@@ -66,6 +70,7 @@ class TestDestructiveBulkConfirmation(unittest.TestCase):
         confirm_mock.assert_called_once()
         self.assertTrue(http_mock.called, "SDK should be called when user accepts")
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(CONFIRM_ACTION_PATCH, return_value=False)
     @patch(URLLIB3_REQUEST)
     def test_delete_all_resources_force_skips_prompt(self, http_mock, confirm_mock):
@@ -86,6 +91,7 @@ class TestDestructiveBulkConfirmation(unittest.TestCase):
         confirm_mock.assert_called_once()
         self.assertFalse(http_mock.called, "SDK should not be called when user declines")
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(CONFIRM_ACTION_PATCH, return_value=False)
     @patch(URLLIB3_REQUEST)
     def test_delete_resources_explicit_ids_no_prompt(self, http_mock, confirm_mock):
@@ -96,6 +102,7 @@ class TestDestructiveBulkConfirmation(unittest.TestCase):
         self.assertFalse(confirm_mock.called, "Explicit-ID delete must not prompt")
         self.assertTrue(http_mock.called, "SDK should be called for explicit-ID delete")
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(CONFIRM_ACTION_PATCH, return_value=False)
     @patch(URLLIB3_REQUEST)
     def test_uploader_add_tag_no_prompt(self, http_mock, confirm_mock):
@@ -106,6 +113,7 @@ class TestDestructiveBulkConfirmation(unittest.TestCase):
         self.assertFalse(confirm_mock.called, "Non-destructive bulk methods must not prompt")
         self.assertTrue(http_mock.called, "SDK should be called for non-destructive bulk methods")
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(CONFIRM_ACTION_PATCH, return_value=False)
     @patch(URLLIB3_REQUEST)
     def test_admin_resources_read_no_prompt(self, http_mock, confirm_mock):
@@ -116,6 +124,7 @@ class TestDestructiveBulkConfirmation(unittest.TestCase):
         self.assertFalse(confirm_mock.called, "Read commands must not prompt")
         self.assertTrue(http_mock.called, "SDK should be called for read commands")
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     @patch(CONFIRM_ACTION_PATCH, return_value=False)
     @patch(URLLIB3_REQUEST)
     def test_admin_resources_read_with_force_no_prompt(self, http_mock, confirm_mock):

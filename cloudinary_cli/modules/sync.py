@@ -6,15 +6,16 @@ from itertools import groupby
 from os import path, remove
 
 from click import command, argument, option, style, UsageError, Choice
+import cloudinary
 from cloudinary import api
 
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file, get_folder_mode, \
-    get_default_upload_options, get_destination_folder_options, cld_folder_exists
+    get_default_upload_options, get_destination_folder_options, cld_folder_exists, call_api
 from cloudinary_cli.utils.file_utils import (walk_dir, delete_empty_dirs, normalize_file_extension, posix_rel_path,
                                              populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, read_json_from_file, write_json_to_file
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict, chunker, \
-    group_params, parse_option_value, duplicate_values
+    group_params, parse_option_value, duplicate_values, should_dump_responses
 
 _DEFAULT_DELETION_BATCH_SIZE = 30
 _DEFAULT_CONCURRENT_WORKERS = 30
@@ -83,7 +84,7 @@ class SyncDir:
 
         self.sync_meta_file = path.join(self.local_dir, _SYNC_META_FILE)
 
-        self.verbose = logger.getEffectiveLevel() < logging.INFO
+        self.verbose = should_dump_responses()
 
         self.local_files = {}
         self.local_folder_exists = os.path.isdir(path.abspath(self.local_dir))
@@ -177,7 +178,8 @@ class SyncDir:
                 logger.info(f"{file}")
             return True
 
-        logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}'")
+        logger.info(f"Uploading {len(files_to_push)} items to Cloudinary folder '{self.user_friendly_remote_dir}' "
+                    f"in cloud '{cloudinary.config().cloud_name}'")
 
         options = {
             **get_default_upload_options(self.folder_mode),
@@ -336,7 +338,7 @@ class SyncDir:
             current_diverse_files.update(diverse_filenames)
             try:
                 logger.debug(f"Updating '{self.sync_meta_file}' file")
-                write_json_to_file(current_diverse_files, self.sync_meta_file)
+                write_json_to_file(current_diverse_files, self.sync_meta_file, atomic=True)
                 logger.debug(f"Updated '{self.sync_meta_file}' file")
             except Exception as e:
                 # Meta file is not critical for the sync itself, in case we cannot write it, we just log a warning
@@ -369,7 +371,8 @@ class SyncDir:
                     logger.info(f"Dry run mode enabled. Would delete {len(deletion_batch)} resources:\n" +
                                                 "\n".join(deletion_batch))
                     continue
-                res = api.delete_resources(deletion_batch, invalidate=True, resource_type=attrs[0], type=attrs[1])
+                res = call_api(api.delete_resources, deletion_batch, invalidate=True,
+                               resource_type=attrs[0], type=attrs[1])
                 num_deleted = Counter(res['deleted'].values())["deleted"]
                 if self.verbose:
                     print_json(res)

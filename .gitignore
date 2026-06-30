@@ -11,4 +11,5 @@ venv
 
 .cld-sync
 .cld-settings
+.cld-config
 .venv

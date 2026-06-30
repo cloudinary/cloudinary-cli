@@ -1,8 +1,9 @@
-cloudinary>=1.42.2
+cloudinary>=1.44.4
 pygments
 jinja2
 click
 click-log
+filelock
 requests
 docstring-parser
 urllib3>=2.2.2 # not directly required, pinned by Snyk to avoid a vulnerability

@@ -7,8 +7,7 @@ import click_log
 import cloudinary
 
 from cloudinary_cli.defaults import logger
-from cloudinary_cli.utils.config_utils import load_config, refresh_cloudinary_config, \
-    is_valid_cloudinary_config
+from cloudinary_cli.utils.config_resolver import resolve_cli_config
 from cloudinary_cli.version import __version__ as cli_version
 
 CONTEXT_SETTINGS = dict(max_content_width=shutil.get_terminal_size()[0], terminal_width=shutil.get_terminal_size()[0])
@@ -29,19 +28,8 @@ CONTEXT_SETTINGS = dict(max_content_width=shutil.get_terminal_size()[0], termina
 @click_log.simple_verbosity_option(logger)
 @click.pass_context
 def cli(ctx, config, config_saved):
-    if config:
-        refresh_cloudinary_config(config)
-    elif config_saved:
-        config = load_config()
-        if config_saved not in config:
-            raise Exception(f"Config {config_saved} does not exist")
+    resolve_cli_config(config, config_saved)
 
-        refresh_cloudinary_config(config[config_saved])
-
-    if not is_valid_cloudinary_config():
-        logger.warning("No Cloudinary configuration found.")
-
-    # If no subcommand was invoked, show help and exit with code 0
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
         ctx.exit(0)

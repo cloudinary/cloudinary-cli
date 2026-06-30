@@ -11,6 +11,8 @@ class TestCLI(unittest.TestCase):
     COMMANDS = [
         'admin',
         'config',
+        'login',
+        'logout',
         'make',
         'migrate',
         'provisioning',

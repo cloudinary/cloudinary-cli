@@ -1,7 +1,57 @@
+import builtins
 import unittest
+from unittest.mock import patch
 
 from cloudinary_cli.utils.utils import parse_option_value, parse_args_kwargs, whitelist_keys, merge_responses, \
-    normalize_list_params, chunker, group_params
+    normalize_list_params, chunker, group_params, confirm_action, get_user_action, prompt_user, is_interactive
+
+
+class NonInteractiveInputTest(unittest.TestCase):
+    """A confirmation/selection prompt on closed (non-interactive) stdin must apply the default and
+    surface a hint, not raise EOFError up to a blank 'Command execution failed' with exit 0."""
+
+    def _eof(self, *args):
+        raise EOFError("EOF when reading a line")
+
+    def test_confirm_action_defaults_to_no_on_eof(self):
+        with patch.object(builtins, "input", self._eof), \
+                patch("cloudinary_cli.utils.utils.logger.warning") as warn:
+            self.assertFalse(confirm_action())
+        warn.assert_called_once()
+        self.assertIn("--force", warn.call_args[0][0])
+
+    def test_get_user_action_returns_default_on_eof(self):
+        with patch.object(builtins, "input", self._eof):
+            self.assertEqual("fallback",
+                             get_user_action("pick: ", {"y": True, "default": "fallback"}))
+
+    def test_get_user_action_no_hint_when_not_provided(self):
+        with patch.object(builtins, "input", self._eof), \
+                patch("cloudinary_cli.utils.utils.logger.warning") as warn:
+            self.assertIsNone(get_user_action("pick: ", {"y": True}))
+        warn.assert_not_called()
+
+    def test_empty_line_still_uses_default(self):
+        # An empty line (piped) is distinct from EOF and already used the default; keep that intact.
+        with patch.object(builtins, "input", lambda *a: ""):
+            self.assertFalse(confirm_action())
+
+    def test_prompt_user_returns_line_when_available(self):
+        with patch.object(builtins, "input", lambda *a: "  2 "):
+            self.assertEqual("  2 ", prompt_user("pick: "))
+
+    def test_prompt_user_returns_none_and_hints_on_eof(self):
+        with patch.object(builtins, "input", self._eof), \
+                patch("cloudinary_cli.utils.utils.logger.warning") as warn:
+            self.assertIsNone(prompt_user("pick: ", noninteractive_hint="do X instead"))
+        warn.assert_called_once()
+        self.assertIn("do X instead", warn.call_args[0][0])
+
+    def test_is_interactive_reflects_stdin_isatty(self):
+        with patch("cloudinary_cli.utils.utils.sys.stdin.isatty", return_value=True):
+            self.assertTrue(is_interactive())
+        with patch("cloudinary_cli.utils.utils.sys.stdin.isatty", return_value=False):
+            self.assertFalse(is_interactive())
 
 
 class UtilsTest(unittest.TestCase):
