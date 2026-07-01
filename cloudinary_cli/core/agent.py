@@ -20,11 +20,11 @@ from cloudinary_cli.utils.config_utils import (
 
 @config_optional
 @group("agent", help="Commands for AI agents acting on behalf of a human.")
-def agent():
+def agent_group():
     pass
 
 
-@agent.command("signup",
+@agent_group.command("signup",
                short_help="Create a Cloudinary account on behalf of a human (for AI agents only).",
                help="""\b
 For AI agents only: create a Free-plan Cloudinary account on behalf of a human.

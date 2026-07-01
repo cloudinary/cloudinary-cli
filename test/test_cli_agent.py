@@ -38,7 +38,7 @@ class TestCLIAgentSignup(unittest.TestCase):
     runner = CliRunner()
 
     def _invoke(self, extra_args=None, default_status="no", existing=None, save_side_effect=None):
-        with patch("cloudinary_cli.core.agent.cloudinary.provisioning.create_agent_account",
+        with patch("cloudinary.provisioning.create_agent_account",
                    return_value=AGENT_RESPONSE) as create, \
                 patch("cloudinary_cli.core.agent.config_name_for_email",
                       return_value=existing) as lookup, \
@@ -117,7 +117,7 @@ class TestCLIAgentSignup(unittest.TestCase):
         response["product_environments"] = [
             dict(AGENT_RESPONSE["product_environments"][0], region="us-east")  # novel env scalar
         ]
-        with patch("cloudinary_cli.core.agent.cloudinary.provisioning.create_agent_account",
+        with patch("cloudinary.provisioning.create_agent_account",
                    return_value=response), \
                 patch("cloudinary_cli.core.agent.config_name_for_email", return_value=None), \
                 patch("cloudinary_cli.core.agent.user_config_names", return_value=[]), \
@@ -158,7 +158,7 @@ class TestCLIAgentSignup(unittest.TestCase):
         save.assert_not_called()
 
     def test_signup_empty_email_rejected(self):
-        with patch("cloudinary_cli.core.agent.cloudinary.provisioning.create_agent_account") as create:
+        with patch("cloudinary.provisioning.create_agent_account") as create:
             result = self.runner.invoke(
                 cli, ["agent", "signup", "  ", "claude-code", "claude-opus-4-8", "goal"])
 
@@ -184,7 +184,7 @@ class TestCLIAgentSignup(unittest.TestCase):
         save.assert_not_called()
 
     def test_signup_name_collision_warns(self):
-        with patch("cloudinary_cli.core.agent.cloudinary.provisioning.create_agent_account",
+        with patch("cloudinary.provisioning.create_agent_account",
                    return_value=AGENT_RESPONSE), \
                 patch("cloudinary_cli.core.agent.config_name_for_email", return_value=None), \
                 patch("cloudinary_cli.core.agent.user_config_names", return_value=["foo"]), \
@@ -203,7 +203,7 @@ class TestCLIAgentSignup(unittest.TestCase):
 
     def test_signup_missing_product_env_surfaces_creds(self):
         response = dict(AGENT_RESPONSE, product_environments=[])
-        with patch("cloudinary_cli.core.agent.cloudinary.provisioning.create_agent_account",
+        with patch("cloudinary.provisioning.create_agent_account",
                    return_value=response), \
                 patch("cloudinary_cli.core.agent.config_name_for_email", return_value=None), \
                 patch("cloudinary_cli.core.agent.user_config_names", return_value=[]), \
@@ -217,7 +217,7 @@ class TestCLIAgentSignup(unittest.TestCase):
         save.assert_not_called()
 
     def _invoke_failing(self, error, existing=None):
-        with patch("cloudinary_cli.core.agent.cloudinary.provisioning.create_agent_account",
+        with patch("cloudinary.provisioning.create_agent_account",
                    side_effect=error) as create, \
                 patch("cloudinary_cli.core.agent.config_name_for_email", return_value=existing), \
                 patch("cloudinary_cli.core.agent.save_named_config") as save:
