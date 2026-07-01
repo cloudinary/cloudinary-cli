@@ -106,7 +106,9 @@ class TestCLIConfig(unittest.TestCase):
 
         self.assertEqual(1, result.exit_code)
 
-        self.assertIn("No Cloudinary configuration found", result.output)
+        # Bare `config` raises its own ConfigurationError (not the group banner), so the message
+        # lives on the raised exception rather than stdout.
+        self.assertIn("No Cloudinary configuration found", str(result.exception))
 
     def test_cli_config_show_non_existent(self):
         result = self.runner.invoke(cli, ['config', '--show', self.TEST_CLOUD_NAME])
