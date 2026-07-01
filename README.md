@@ -142,6 +142,7 @@ cld logout         # Revokes and removes a saved OAuth login.
 cld search --help  # Shows usage for the Search API.
 cld admin          # Lists Admin API methods.
 cld uploader       # Lists Upload API methods.
+cld agent signup   # For AI agents: creates a Cloudinary account on behalf of a human.
 ```
 
 ## Docker Usage
@@ -314,6 +315,28 @@ cld [cli options] migrate [command options] upload_mapping file
 ```
 
 For details, see the [Cloudinary CLI documentation](https://cloudinary.com/documentation/cloudinary_cli#migrate).
+
+### `agent signup`
+
+**For AI agents only.** Creates a Free-plan Cloudinary account on behalf of a human. No existing configuration is required to run it. A verification email is sent to the address, and the returned credentials are **inert until the human completes that verification**. The new product environment is saved as a named configuration (named after the cloud) so it is ready to use once activated.
+
+```
+cld agent signup [command options] <email> <agent_framework> <agent_llm_model> <agent_goal>
+```
+
+Example:
+
+```
+cld agent signup you@example.com claude-code claude-fable-5 "test the agent account flow"
+```
+
+Options:
+
+* `--name <name>` — name for the saved configuration (default: the returned cloud name).
+* `--set-default` — set the saved configuration as the default.
+* `--no-save` — show the credentials but do not save them as a configuration.
+* `--sdk-framework <name>` — the Cloudinary SDK framework the agent intends to use.
+* `--json` — output the full raw JSON response (the agent contract) instead of the human-readable summary.
 
 ## Additional configurations
 

@@ -12,6 +12,7 @@ from cloudinary_cli.utils.config_utils import (
     config_type,
     cloudinary_config_details,
     is_env_configured,
+    email_from_url,
 )
 from cloudinary_cli.utils.config_resolver import (
     active_config_name,
@@ -31,6 +32,8 @@ def config_type_label(config_obj):
 
 _TABLE_COLUMNS = [("name", "NAME"), ("cloud_name", "CLOUD"), ("type", "TYPE"),
                   ("default", "DEFAULT"), ("active", "ACTIVE")]
+# EMAIL is appended dynamically (see render_config_table) only when at least one row carries one.
+_EMAIL_COLUMN = ("email", "EMAIL")
 
 
 def list_configs():
@@ -45,8 +48,8 @@ def list_configs():
         rows.append(_url_row())  # an inline -c URL: not a saved config, but it is what's active now
     if is_env_configured():
         rows.append(_env_row(env_active=active_config_is_env()))
-    rows += [
-        {
+    for name in user_config_names(cfg):
+        row = {
             "name": name,
             "cloud_name": cloud_name_from_url(cfg[name]),
             "type": config_type(cfg[name]),
@@ -54,8 +57,10 @@ def list_configs():
             "default": name == default,
             "active": name == active_name,
         }
-        for name in user_config_names(cfg)
-    ]
+        email = email_from_url(cfg[name])
+        if email:  # only surfaced when the config records an account email (e.g. from `agent signup`)
+            row["email"] = email
+        rows.append(row)
     return rows
 
 
@@ -88,8 +93,11 @@ def active_config_meta(config_obj):
 
 
 def render_config_table(rows):
-    headers = [title for _, title in _TABLE_COLUMNS]
-    cells = [[_cell(row, key) for key, _ in _TABLE_COLUMNS] for row in rows]
+    columns = list(_TABLE_COLUMNS)
+    if any(row.get("email") for row in rows):  # add EMAIL only when some config records one
+        columns.append(_EMAIL_COLUMN)
+    headers = [title for _, title in columns]
+    cells = [[_cell(row, key) for key, _ in columns] for row in rows]
     widths = [max(len(headers[i]), *(len(r[i]) for r in cells)) if cells else len(headers[i])
               for i in range(len(headers))]
     line = lambda values: "  ".join(v.ljust(widths[i]) for i, v in enumerate(values)).rstrip()

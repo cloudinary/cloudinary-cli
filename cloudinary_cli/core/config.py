@@ -1,11 +1,11 @@
 import cloudinary
 from click import command, option, echo, BadParameter, UsageError
 
-from cloudinary_cli.defaults import logger, DEFAULT_CONFIG_KEY
+from cloudinary_cli.defaults import logger, DEFAULT_CONFIG_KEY, NO_CONFIG_MESSAGE
 from cloudinary_cli.utils.config_utils import (
     load_config,
     verify_cloudinary_url,
-    update_config,
+    save_named_config,
     remove_config_keys,
     show_cloudinary_config,
     is_valid_cloudinary_config,
@@ -15,6 +15,7 @@ from cloudinary_cli.utils.config_utils import (
     clear_default_config,
     is_reserved_config_name,
     config_type,
+    config_optional,
 )
 from cloudinary_cli.utils.utils import ConfigurationError
 from cloudinary_cli.utils.json_utils import print_json
@@ -30,6 +31,7 @@ from cloudinary_cli.utils.config_listing import (
 )
 
 
+@config_optional
 @command("config", help="Display the current configuration, and manage additional configurations.")
 @option("-n", "--new", help="""\b Create and name a configuration from a Cloudinary account environment variable.
 e.g. cld config -n <NAME> <CLOUDINARY_URL>""", nargs=2)
@@ -80,13 +82,12 @@ def config_command(new, ls, as_json, show, rm, from_url, default, set_default, u
 
         config_name = config_name or cloudinary.config().cloud_name
 
-        update_config({config_name: cloudinary_url})
+        default_status = save_named_config(config_name, cloudinary_url, set_default=set_default)
 
         logger.info("Config '{}' saved!".format(config_name))
         logger.info("Example usage: cld -C {} <command>".format(config_name))
 
-        if set_default:
-            set_default_config(config_name)
+        if default_status == "made":
             logger.info(f"Default set to '{config_name}'. Run `cld <command>` to use it, "
                         f"or `cld -C {config_name} <command>` to select it explicitly.")
     elif default:
@@ -110,6 +111,8 @@ def config_command(new, ls, as_json, show, rm, from_url, default, set_default, u
         rows = list_configs()
         if as_json:
             print_json(rows)
+        elif not rows:
+            echo(NO_CONFIG_MESSAGE)
         else:
             echo(render_config_table(rows))
     elif show:

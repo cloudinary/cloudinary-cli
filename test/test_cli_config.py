@@ -51,14 +51,16 @@ class TestCLIConfig(unittest.TestCase):
     def test_cli_config_invalid_config(self):
         result = self.runner.invoke(cli, ['--config', 'invalid', 'url', 'sample'])
 
-        self.assertEqual(1, result.exit_code)
-        self.assertIn('Invalid CLOUDINARY_URL scheme', str(result.exc_info[1]))
+        self.assertEqual(2, result.exit_code)
+        self.assertIn('-c/--config expects a CLOUDINARY_URL', result.output)
+        self.assertIn('Invalid CLOUDINARY_URL scheme', result.output)
 
     def test_cli_config_invalid_config_cloud_name(self):
         result = self.runner.invoke(cli, ['--config', self.INVALID_CLOUDINARY_URL, 'ping'])
 
-        self.assertEqual(1, result.exit_code)
-        self.assertIn('No Cloudinary configuration found.', str(result.exc_info[1]))
+        self.assertEqual(2, result.exit_code)
+        self.assertIn('-c/--config expects a CLOUDINARY_URL', result.output)
+        self.assertIn('missing cloud name', result.output)
 
     def test_cli_show_config(self):
         result = self.runner.invoke(cli, ['--config', self.TEST_CLOUDINARY_URL, 'config'])
