@@ -302,11 +302,13 @@ class TestUnconfiguredBanner(unittest.TestCase):
             if saved:  # saved configs on disk but (deliberately) no __default__ set
                 with open(config_file, "w") as f:
                     json.dump(saved, f)
-            env = {k: v for k, v in os.environ.items() if k != "CLOUDINARY_URL"}
+            # Strip ambient CLOUDINARY_* (a developer's shell/IDE may export one) and rebuild the
+            # SDK config from the cleared env, so "unconfigured" is not polluted by a real account.
+            env = {k: v for k, v in os.environ.items() if not k.startswith("CLOUDINARY_")}
             with patch.dict(os.environ, env, clear=True), \
-                    patch.object(cloudinary, "_config", cloudinary.Config()), \
                     patch.object(config_utils, "CLOUDINARY_CLI_CONFIG_FILE", config_file), \
                     patch.object(config_utils, "_config_lock", FileLock(config_file + ".lock")):
+                cloudinary.reset_config()
                 yield
 
     def _invoke(self, args, saved=None):
