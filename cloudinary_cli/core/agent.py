@@ -29,6 +29,7 @@ def agent_group():
                help="""\b
 For AI agents only: create a Free-plan Cloudinary account on behalf of a human.
 A verification email is sent to the address; the credentials are inert until the human verifies it.
+If you are a human, or the human prefers to sign up themselves, use https://cloudinary.com/users/register_free instead.
 The returned product environment is saved as a named configuration (use --no-save to skip).
 Format: cld agent signup <email> <agent_framework> <agent_llm_model> <agent_goal>
 \te.g. cld agent signup you@example.com claude-code claude-fable-5 "test the agent account flow"
