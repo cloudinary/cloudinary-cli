@@ -9,7 +9,7 @@ from cloudinary.exceptions import AuthorizationRequired
 from cloudinary.utils import cloudinary_url
 
 from cloudinary_cli.defaults import logger
-from cloudinary_cli.utils.config_utils import is_valid_cloudinary_config
+from cloudinary_cli.utils.config_utils import is_valid_cloudinary_config, user_config_names
 from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel_path, get_destination_folder,
                                              populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
@@ -34,6 +34,15 @@ DESTRUCTIVE_BULK_API_METHODS = {
 # Server-enforced cap on how many resources a single destructive bulk call can affect
 # (NConfig.max_resource_count_for_delete). Used purely for clearer prompt wording.
 MAX_DESTRUCTIVE_BULK_PER_CALL = 1000
+
+# Public, unauthenticated API methods that must run without a Cloudinary configuration.
+PUBLIC_API_METHODS = {
+    "provisioning": {"create_agent_account"},
+}
+
+
+def is_public_api_method(api_name, method_name):
+    return method_name in PUBLIC_API_METHODS.get(api_name, set())
 
 
 def is_destructive_bulk_api_method(method_name):
@@ -368,7 +377,10 @@ def handle_api_command(
     if not confirm_destructive_bulk_api_method(api_name, func.__name__, force):
         return False
 
-    if not is_valid_cloudinary_config():
+    if not is_public_api_method(api_name, func.__name__) and not is_valid_cloudinary_config():
+        if user_config_names():
+            raise ConfigurationError("No default Cloudinary configuration is set. "
+                                     "Select one with `-C <name>` or set a default with `cld config -d <name>`.")
         raise ConfigurationError("No Cloudinary configuration found.")
 
     try:

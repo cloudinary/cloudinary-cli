@@ -23,13 +23,9 @@ from cloudinary_cli.auth.refresh import (
 from cloudinary_cli.defaults import logger, normalize_region, DEFAULT_REGION, CLOUDINARY_REGION
 from cloudinary_cli.utils.config_utils import (
     load_config,
-    update_config,
     remove_config_keys,
-    user_config_names,
-    get_default_config_name,
-    set_default_config,
+    save_named_config,
     is_reserved_config_name,
-    is_env_configured,
 )
 from cloudinary_cli.utils.utils import log_exception, is_interactive
 
@@ -62,32 +58,8 @@ def login(region=None, name=None, set_default=False):
         raise RuntimeError("Login token did not include a cloud name; cannot save this login.")
     config_name = name or _derive_config_name(session.cloud_name, region)
 
-    was_default = get_default_config_name() == config_name  # before we touch the config
-    update_config({config_name: to_cloudinary_url(session)})
-
-    if was_default:
-        return config_name, "already"
-    if set_default or _should_auto_default(config_name):
-        set_default_config(config_name)
-        return config_name, "made"
-    return config_name, "no"
-
-
-def _should_auto_default(name):
-    """
-    True when the just-saved login should become the default without an explicit flag: it is the
-    only saved config, the environment configures nothing, and no default is already stored.
-
-    A stored default outranks the environment, so auto-defaulting is suppressed when an env config
-    is present: a single `cld login` must not silently override a user's CLOUDINARY_URL. They can
-    still opt in with `--set-default`.
-    """
-    cfg = load_config()
-    return (
-        user_config_names(cfg) == [name]
-        and not is_env_configured()
-        and not get_default_config_name()
-    )
+    default_status = save_named_config(config_name, to_cloudinary_url(session), set_default=set_default)
+    return config_name, default_status
 
 
 def logout(name):

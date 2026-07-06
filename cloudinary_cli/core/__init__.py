@@ -1,6 +1,7 @@
 import click
 
 from cloudinary_cli.core.admin import admin
+from cloudinary_cli.core.agent import agent_group
 from cloudinary_cli.core.auth import login, logout
 from cloudinary_cli.core.config import config_command
 from cloudinary_cli.core.search import search, search_folders
@@ -13,6 +14,7 @@ setattr(click.Group, "resolve_command", resolve_command)
 
 commands = [
     config_command,
+    agent_group,
     login,
     logout,
     search,

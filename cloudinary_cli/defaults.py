@@ -28,6 +28,40 @@ CLOUDINARY_CLI_CONFIG_FILE = abspath(path_join(CLOUDINARY_HOME, 'config.json'))
 # names are rejected as user config names, so this can't collide with a saved config.
 DEFAULT_CONFIG_KEY = "__default__"
 
+# Query param carried inside a saved cloudinary:// URL recording the email the account was created
+# for (via `cld agent signup`). Stripped before display and before reaching the SDK.
+ACCOUNT_EMAIL_PARAM = "account_email"
+
+# Guidance shown when no configuration is available (the group callback for account-consuming
+# commands, and the empty `config -ls`). Printed verbatim to stderr, without the logger's
+# "warning:" prefix, so the copy-pasteable command lines stay clean.
+NO_CONFIG_MESSAGE = (
+    "No Cloudinary configuration found.\n"
+    "  - Log in with OAuth:        cld login\n"
+    "  - Add an API-key config:    cld config -n <name> "
+    "cloudinary://<api_key>:<api_secret>@<cloud_name> --set-default\n"
+    "  - Set an existing config\n"
+    "    as the default:           cld config -d <name>\n"
+    "  - AI agents only, create\n"
+    "    an account for a human:   cld agent signup <email> <framework> <model> <goal>"
+)
+
+# Shown when saved configs exist but none is active (no default set, no environment config, and no
+# -c/-C on the command line). The account is there; the CLI just doesn't know which one to use.
+NO_DEFAULT_CONFIG_MESSAGE = (
+    "No default Cloudinary configuration is set. Select one per command with `-C <name>`, "
+    "or set a default with `cld config -d <name>`.\n"
+    "List your saved configurations with `cld config -ls`."
+)
+
+# Shown when an explicitly selected config (-c URL or -C saved name) has a cloud name but no
+# credentials (api_key/api_secret or an OAuth token). The user picked a config on purpose, so the
+# generic "no config found" guidance would be misleading; the config is just incomplete.
+INCOMPLETE_CONFIG_MESSAGE = (
+    "The selected configuration is incomplete: it has a cloud name but no credentials "
+    "(api_key/api_secret or an OAuth token). Operations that need authentication will fail."
+)
+
 # OAuth configuration for `cld login`. The region string derives both the API and
 # OAuth hosts; an unknown region simply fails to resolve.
 DEFAULT_REGION = 'api'
@@ -82,7 +116,7 @@ OAUTH_REDIRECT_PORT = int(os.environ.get('CLOUDINARY_OAUTH_REDIRECT_PORT', OAUTH
 OAUTH_CALLBACK_PATH = '/callback'
 
 OAUTH_CALLBACK_TIMEOUT_SECONDS = 300
-OAUTH_EXPIRY_SKEW_SECONDS = 280
+OAUTH_EXPIRY_SKEW_SECONDS = 30
 OAUTH_HTTP_TIMEOUT_SECONDS = 30
 
 TEMPLATE_FOLDER_NAME = 'templates'

@@ -4,13 +4,14 @@ dataclass is the in-memory form, `to_cloudinary_url`/`from_cloudinary_url` the p
 import base64
 import json
 import time
-import urllib.parse
 from dataclasses import dataclass
 
 from cloudinary_cli.defaults import (
     OAUTH_EXPIRY_SKEW_SECONDS,
     api_host_for_region,
 )
+from cloudinary_cli.utils.url_utils import url_params, url_host
+from cloudinary_cli.utils.config_utils import build_config_url
 
 # Query-string keys that carry the OAuth session inside a cloudinary:// URL.
 _OAUTH_MARKER = "oauth_token"
@@ -71,15 +72,14 @@ def to_cloudinary_url(session):
         "issuer": session.issuer or "",
         "upload_prefix": api_host_for_region(session.region),
     }
-    return f"cloudinary://{session.cloud_name}?{urllib.parse.urlencode(params)}"
+    return build_config_url(session.cloud_name, params)
 
 
 def from_cloudinary_url(url):
     """Parse an OAuth cloudinary:// URL back into a Session."""
-    parsed = urllib.parse.urlparse(url)
-    q = {k: v[0] for k, v in urllib.parse.parse_qs(parsed.query).items()}
+    q = url_params(url)
     return Session(
-        cloud_name=parsed.hostname,
+        cloud_name=url_host(url),
         access_token=q.get("oauth_token"),
         refresh_token=q.get("refresh_token") or None,
         issued_at=int(q.get("issued_at", 0) or 0),
@@ -92,8 +92,7 @@ def from_cloudinary_url(url):
 def is_oauth_url(url):
     if not isinstance(url, str):
         return False
-    query = urllib.parse.urlparse(url).query
-    return _OAUTH_MARKER in urllib.parse.parse_qs(query)
+    return _OAUTH_MARKER in url_params(url)
 
 
 def _decode_jwt_payload(access_token):

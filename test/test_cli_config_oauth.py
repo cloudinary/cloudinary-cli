@@ -140,31 +140,30 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
 class TestLoginSetDefault(unittest.TestCase):
     """`login` sets the default explicitly with --set-default and auto-defaults a sole login."""
 
-    def _patches(self, saved):
-        session = Session(cloud_name="eu-cloud", access_token="a", refresh_token="r",
-                          expires_at=int(time.time()) + 300, region="api-eu",
-                          issuer="https://oauth.cloudinary.com/")
+    def _patches(self, saved, env_configured=False, stored_default=None):
+        # login now delegates the default decision to config_utils.save_named_config; patch that
+        # function's dependencies at their home module so the real auto-default logic runs.
         return patch.multiple(
-            "cloudinary_cli.auth",
-            _run_browser_flow=lambda region: session,
+            "cloudinary_cli.utils.config_utils",
             load_config=lambda: dict(saved),
             update_config=lambda *a, **k: None,
-            is_env_configured=lambda: False,
+            is_env_configured=lambda: env_configured,
+            get_default_config_name=lambda: stored_default,
         )
 
     def test_set_default_flag_marks_default(self):
         from cloudinary_cli import auth
         with self._patches({"eu-cloud": _oauth_url(), "other": _oauth_url("other")}), \
-                patch("cloudinary_cli.auth.set_default_config") as set_default, \
-                patch("cloudinary_cli.auth.get_default_config_name", return_value=None):
+                patch("cloudinary_cli.auth._run_browser_flow", return_value=self._session()), \
+                patch("cloudinary_cli.utils.config_utils.set_default_config") as set_default:
             auth.login(region="eu", name="eu-cloud", set_default=True)
         set_default.assert_called_once_with("eu-cloud")
 
     def test_auto_default_when_sole_config_no_env_no_default(self):
         from cloudinary_cli import auth
         with self._patches({"eu-cloud": _oauth_url()}), \
-                patch("cloudinary_cli.auth.set_default_config") as set_default, \
-                patch("cloudinary_cli.auth.get_default_config_name", return_value=None):
+                patch("cloudinary_cli.auth._run_browser_flow", return_value=self._session()), \
+                patch("cloudinary_cli.utils.config_utils.set_default_config") as set_default:
             name, default_status = auth.login(region="eu", name="eu-cloud")
         set_default.assert_called_once_with("eu-cloud")
         self.assertEqual(("eu-cloud", "made"), (name, default_status))
@@ -172,8 +171,8 @@ class TestLoginSetDefault(unittest.TestCase):
     def test_returns_not_default_when_other_configs_exist(self):
         from cloudinary_cli import auth
         with self._patches({"eu-cloud": _oauth_url(), "other": _oauth_url("other")}), \
-                patch("cloudinary_cli.auth.set_default_config"), \
-                patch("cloudinary_cli.auth.get_default_config_name", return_value=None):
+                patch("cloudinary_cli.auth._run_browser_flow", return_value=self._session()), \
+                patch("cloudinary_cli.utils.config_utils.set_default_config"):
             name, default_status = auth.login(region="eu", name="eu-cloud")
         self.assertEqual(("eu-cloud", "no"), (name, default_status))
 
@@ -181,9 +180,10 @@ class TestLoginSetDefault(unittest.TestCase):
         """Re-login into a config that is already the stored default must NOT set it again and must
         report "already" so the CLI doesn't tell the user to make it the default."""
         from cloudinary_cli import auth
-        with self._patches({"eu-cloud": _oauth_url(), "other": _oauth_url("other")}), \
-                patch("cloudinary_cli.auth.set_default_config") as set_default, \
-                patch("cloudinary_cli.auth.get_default_config_name", return_value="eu-cloud"):
+        with self._patches({"eu-cloud": _oauth_url(), "other": _oauth_url("other")},
+                           stored_default="eu-cloud"), \
+                patch("cloudinary_cli.auth._run_browser_flow", return_value=self._session()), \
+                patch("cloudinary_cli.utils.config_utils.set_default_config") as set_default:
             name, default_status = auth.login(region="eu", name="eu-cloud")
         set_default.assert_not_called()
         self.assertEqual(("eu-cloud", "already"), (name, default_status))
@@ -191,27 +191,32 @@ class TestLoginSetDefault(unittest.TestCase):
     def test_no_auto_default_when_other_configs_exist(self):
         from cloudinary_cli import auth
         with self._patches({"eu-cloud": _oauth_url(), "other": _oauth_url("other")}), \
-                patch("cloudinary_cli.auth.set_default_config") as set_default, \
-                patch("cloudinary_cli.auth.get_default_config_name", return_value=None):
+                patch("cloudinary_cli.auth._run_browser_flow", return_value=self._session()), \
+                patch("cloudinary_cli.utils.config_utils.set_default_config") as set_default:
             auth.login(region="eu", name="eu-cloud")
         set_default.assert_not_called()
 
     def test_no_auto_default_when_env_configured(self):
         from cloudinary_cli import auth
-        with self._patches({"eu-cloud": _oauth_url()}), \
-                patch("cloudinary_cli.auth.is_env_configured", return_value=True), \
-                patch("cloudinary_cli.auth.set_default_config") as set_default, \
-                patch("cloudinary_cli.auth.get_default_config_name", return_value=None):
+        with self._patches({"eu-cloud": _oauth_url()}, env_configured=True), \
+                patch("cloudinary_cli.auth._run_browser_flow", return_value=self._session()), \
+                patch("cloudinary_cli.utils.config_utils.set_default_config") as set_default:
             auth.login(region="eu", name="eu-cloud")
         set_default.assert_not_called()
 
     def test_no_auto_default_when_default_already_stored(self):
         from cloudinary_cli import auth
-        with self._patches({"eu-cloud": _oauth_url()}), \
-                patch("cloudinary_cli.auth.set_default_config") as set_default, \
-                patch("cloudinary_cli.auth.get_default_config_name", return_value="something"):
+        with self._patches({"eu-cloud": _oauth_url()}, stored_default="something"), \
+                patch("cloudinary_cli.auth._run_browser_flow", return_value=self._session()), \
+                patch("cloudinary_cli.utils.config_utils.set_default_config") as set_default:
             auth.login(region="eu", name="eu-cloud")
         set_default.assert_not_called()
+
+    @staticmethod
+    def _session():
+        return Session(cloud_name="eu-cloud", access_token="a", refresh_token="r",
+                       expires_at=int(time.time()) + 300, region="api-eu",
+                       issuer="https://oauth.cloudinary.com/")
 
     def test_reserved_name_rejected(self):
         from cloudinary_cli import auth
@@ -526,10 +531,11 @@ class TestDefaultConfigResolution(_RestoresSdkConfig):
         self.assertEqual("eu-cloud", cloudinary.config().cloud_name)
 
     def test_no_implicit_sole_login_without_default(self):
-        # A single saved login with no stored default no longer auto-applies.
+        # A single saved login with no stored default no longer auto-applies. The banner reflects
+        # that a config exists but no default is set (not that none was found).
         saved = {"eu-cloud": _oauth_url()}
         result = self._invoke(['url', 'sample'], saved=saved)
-        self.assertIn("No Cloudinary configuration found.", result.output)
+        self.assertIn("No default Cloudinary configuration is set", result.stderr)
         self.assertIsNone(cloudinary.config().cloud_name)
 
     def test_stored_default_beats_env(self):
@@ -682,22 +688,19 @@ class TestConfigDefaultCommands(_RestoresSdkConfig):
 
     def test_new_with_set_default(self):
         with patch("cloudinary_cli.core.config.verify_cloudinary_url", return_value=True), \
-                patch("cloudinary_cli.core.config.update_config"), \
-                patch("cloudinary_cli.core.config.set_default_config") as set_default:
+                patch("cloudinary_cli.core.config.save_named_config", return_value="made") as save:
             result = self.runner.invoke(
                 cli, ['config', '-n', 'prod', 'cloudinary://k:s@prod', '--set-default'])
         self.assertEqual(0, result.exit_code, result.output)
-        set_default.assert_called_once_with("prod")
+        save.assert_called_once_with("prod", 'cloudinary://k:s@prod', set_default=True)
         self.assertIn("Default set to 'prod'", result.output)
 
     def test_set_default_on_failing_url_neither_saves_nor_defaults(self):
         with patch("cloudinary_cli.core.config.verify_cloudinary_url", return_value=False), \
-                patch("cloudinary_cli.core.config.update_config") as update, \
-                patch("cloudinary_cli.core.config.set_default_config") as set_default:
+                patch("cloudinary_cli.core.config.save_named_config") as save:
             self.runner.invoke(
                 cli, ['config', '-n', 'prod', 'cloudinary://bad', '--set-default'])
-        update.assert_not_called()
-        set_default.assert_not_called()
+        save.assert_not_called()
 
     def test_unset_default(self):
         with patch("cloudinary_cli.core.config.load_config", return_value={}), \

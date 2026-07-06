@@ -28,7 +28,9 @@ CONTEXT_SETTINGS = dict(max_content_width=shutil.get_terminal_size()[0], termina
 @click_log.simple_verbosity_option(logger)
 @click.pass_context
 def cli(ctx, config, config_saved):
-    resolve_cli_config(config, config_saved)
+    subcommand = cli.get_command(ctx, ctx.invoked_subcommand) if ctx.invoked_subcommand else None
+    warn_if_unconfigured = not getattr(subcommand, "config_optional", False)
+    resolve_cli_config(config, config_saved, warn_if_unconfigured=warn_if_unconfigured)
 
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())

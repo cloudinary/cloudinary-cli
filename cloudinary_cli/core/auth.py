@@ -2,9 +2,11 @@ from click import command, argument, option, echo
 
 from cloudinary_cli.auth import login as run_login, logout as run_logout, list_oauth_login_names
 from cloudinary_cli.defaults import logger
+from cloudinary_cli.utils.config_utils import config_optional
 from cloudinary_cli.utils.utils import log_exception, prompt_user
 
 
+@config_optional
 @command("login", help="Log in to Cloudinary via OAuth (opens a browser). The session is saved "
                        "as a named configuration you can select with `-C`.")
 @argument("name", required=False)
@@ -34,6 +36,7 @@ def login(name, region, set_default):
     return True
 
 
+@config_optional
 @command("logout", help="Log out: revoke a saved OAuth login's token and remove its configuration. "
                         "Run without a name to choose from the saved logins.")
 @argument("name", required=False)

@@ -337,10 +337,10 @@ class TestLoginGuards(unittest.TestCase):
     def test_missing_cloud_name_raises_and_saves_nothing(self):
         session = _session(cloud_name=None)
         with patch("cloudinary_cli.auth._run_browser_flow", return_value=session), \
-                patch("cloudinary_cli.auth.update_config") as update_config:
+                patch("cloudinary_cli.auth.save_named_config") as save_named_config:
             with self.assertRaises(RuntimeError):
                 login(region="api-eu")
-            update_config.assert_not_called()
+            save_named_config.assert_not_called()
 
 
 class TestBrowserFlowNonInteractive(unittest.TestCase):

@@ -13,10 +13,19 @@ from cloudinary_cli.defaults import (
     CLOUDINARY_CLI_CONFIG_FILE,
     OLD_CLOUDINARY_CLI_CONFIG_FILE,
     DEFAULT_CONFIG_KEY,
+    ACCOUNT_EMAIL_PARAM,
     logger,
 )
 from cloudinary_cli.utils.json_utils import write_json_to_file, read_json_from_file
-from cloudinary_cli.utils.utils import log_exception
+from cloudinary_cli.utils.url_utils import set_url_params, url_param
+
+def config_optional(cmd):
+    """Mark a Click command/group as not requiring a resolved Cloudinary config, so the top-level
+    group callback skips the 'No configuration found' banner for it. The command owns its own config
+    handling (or needs none)."""
+    cmd.config_optional = True
+    return cmd
+
 
 # Cross-process lock guarding read-modify-write of the config file. Reentrant within a process,
 # so callers may hold it across a multi-step update (e.g. token refresh) without deadlocking.
@@ -109,6 +118,37 @@ def clear_default_config():
     remove_config_keys(DEFAULT_CONFIG_KEY)
 
 
+def save_named_config(name, cloudinary_url, set_default=False):
+    """
+    Persist a named configuration and apply the auto-default rule, returning one of:
+      "made"    - this save became the default (explicit set_default, or auto-defaulted as the sole config),
+      "already" - the name was already the stored default (left unchanged),
+      "no"      - saved but not the default.
+
+    Auto-default (without set_default) applies only when this is the first usable config: it is the
+    only saved config, the environment configures nothing, and no default is already stored. A stored
+    default outranks the environment, so a single save must not silently override a user's CLOUDINARY_URL.
+    """
+    was_default = get_default_config_name() == name  # before we touch the config
+    update_config({name: cloudinary_url})
+
+    if was_default:
+        return "already"
+    if set_default or _should_auto_default(name):
+        set_default_config(name)
+        return "made"
+    return "no"
+
+
+def _should_auto_default(name):
+    cfg = load_config()
+    return (
+        user_config_names(cfg) == [name]
+        and not is_env_configured()
+        and not get_default_config_name()
+    )
+
+
 def user_config_names(cfg=None):
     """Saved config names with the reserved default key filtered out."""
     cfg = cfg if cfg is not None else load_config()
@@ -118,6 +158,55 @@ def user_config_names(cfg=None):
 def is_reserved_config_name(name):
     """Names wrapped in double underscores are reserved for internal keys (e.g. the default)."""
     return name.startswith("__") and name.endswith("__")
+
+
+def _normalize_email(email):
+    return (email or "").strip().lower()
+
+
+def validate_config_url(cloudinary_url):
+    """Return cloudinary_url if it is a well-formed cloudinary:// config URL, else raise ValueError.
+    Reuses the SDK's own scheme validation (Config._config_from_parsed_url) and additionally requires
+    a cloud name, which the SDK does not enforce."""
+    config = cloudinary.Config()
+    # noinspection PyProtectedMember
+    parsed = config._parse_cloudinary_url(cloudinary_url)
+    # noinspection PyProtectedMember
+    config._config_from_parsed_url(parsed)  # raises ValueError on a non-cloudinary:// scheme
+    if not parsed.hostname:
+        raise ValueError("Invalid CLOUDINARY_URL: missing cloud name.")
+    return cloudinary_url
+
+
+def build_config_url(cloud_name, params=None, api_key=None, api_secret=None):
+    """Build (and validate) a cloudinary://[key:secret@]cloud_name?params config URL. The single place
+    that constructs a config URL from parts. URL -> Config parsing stays with the SDK; the SDK has no
+    Config -> URL serializer, so building one lives here. Raises ValueError on an invalid result.
+
+    api_key/api_secret are placed in the userinfo verbatim: the SDK reads userinfo raw (it does not
+    percent-decode it), and Cloudinary keys/secrets are alphanumeric, so they need no escaping."""
+    userinfo = f"{api_key}:{api_secret or ''}@" if api_key else ""
+    url = set_url_params(f"cloudinary://{userinfo}{cloud_name}", **(params or {}))
+    return validate_config_url(url)
+
+
+def email_from_url(cloudinary_url):
+    """The normalized ACCOUNT_EMAIL_PARAM value stored in a saved URL, or None."""
+    value = url_param(cloudinary_url, ACCOUNT_EMAIL_PARAM)
+    return _normalize_email(value) if value else None
+
+
+def config_name_for_email(email):
+    """The saved config whose URL records this account email, or None. Scans only saved configs, so a
+    removed config drops out automatically (the URL is gone with it). Returns the first match."""
+    email = _normalize_email(email)
+    if not email:
+        return None
+    cfg = load_config()
+    for name in user_config_names(cfg):
+        if email_from_url(cfg[name]) == email:
+            return name
+    return None
 
 
 def refresh_cloudinary_config(cloudinary_url, saved_name=None):
