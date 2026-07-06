@@ -1,3 +1,11 @@
+1.16.0 / 2026-07-06
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for `agent signup` command
+
 1.15.0 / 2026-06-30
 ==================
 
