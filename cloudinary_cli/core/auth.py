@@ -74,6 +74,9 @@ def _select_oauth_login():
         logger.info("No saved OAuth logins to log out of.")
         return "none", None
 
+    if len(names) == 1:
+        return _confirm_sole_login(names[0])
+
     echo("Saved OAuth logins:")
     for i, name in enumerate(names, start=1):
         echo(f"  {i}) {name}")
@@ -92,3 +95,16 @@ def _select_oauth_login():
         logger.error(f"Invalid selection '{choice}'. Expected a number between 1 and {len(names)}.")
         return "invalid", None
     return "selected", names[int(choice) - 1]
+
+
+def _confirm_sole_login(name):
+    """With a single saved login there is nothing to choose, so confirm that one rather than
+    presenting a one-item menu. Logging out still revokes a token, so it is not done unasked."""
+    choice = prompt_user(
+        f"Log out of '{name}'? [y/N]: ",
+        noninteractive_hint="Pass the configuration name directly: `cld logout <name>`.")
+    if choice is None:
+        return "invalid", None
+    if choice.strip().lower() not in ("y", "yes"):
+        return "cancelled", None
+    return "selected", name
