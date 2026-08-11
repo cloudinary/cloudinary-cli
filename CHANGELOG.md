@@ -1,3 +1,8 @@
+1.16.1 / 2026-08-11
+==================
+
+  * Fix stale default configuration after removing a saved config
+
 1.16.0 / 2026-07-06
 ==================
 
