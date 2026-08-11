@@ -6,11 +6,10 @@ from cloudinary_cli.utils.config_utils import (
     load_config,
     verify_cloudinary_url,
     save_named_config,
-    remove_config_keys,
+    remove_named_config,
     show_cloudinary_config,
     is_valid_cloudinary_config,
     user_config_names,
-    get_default_config_name,
     set_default_config,
     clear_default_config,
     is_reserved_config_name,
@@ -101,12 +100,10 @@ def config_command(new, ls, as_json, show, rm, from_url, default, set_default, u
         clear_default_config()
         logger.info("Default configuration cleared.")
     elif rm:
-        if remove_config_keys(rm):
-            logger.warning(f"Configuration '{rm}' not found.")
-        else:
-            if get_default_config_name() == rm:
-                clear_default_config()
+        if remove_named_config(rm):
             logger.info(f"Configuration '{rm}' deleted.")
+        else:
+            logger.warning(f"Configuration '{rm}' not found.")
     elif ls:
         rows = list_configs()
         if as_json:

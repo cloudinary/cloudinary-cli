@@ -72,8 +72,19 @@ def load_config():
     if stat is not None and stat == _config_cache_stat and _config_cache is not None:
         return dict(_config_cache)  # copy: callers mutate the result in place (e.g. cfg.update(...))
     cfg = read_json_from_file(CLOUDINARY_CLI_CONFIG_FILE, does_not_exist_ok=True)
+    _rectify_config(cfg)
     _config_cache, _config_cache_stat = cfg, stat
     return dict(cfg)
+
+
+def _rectify_config(cfg):
+    """Correct invalid state in a freshly-read config, in place, so no caller has to guard against
+    it. The repair reaches disk on the next write, since every mutation rebuilds the file from a
+    load_config result."""
+    default = cfg.get(DEFAULT_CONFIG_KEY)
+    if default is not None and default not in [k for k in cfg if k != DEFAULT_CONFIG_KEY]:
+        del cfg[DEFAULT_CONFIG_KEY]
+        logger.debug(f"Ignoring stored default '{default}': no such saved configuration.")
 
 
 def save_config(config):
@@ -140,13 +151,36 @@ def save_named_config(name, cloudinary_url, set_default=False):
     return "no"
 
 
+def remove_named_config(name):
+    """
+    Delete a named configuration, and re-point the stored default when it named that config: a lone
+    surviving config is promoted, otherwise the default is cleared. The counterpart to
+    save_named_config: the single way to remove a saved config. Returns True if the configuration
+    existed and was removed.
+    """
+    with config_lock():
+        cfg = load_config()
+        if name not in user_config_names(cfg):
+            return False
+        del cfg[name]
+        if cfg.get(DEFAULT_CONFIG_KEY) == name:
+            del cfg[DEFAULT_CONFIG_KEY]
+            remaining = user_config_names(cfg)
+            if remaining and _is_sole_usable_config(remaining[0], cfg):
+                cfg[DEFAULT_CONFIG_KEY] = remaining[0]
+        save_config(cfg)
+    return True
+
+
 def _should_auto_default(name):
-    cfg = load_config()
-    return (
-        user_config_names(cfg) == [name]
-        and not is_env_configured()
-        and not get_default_config_name()
-    )
+    return _is_sole_usable_config(name) and not get_default_config_name()
+
+
+def _is_sole_usable_config(name, cfg=None):
+    """Whether name is the only config a bare `cld <command>` could use: the only saved config, with
+    nothing configured in the environment. A stored default outranks the environment, so defaulting
+    to a saved config while CLOUDINARY_URL is set would silently override the user's choice."""
+    return user_config_names(cfg) == [name] and not is_env_configured()
 
 
 def user_config_names(cfg=None):

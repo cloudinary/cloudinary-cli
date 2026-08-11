@@ -37,13 +37,10 @@ ACCOUNT_EMAIL_PARAM = "account_email"
 # "warning:" prefix, so the copy-pasteable command lines stay clean.
 NO_CONFIG_MESSAGE = (
     "No Cloudinary configuration found.\n"
-    "  - Log in with OAuth:        cld login\n"
-    "  - Add an API-key config:    cld config -n <name> "
-    "cloudinary://<api_key>:<api_secret>@<cloud_name> --set-default\n"
-    "  - Set an existing config\n"
-    "    as the default:           cld config -d <name>\n"
-    "  - AI agents only, create\n"
-    "    an account for a human:   cld agent signup <email> <framework> <model> <goal>"
+    "  - Log in with OAuth:                     cld login\n"
+    "  - Add an API-key config:                 cld config -n <name> cloudinary://<api_key>:<api_secret>@<cloud_name> --set-default\n"
+    "  - Set an existing config as the default: cld config -d <name>\n"
+    "  - AI agents - provision an environment to be claimed by a human: cld agent signup <email> <framework> <model> <goal>"
 )
 
 # Shown when saved configs exist but none is active (no default set, no environment config, and no

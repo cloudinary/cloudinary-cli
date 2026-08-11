@@ -23,7 +23,7 @@ from cloudinary_cli.auth.refresh import (
 from cloudinary_cli.defaults import logger, normalize_region, DEFAULT_REGION, CLOUDINARY_REGION
 from cloudinary_cli.utils.config_utils import (
     load_config,
-    remove_config_keys,
+    remove_named_config,
     save_named_config,
     is_reserved_config_name,
 )
@@ -78,7 +78,7 @@ def logout(name):
         return "not_oauth"
 
     revoked = _revoke_login(name, saved[name])
-    remove_config_keys(name)
+    remove_named_config(name)
     return "removed" if revoked else "revoke_failed"
 
 

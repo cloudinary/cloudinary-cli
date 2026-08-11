@@ -12,7 +12,9 @@ def _in_memory_config(initial=None):
     store = {"cfg": dict(initial or {})}
 
     def _load():
-        return dict(store["cfg"])
+        cfg = dict(store["cfg"])
+        config_utils._rectify_config(cfg)  # the real load_config rectifies; mirror it here
+        return cfg
 
     def _save(cfg):
         store["cfg"] = dict(cfg)
@@ -141,6 +143,89 @@ class TestAccountEmailInUrl(unittest.TestCase):
         # noinspection PyProtectedMember
         cfg._setup_from_parsed_url(cfg._parse_cloudinary_url(_agent_url("cloud", "you@example.com")))
         self.assertEqual("you@example.com", config_utils.config_to_dict(cfg).get("account_email"))
+
+
+class TestDanglingDefault(unittest.TestCase):
+    """A __default__ naming no saved config is invalid state; reads must not observe it."""
+
+    def test_dangling_default_is_ignored(self):
+        with _in_memory_config({"__default__": "gone"}):
+            self.assertIsNone(config_utils.get_default_config_name())
+
+    def test_dangling_default_does_not_block_auto_default(self):
+        with _in_memory_config({"__default__": "gone"}), \
+                patch("cloudinary_cli.utils.config_utils.is_env_configured", return_value=False):
+            status = config_utils.save_named_config("prod", "cloudinary://k:s@prod")
+            self.assertEqual("made", status)
+            self.assertEqual("prod", config_utils.get_default_config_name())
+
+    def test_saving_under_dangling_default_name_is_not_already(self):
+        with _in_memory_config({"__default__": "gone"}), \
+                patch("cloudinary_cli.utils.config_utils.is_env_configured", return_value=False):
+            status = config_utils.save_named_config("gone", "cloudinary://k:s@gone")
+            self.assertEqual("made", status)
+            self.assertEqual("gone", config_utils.get_default_config_name())
+
+    def test_dangling_default_dropped_from_file_on_next_write(self):
+        with _in_memory_config({"prod": "cloudinary://k:s@prod", "__default__": "gone"}) as store:
+            config_utils.update_config({"staging": "cloudinary://k:s@staging"})
+            self.assertNotIn("__default__", store["cfg"])
+
+
+class TestRemoveNamedConfig(unittest.TestCase):
+    def test_keeps_default_pointing_at_another_config(self):
+        with _in_memory_config({"prod": "cloudinary://k:s@prod",
+                                "staging": "cloudinary://k:s@staging",
+                                "__default__": "prod"}) as store, \
+                patch("cloudinary_cli.utils.config_utils.is_env_configured", return_value=False):
+            self.assertTrue(config_utils.remove_named_config("staging"))
+            self.assertEqual("prod", store["cfg"]["__default__"])
+
+    def test_promotes_lone_survivor_to_default(self):
+        with _in_memory_config({"prod": "cloudinary://k:s@prod",
+                                "staging": "cloudinary://k:s@staging",
+                                "__default__": "prod"}) as store, \
+                patch("cloudinary_cli.utils.config_utils.is_env_configured", return_value=False):
+            self.assertTrue(config_utils.remove_named_config("prod"))
+            self.assertEqual("staging", store["cfg"]["__default__"])
+
+    def test_no_promotion_when_env_configured(self):
+        with _in_memory_config({"prod": "cloudinary://k:s@prod",
+                                "staging": "cloudinary://k:s@staging",
+                                "__default__": "prod"}) as store, \
+                patch("cloudinary_cli.utils.config_utils.is_env_configured", return_value=True):
+            self.assertTrue(config_utils.remove_named_config("prod"))
+            self.assertNotIn("__default__", store["cfg"])  # env keeps precedence
+
+    def test_no_promotion_when_several_survive(self):
+        with _in_memory_config({"a": "cloudinary://k:s@a", "b": "cloudinary://k:s@b",
+                                "c": "cloudinary://k:s@c", "__default__": "a"}) as store, \
+                patch("cloudinary_cli.utils.config_utils.is_env_configured", return_value=False):
+            self.assertTrue(config_utils.remove_named_config("a"))
+            self.assertNotIn("__default__", store["cfg"])  # ambiguous, so the user picks
+
+    def test_no_promotion_when_removed_was_not_default(self):
+        with _in_memory_config({"prod": "cloudinary://k:s@prod",
+                                "staging": "cloudinary://k:s@staging"}) as store, \
+                patch("cloudinary_cli.utils.config_utils.is_env_configured", return_value=False):
+            self.assertTrue(config_utils.remove_named_config("staging"))
+            self.assertNotIn("__default__", store["cfg"])  # there was no default to re-point
+
+    def test_removing_last_config_leaves_no_default(self):
+        with _in_memory_config({"prod": "cloudinary://k:s@prod", "__default__": "prod"}) as store, \
+                patch("cloudinary_cli.utils.config_utils.is_env_configured", return_value=False):
+            self.assertTrue(config_utils.remove_named_config("prod"))
+            self.assertEqual({}, store["cfg"])
+
+    def test_missing_name_reports_false(self):
+        with _in_memory_config({"prod": "cloudinary://k:s@prod"}) as store:
+            self.assertFalse(config_utils.remove_named_config("nope"))
+            self.assertEqual({"prod": "cloudinary://k:s@prod"}, store["cfg"])
+
+    def test_refuses_reserved_key(self):
+        with _in_memory_config({"prod": "cloudinary://k:s@prod", "__default__": "prod"}) as store:
+            self.assertFalse(config_utils.remove_named_config("__default__"))
+            self.assertEqual("prod", store["cfg"]["__default__"])
 
 
 class TestBuildConfigUrl(unittest.TestCase):

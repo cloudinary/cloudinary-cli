@@ -2,6 +2,7 @@ import json
 import os
 import time
 import unittest
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import cloudinary
@@ -11,6 +12,7 @@ from cloudinary_cli.auth.session import Session, to_cloudinary_url
 from test.oauth_helpers import jwt_access_token
 from cloudinary_cli.cli import cli
 from cloudinary_cli.utils.config_resolver import config_to_api_kwargs, get_cloudinary_config
+from cloudinary_cli.utils import config_utils
 from cloudinary_cli.utils.config_utils import config_to_dict, show_cloudinary_config
 
 
@@ -18,6 +20,27 @@ def _oauth_url(cloud="eu-cloud", region="api-eu"):
     return to_cloudinary_url(Session(
         cloud_name=cloud, access_token="eyJ.secret_access.tok", refresh_token="rt_secret_value",
         expires_at=int(time.time()) + 300, region=region, issuer="https://oauth.cloudinary.com/"))
+
+
+@contextmanager
+def _patched_config_store(initial=None):
+    """Back load_config/save_config with an in-memory dict (no real config.json or lock)."""
+    store = {"cfg": dict(initial or {})}
+
+    @contextmanager
+    def _noop_lock():
+        yield
+
+    def _load():
+        cfg = dict(store["cfg"])
+        config_utils._rectify_config(cfg)  # the real load_config rectifies; mirror it here
+        return cfg
+
+    with patch("cloudinary_cli.utils.config_utils.load_config", side_effect=_load), \
+            patch("cloudinary_cli.utils.config_utils.save_config",
+                  side_effect=lambda cfg: store.__setitem__("cfg", dict(cfg))), \
+            patch("cloudinary_cli.utils.config_utils.config_lock", _noop_lock):
+        yield store
 
 
 class _RestoresSdkConfig(unittest.TestCase):
@@ -43,7 +66,7 @@ class TestLogoutScope(unittest.TestCase):
         from cloudinary_cli.auth import logout
         saved = {"eu-cloud": _oauth_url()}
         with patch("cloudinary_cli.auth.load_config", return_value=saved), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove, \
+                patch("cloudinary_cli.auth.remove_named_config") as remove, \
                 patch("cloudinary_cli.auth.flow.revoke") as revoke:
             self.assertEqual("removed", logout("eu-cloud"))
             remove.assert_called_once_with("eu-cloud")
@@ -54,7 +77,7 @@ class TestLogoutScope(unittest.TestCase):
         from cloudinary_cli.auth import logout
         saved = {"eu-cloud": _oauth_url()}
         with patch("cloudinary_cli.auth.load_config", return_value=saved), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove, \
+                patch("cloudinary_cli.auth.remove_named_config") as remove, \
                 patch("cloudinary_cli.auth.flow.revoke", side_effect=requests.ConnectionError()):
             self.assertEqual("revoke_failed", logout("eu-cloud"))
             remove.assert_called_once_with("eu-cloud")  # local entry removed despite revoke failure
@@ -63,14 +86,14 @@ class TestLogoutScope(unittest.TestCase):
         from cloudinary_cli.auth import logout
         saved = {"mykey": "cloudinary://key:secret@cloud"}
         with patch("cloudinary_cli.auth.load_config", return_value=saved), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove:
+                patch("cloudinary_cli.auth.remove_named_config") as remove:
             self.assertEqual("not_oauth", logout("mykey"))
             remove.assert_not_called()
 
     def test_missing_name(self):
         from cloudinary_cli.auth import logout
         with patch("cloudinary_cli.auth.load_config", return_value={}), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove:
+                patch("cloudinary_cli.auth.remove_named_config") as remove:
             self.assertEqual("not_found", logout("nope"))
             remove.assert_not_called()
 
@@ -79,13 +102,15 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
     """`cld logout` with no name lists OAuth logins and removes the chosen one."""
 
     runner = CliRunner()
+    # The numbered menu only appears with more than one login, so menu tests need two.
+    _TWO_LOGINS = {"cloud-a": _oauth_url("cloud-a"), "cloud-b": _oauth_url("cloud-b")}
 
     def test_lists_only_oauth_and_removes_selected(self):
         saved = {"mykey": "cloudinary://key:secret@cloud",
                  "cloud-a": _oauth_url("cloud-a"), "cloud-b": _oauth_url("cloud-b")}
         with patch("cloudinary_cli.auth.load_config", return_value=saved), \
                 patch("cloudinary_cli.auth.refresh.load_config", return_value=saved), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove, \
+                patch("cloudinary_cli.auth.remove_named_config") as remove, \
                 patch("cloudinary_cli.auth.flow.revoke"):
             result = self.runner.invoke(cli, ["logout"], input="2\n")
         self.assertIn("cloud-a", result.output)
@@ -96,40 +121,60 @@ class TestLogoutInteractiveSelect(unittest.TestCase):
     def test_no_oauth_logins(self):
         with patch("cloudinary_cli.auth.refresh.load_config",
                    return_value={"mykey": "cloudinary://key:secret@cloud"}), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove:
+                patch("cloudinary_cli.auth.remove_named_config") as remove:
             result = self.runner.invoke(cli, ["logout"], input="\n")
         self.assertIn("No saved OAuth logins", result.output)
         remove.assert_not_called()
 
     def test_cancel_on_empty_input(self):
         with patch("cloudinary_cli.auth.refresh.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove:
+                patch("cloudinary_cli.auth.remove_named_config") as remove:
             result = self.runner.invoke(cli, ["logout"], input="\n")
         remove.assert_not_called()
         self.assertEqual(0, result.exit_code)
 
     def test_invalid_non_numeric_errors(self):
-        with patch("cloudinary_cli.auth.refresh.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove:
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value=self._TWO_LOGINS), \
+                patch("cloudinary_cli.auth.remove_named_config") as remove:
             result = self.runner.invoke(cli, ["logout"], input="sdfdsf\n", standalone_mode=False)
         self.assertIn("Invalid selection", result.output)
         self.assertFalse(result.return_value)  # main() maps falsy -> exit 1
         remove.assert_not_called()
 
     def test_out_of_range_errors(self):
-        with patch("cloudinary_cli.auth.refresh.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove:
+        with patch("cloudinary_cli.auth.refresh.load_config", return_value=self._TWO_LOGINS), \
+                patch("cloudinary_cli.auth.remove_named_config") as remove:
             result = self.runner.invoke(cli, ["logout"], input="5\n", standalone_mode=False)
         self.assertIn("Invalid selection", result.output)
         self.assertFalse(result.return_value)
         remove.assert_not_called()
+
+    def test_sole_login_confirms_instead_of_listing(self):
+        saved = {"cloud-a": _oauth_url("cloud-a")}
+        with patch("cloudinary_cli.auth.load_config", return_value=saved), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=saved), \
+                patch("cloudinary_cli.auth.remove_named_config") as remove, \
+                patch("cloudinary_cli.auth.flow.revoke"):
+            result = self.runner.invoke(cli, ["logout"], input="y\n")
+        self.assertNotIn("Saved OAuth logins:", result.output)  # no one-item menu
+        self.assertIn("cloud-a", result.output)
+        remove.assert_called_once_with("cloud-a")
+
+    def test_sole_login_declined_removes_nothing(self):
+        saved = {"cloud-a": _oauth_url("cloud-a")}
+        with patch("cloudinary_cli.auth.load_config", return_value=saved), \
+                patch("cloudinary_cli.auth.refresh.load_config", return_value=saved), \
+                patch("cloudinary_cli.auth.remove_named_config") as remove:
+            result = self.runner.invoke(cli, ["logout"], input="n\n")
+        remove.assert_not_called()
+        self.assertEqual(0, result.exit_code)
 
     def test_noninteractive_stdin_errors_with_hint(self):
         # Closed stdin (no input at all): the selection cannot be made, so error with the
         # non-interactive form (`cld logout <name>`) and exit non-zero, not a silent no-op.
         import builtins
         with patch("cloudinary_cli.auth.refresh.load_config", return_value={"cloud-a": _oauth_url("cloud-a")}), \
-                patch("cloudinary_cli.auth.remove_config_keys") as remove, \
+                patch("cloudinary_cli.auth.remove_named_config") as remove, \
                 patch.object(builtins, "input", side_effect=EOFError()):
             result = self.runner.invoke(cli, ["logout"], standalone_mode=False)
         self.assertIn("cld logout <name>", result.output)
@@ -811,12 +856,11 @@ class TestConfigDefaultCommands(_RestoresSdkConfig):
         self.assertIn("(environment)", by_name)
 
     def test_rm_of_default_clears_it(self):
-        with patch("cloudinary_cli.core.config.remove_config_keys", return_value=[]), \
-                patch("cloudinary_cli.core.config.get_default_config_name", return_value="prod"), \
-                patch("cloudinary_cli.core.config.clear_default_config") as clear:
+        stored = {"prod": "cloudinary://k:s@prod", "__default__": "prod"}
+        with _patched_config_store(stored) as store:
             result = self.runner.invoke(cli, ['config', '-rm', 'prod'])
         self.assertEqual(0, result.exit_code, result.output)
-        clear.assert_called_once()
+        self.assertEqual({}, store["cfg"])  # the name and the default it held both gone
 
     def test_reserved_name_rejected_on_new(self):
         result = self.runner.invoke(
