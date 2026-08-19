@@ -9,10 +9,23 @@ The Cloudinary CLI (Command Line Interface) enables you to interact with Cloudin
 
 It is fully documented at [https://cloudinary.com/documentation/cloudinary_cli](https://cloudinary.com/documentation/cloudinary_cli).
 
+**Built for AI agents too.** [`cld agent cloud create`](#agent-cloud) provisions a working Cloudinary cloud in a single command — no signup, no verification email, no credentials to ask a human for — so an agent can start uploading and transforming right away, then hand the human a claim URL to keep it.
+
 ## Requirements
-Your own Cloudinary account.  If you don't already have one, sign up at [https://cloudinary.com/users/register/free](https://cloudinary.com/users/register/free).
 
 Python 3.8 or later.  You can install Python from [https://www.python.org/](https://www.python.org/). Note that the Python Package Installer (pip) is installed with it.
+
+A Cloudinary account. There are two ways to get one:
+
+**Are you an AI agent?** Run [`cld agent cloud create`](#agent-cloud) — no signup, no verification email, no human in the loop. You get a working cloud name, API key and secret in one command, and can upload and transform immediately:
+
+```
+cld agent cloud create
+```
+
+The cloud is temporary: media delivery is limited to the IP that created it, and it expires in about 24 hours unless a human claims it. Hand them the claim URL from the output — or run [`cld agent cloud claim`](#agent-cloud) — and it becomes a permanent account, keeping the same credentials and everything already uploaded.
+
+**Are you a human?** Sign up at [https://cloudinary.com/users/register/free](https://cloudinary.com/users/register/free), then see [Configuration](#configuration) below. If you'd rather an agent set it up for you, [`cld agent signup`](#agent-signup) creates a Free-plan account in your name and emails you to verify it.
 
 ## Installation
 
@@ -143,6 +156,7 @@ cld search --help  # Shows usage for the Search API.
 cld admin          # Lists Admin API methods.
 cld uploader       # Lists Upload API methods.
 cld agent signup   # For AI agents: creates a Cloudinary account on behalf of a human.
+cld agent cloud    # For AI agents: creates a temporary cloud that works immediately.
 ```
 
 ## Docker Usage
@@ -337,6 +351,70 @@ Options:
 * `--no-save` — show the credentials but do not save them as a configuration.
 * `--sdk-framework <name>` — the Cloudinary SDK framework the agent intends to use.
 * `--json` — output the full raw JSON response (the agent contract) instead of the human-readable summary.
+
+### `agent cloud`
+
+**For AI agents acting on behalf of a human.** Creates and claims *Claimable Clouds*: temporary clouds whose credentials work immediately, with no signup and no verification email. No existing configuration is required.
+
+Media delivery is restricted to an IP allow-list, and the cloud is **disabled after about 24 hours** — along with everything uploaded to it — unless a human claims it. Claiming makes it permanent, keeps the credentials and assets, and lifts the IP restriction.
+
+#### `agent cloud create`
+
+```
+cld agent cloud create [command options] [email]
+```
+
+Example:
+
+```
+cld agent cloud create you@example.com --claim
+```
+
+The cloud is saved as a named configuration along with its claim URL, which **the server returns exactly once and cannot be looked up again**. A cloud saved without it — or created outside the CLI — cannot be claimed via `agent cloud claim`.
+
+The optional `email` only pre-fills the claim page. It is never verified and no mail is sent to it at creation, but it must be a real unused address: the server rejects addresses already taken and disposable domains.
+
+Options:
+
+* `--ip <address>` — an additional IP permitted to deliver media, repeatable. Omit to let the server use the address the request comes from; the literal `requester_ip` means that same address.
+* `--name <name>` — name for the saved configuration (default: the returned cloud name).
+* `--set-default` — set the saved configuration as the default.
+* `--no-save` — show the credentials but do not save them as a configuration. The claim URL is then only in the output, so store it yourself.
+* `--claim` — open the claim page as soon as the cloud is created.
+* `--agent-framework <name>`, `--agent-llm-model <name>`, `--agent-goal <text>`, `--sdk-framework <name>` — attribution for the agent creating the cloud.
+* `--json` — output the full raw JSON response (the agent contract) instead of the human-readable summary.
+
+Delivery IPs are sent to the server as given; it validates them and returns the allow-list it actually stored. Read `delivery_ips` back from the response rather than assuming the list you sent was kept — behind a proxy or VPN your own address may be dropped, and the server refuses to create a cloud with no publicly routable address in the list.
+
+Because the allow-list covers media delivery only, the Upload and Admin APIs are unaffected. Uploads succeeding while a delivery URL returns `x-cld-error: ACL deny` is the expected symptom of the restriction, not a broken cloud or bad credentials. It is therefore not a confidentiality control.
+
+#### `agent cloud claim`
+
+```
+cld agent cloud claim [command options] [name]
+```
+
+Example:
+
+```
+cld agent cloud claim mycloud --print
+```
+
+Opens the claim page for a saved Claimable Cloud. Run without a name to pick from the saved clouds that have not expired.
+
+Claiming is a **human action completed in a browser**: they enter an email address there, then click the link sent to it. This command only opens or prints the page — it cannot claim anything itself, and nothing reports whether a claim succeeded.
+
+Options:
+
+* `--print` (or `--no-open`) — print the claim URL instead of opening a browser. Required for headless and agent use; also implied by `--json`. The CLI prints rather than opens whenever stdout is not a terminal.
+* `--json` — output `{cloud_name, claim_url, expires_at}` as JSON.
+
+Saved Claimable Clouds are flagged in `cld config -ls` and `cld config -s <name>` with an expiry countdown, so you can see what is still claimable:
+
+```
+NAME       CLOUD     TYPE     DEFAULT  ACTIVE  STATUS
+mycloud    abcd1234  api_key                   unclaimed, expires in 8h
+```
 
 ## Additional configurations
 

@@ -14,10 +14,16 @@ from cloudinary_cli.defaults import (
     OLD_CLOUDINARY_CLI_CONFIG_FILE,
     DEFAULT_CONFIG_KEY,
     ACCOUNT_EMAIL_PARAM,
+    CLOUD_CLAIM_URL_PARAM,
+    CLOUD_EXPIRES_AT_PARAM,
+    CLOUD_DELIVERY_IPS_PARAM,
+    CLOUD_ACCOUNT_ID_PARAM,
+    CLOUD_EMAIL_PARAM,
     logger,
 )
 from cloudinary_cli.utils.json_utils import write_json_to_file, read_json_from_file
 from cloudinary_cli.utils.url_utils import set_url_params, url_param
+from cloudinary_cli.utils.utils import expires_in_hint, is_expired
 
 def config_optional(cmd):
     """Mark a Click command/group as not requiring a resolved Cloudinary config, so the top-level
@@ -230,6 +236,54 @@ def email_from_url(cloudinary_url):
     return _normalize_email(value) if value else None
 
 
+def claim_url_from_url(cloudinary_url):
+    """The Claimable Cloud claim URL stored in a saved config URL, or None."""
+    return url_param(cloudinary_url, CLOUD_CLAIM_URL_PARAM) or None
+
+
+def expires_at_from_url(cloudinary_url):
+    """The Claimable Cloud expiry timestamp stored in a saved config URL, or None."""
+    return url_param(cloudinary_url, CLOUD_EXPIRES_AT_PARAM) or None
+
+
+def delivery_ips_from_url(cloudinary_url):
+    """The Claimable Cloud's stored delivery allow-list as a list, or [] when none is recorded."""
+    value = url_param(cloudinary_url, CLOUD_DELIVERY_IPS_PARAM)
+    return [ip for ip in (value or "").split(",") if ip] if value else []
+
+
+def account_id_from_url(cloudinary_url):
+    """The Claimable Cloud's account id stored in a saved config URL, or None."""
+    return url_param(cloudinary_url, CLOUD_ACCOUNT_ID_PARAM) or None
+
+
+def cloud_email_from_url(cloudinary_url):
+    """The claim-page email stored for a Claimable Cloud, or None."""
+    return url_param(cloudinary_url, CLOUD_EMAIL_PARAM) or None
+
+
+def cloud_expiry_status(expires_at):
+    """A Claimable Cloud's status label for `config -ls`, e.g. "unclaimed, expires in 8h". Advisory
+    only: no endpoint reports claim state, so a claimed cloud still reads as unclaimed."""
+    countdown = expires_in_hint(expires_at)
+    if not countdown:
+        return "unclaimed"
+    if countdown == "expired":
+        return "unclaimed, expired"
+    return f"unclaimed, {countdown}"
+
+
+def claimable_cloud_names(include_expired=True):
+    """The names of all saved configs carrying a stored claim URL. With include_expired=False, drops
+    the ones whose stored expiry has passed; an unreadable expiry is kept, since unknown is not
+    expired."""
+    cfg = load_config()
+    names = [name for name in user_config_names(cfg) if claim_url_from_url(cfg[name])]
+    if include_expired:
+        return names
+    return [name for name in names if not is_expired(expires_at_from_url(cfg[name]))]
+
+
 def config_name_for_email(email):
     """The saved config whose URL records this account email, or None. Scans only saved configs, so a
     removed config drops out automatically (the URL is gone with it). Returns the first match."""
@@ -320,7 +374,7 @@ def _expires_at_fields(value):
     return {
         "epoch": epoch,
         "utc": datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
-        "expired": epoch <= int(time.time()),
+        "expired": bool(is_expired(epoch)),
     }
 
 
@@ -355,7 +409,9 @@ def _format_epoch(value):
 def _format_expires_at(value):
     parts = _expires_at_fields(value)
     if parts is None:
-        return value
+        # Not an epoch: a Claimable Cloud's ISO-8601 expiry.
+        countdown = expires_in_hint(value)
+        return f"{value} ({countdown})" if countdown else value
     state = "expired" if parts["expired"] else "valid"
     return f"{parts['epoch']} ({parts['utc']}, {state})"
 

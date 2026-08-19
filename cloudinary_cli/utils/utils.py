@@ -87,6 +87,50 @@ def expiry_hint(epoch):
         return str(epoch)
 
 
+def parse_expiry(value):
+    """Any expiry the CLI stores as an aware UTC datetime, or None if it cannot be read. Accepts an
+    ISO-8601 string ('Z' or offset), a Unix epoch as int or numeric string, and a datetime. A naive
+    value is read as UTC."""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    try:
+        return datetime.fromtimestamp(int(value), tz=timezone.utc)
+    except (TypeError, ValueError, OverflowError, OSError):
+        pass
+    try:
+        parsed = datetime.fromisoformat(str(value).strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def is_expired(value, now=None):
+    """Whether an expiry has passed. None for an unreadable expiry."""
+    expiry = parse_expiry(value)
+    if expiry is None:
+        return None
+    return expiry <= (now or datetime.now(timezone.utc))
+
+
+def expires_in_hint(value, now=None, expired_label="expired", unknown_label=""):
+    """An expiry as a short countdown label: "expires in 8h", "expires in 45m", or expired_label once
+    it has passed. Returns unknown_label when the value cannot be read. Values are rounded."""
+    expiry = parse_expiry(value)
+    if expiry is None:
+        return unknown_label
+
+    seconds = (expiry - (now or datetime.now(timezone.utc))).total_seconds()
+    if seconds <= 0:
+        return expired_label
+    if seconds < 3600:
+        return f"expires in {max(1, round(seconds / 60))}m"
+    if seconds <= 86400:
+        return f"expires in {round(seconds / 3600)}h"
+    return f"expires in {round(seconds / 86400)}d"
+
+
 def log_exception(e, message=None, debug_message=None):
     message = f"{message}, error: {str(e)}" if message is not None else str(e)
     debug_message = debug_message or message
