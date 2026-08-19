@@ -13,7 +13,11 @@ from cloudinary_cli.utils.config_utils import (
     cloudinary_config_details,
     is_env_configured,
     email_from_url,
+    claim_url_from_url,
+    expires_at_from_url,
+    cloud_expiry_status,
 )
+from cloudinary_cli.utils.utils import is_expired
 from cloudinary_cli.utils.config_resolver import (
     active_config_name,
     active_config_is_env,
@@ -32,8 +36,10 @@ def config_type_label(config_obj):
 
 _TABLE_COLUMNS = [("name", "NAME"), ("cloud_name", "CLOUD"), ("type", "TYPE"),
                   ("default", "DEFAULT"), ("active", "ACTIVE")]
-# EMAIL is appended dynamically (see render_config_table) only when at least one row carries one.
+# EMAIL and STATUS are appended dynamically (see render_config_table) only when at least one row
+# carries one.
 _EMAIL_COLUMN = ("email", "EMAIL")
+_STATUS_COLUMN = ("status", "STATUS")
 
 
 def list_configs():
@@ -60,6 +66,11 @@ def list_configs():
         email = email_from_url(cfg[name])
         if email:  # only surfaced when the config records an account email (e.g. from `agent signup`)
             row["email"] = email
+        if claim_url_from_url(cfg[name]):  # a Claimable Cloud saved by `agent cloud create`
+            expires_at = expires_at_from_url(cfg[name])
+            row["status"] = cloud_expiry_status(expires_at)
+            row["expires_at"] = expires_at
+            row.update(_claimable_cloud_meta(cfg[name]))
         rows.append(row)
     return rows
 
@@ -72,8 +83,17 @@ def config_meta(name, cfg, config_obj):
         "type": config_type(cfg[name]),
         "default": cfg.get(DEFAULT_CONFIG_KEY) == name,
         "active": active_config_name() == name,
+        **_claimable_cloud_meta(cfg[name]),
         **cloudinary_config_details(config_obj),
     }
+
+
+def _claimable_cloud_meta(url):
+    """Machine-readable Claimable Cloud facts for JSON consumers, or {} for an ordinary config.
+    `expired` is null when the stored expiry cannot be read."""
+    if not claim_url_from_url(url):
+        return {}
+    return {"claimable_cloud": True, "expired": is_expired(expires_at_from_url(url))}
 
 
 def active_config_meta(config_obj):
@@ -96,12 +116,28 @@ def render_config_table(rows):
     columns = list(_TABLE_COLUMNS)
     if any(row.get("email") for row in rows):  # add EMAIL only when some config records one
         columns.append(_EMAIL_COLUMN)
+    if any(row.get("status") for row in rows):  # add STATUS only when some config is a Claimable Cloud
+        columns.append(_STATUS_COLUMN)
     headers = [title for _, title in columns]
     cells = [[_cell(row, key) for key, _ in columns] for row in rows]
     widths = [max(len(headers[i]), *(len(r[i]) for r in cells)) if cells else len(headers[i])
               for i in range(len(headers))]
     line = lambda values: "  ".join(v.ljust(widths[i]) for i, v in enumerate(values)).rstrip()
-    return "\n".join([line(headers)] + [line(r) for r in cells])
+    table = "\n".join([line(headers)] + [line(r) for r in cells])
+    hint = _claim_hint(rows)
+    return f"{table}\n\n{hint}" if hint else table
+
+
+def _claim_hint(rows):
+    """A footer telling the user how to keep an unclaimed cloud, shown only when a still-live one is
+    listed."""
+    live = sum(1 for row in rows if row.get("status") and not is_expired(row.get("expires_at")))
+    if not live:
+        return ""
+    noun, pronoun = ("Clouds", "them") if live > 1 else ("Cloud", "it")
+    return (f"{live} unclaimed Claimable {noun}: disabled at expiry, along with "
+            f"everything uploaded to {pronoun}.\n"
+            f"Claim with `cld agent cloud claim` - completed in a browser.")
 
 
 def _url_row():

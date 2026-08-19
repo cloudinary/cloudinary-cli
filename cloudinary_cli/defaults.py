@@ -29,8 +29,21 @@ CLOUDINARY_CLI_CONFIG_FILE = abspath(path_join(CLOUDINARY_HOME, 'config.json'))
 DEFAULT_CONFIG_KEY = "__default__"
 
 # Query param carried inside a saved cloudinary:// URL recording the email the account was created
-# for (via `cld agent signup`). Stripped before display and before reaching the SDK.
+# for (via `cld agent signup`). The SDK absorbs unknown query params as config attributes, so this
+# surfaces in `cld config -s` alongside the real config fields.
 ACCOUNT_EMAIL_PARAM = "account_email"
+
+# Query params carried inside a saved cloudinary:// URL for a Claimable Cloud (`cld agent cloud
+# create`). Like ACCOUNT_EMAIL_PARAM these reach the SDK config and are shown by `cld config -s`;
+# the claim URL is displayed unmasked on purpose, since handing it to a human is the point.
+CLOUD_CLAIM_URL_PARAM = "claim_url"
+CLOUD_EXPIRES_AT_PARAM = "expires_at"
+CLOUD_DELIVERY_IPS_PARAM = "delivery_ips"
+CLOUD_ACCOUNT_ID_PARAM = "account_id"
+# The claim-page email, stored only when the caller supplied a real one.
+CLOUD_EMAIL_PARAM = "cloud_email"
+# Domain of the synthetic placeholder address the server generates when no email is supplied.
+CLOUD_PLACEHOLDER_EMAIL_DOMAIN = "@cloud.cloudinary.invalid"
 
 # Guidance shown when no configuration is available (the group callback for account-consuming
 # commands, and the empty `config -ls`). Printed verbatim to stderr, without the logger's

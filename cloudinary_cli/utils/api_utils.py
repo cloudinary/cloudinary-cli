@@ -37,7 +37,7 @@ MAX_DESTRUCTIVE_BULK_PER_CALL = 1000
 
 # Public, unauthenticated API methods that must run without a Cloudinary configuration.
 PUBLIC_API_METHODS = {
-    "provisioning": {"create_agent_account"},
+    "provisioning": {"create_agent_account", "create_cloud"},
 }
 
 

@@ -15,8 +15,11 @@ from cloudinary_cli.utils.config_utils import (
     is_reserved_config_name,
     config_type,
     config_optional,
+    claim_url_from_url,
+    expires_at_from_url,
+    cloud_expiry_status,
 )
-from cloudinary_cli.utils.utils import ConfigurationError
+from cloudinary_cli.utils.utils import ConfigurationError, is_expired
 from cloudinary_cli.utils.json_utils import print_json
 from cloudinary_cli.utils.config_resolver import active_config_name, active_config_is_url
 from cloudinary_cli.auth import refresh_config, refresh_configs, relogin_command
@@ -180,8 +183,19 @@ def _show_config_header(name, cfg):
         flags.append("default")
     if active_config_name() == name:
         flags.append("active")
+    status = cloud_expiry_status(expires_at_from_url(cfg[name])) if claim_url_from_url(cfg[name]) else None
+    if status:
+        flags.append(status)
     suffix = f" [{', '.join(flags)}]" if flags else ""
     echo(f"name: {name} ({config_type(cfg[name])}){suffix}\n")
+    if not status:
+        return
+    if is_expired(expires_at_from_url(cfg[name])):
+        echo("Claimable Cloud, past its expiry: it has most likely been disabled, along with everything "
+             "uploaded to it.\nCreate another with `cld agent cloud create`.\n")
+    else:
+        echo("Claimable Cloud: disabled at expiry, along with everything uploaded to it.\n"
+             f"Claim with `cld agent cloud claim {name}` - completed in a browser.\n")
 
 
 def _show_active_header():

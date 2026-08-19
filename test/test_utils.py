@@ -1,9 +1,62 @@
 import builtins
 import unittest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from cloudinary_cli.utils.utils import parse_option_value, parse_args_kwargs, whitelist_keys, merge_responses, \
-    normalize_list_params, chunker, group_params, confirm_action, get_user_action, prompt_user, is_interactive
+    normalize_list_params, chunker, group_params, confirm_action, get_user_action, prompt_user, is_interactive, \
+    parse_expiry, is_expired, expires_in_hint
+
+
+NOW = datetime(2026, 8, 19, 12, 0, 0, tzinfo=timezone.utc)
+
+
+class ExpiryHelpersTest(unittest.TestCase):
+    """Generic expiry helpers, shared by the OAuth token expiry (epoch) and the Claimable Cloud
+    expiry (ISO-8601 string)."""
+
+    EPOCH = int(NOW.timestamp())
+
+    def test_parses_iso_with_z_offset_and_naive_alike(self):
+        for value in ("2026-08-19T12:00:00Z", "2026-08-19T12:00:00+00:00", "2026-08-19T12:00:00"):
+            self.assertEqual(NOW, parse_expiry(value), value)
+
+    def test_parses_epoch_as_int_and_string(self):
+        self.assertEqual(NOW, parse_expiry(self.EPOCH))
+        self.assertEqual(NOW, parse_expiry(str(self.EPOCH)))
+
+    def test_non_utc_offset_is_honoured(self):
+        self.assertEqual(NOW, parse_expiry("2026-08-19T14:00:00+02:00"))
+
+    def test_unreadable_values_parse_to_none(self):
+        for value in (None, "", "not-a-date", True, [], {}):
+            self.assertIsNone(parse_expiry(value), repr(value))
+
+    def test_is_expired_distinguishes_unknown_from_expired(self):
+        self.assertTrue(is_expired("2020-01-01T00:00:00Z", now=NOW))
+        self.assertFalse(is_expired("2027-01-01T00:00:00Z", now=NOW))
+        self.assertIsNone(is_expired("not-a-date"))  # unknown, not expired
+
+    def test_countdown_rounds_rather_than_truncates(self):
+        # 7h59m reads as 8h, not 7h
+        self.assertEqual("expires in 8h", expires_in_hint(NOW + timedelta(hours=7, minutes=59), now=NOW))
+
+    def test_countdown_units(self):
+        self.assertEqual("expires in 45m", expires_in_hint(NOW + timedelta(minutes=45), now=NOW))
+        self.assertEqual("expires in 24h", expires_in_hint(NOW + timedelta(hours=24), now=NOW))
+        self.assertEqual("expires in 3d", expires_in_hint(NOW + timedelta(days=3), now=NOW))
+
+    def test_countdown_never_reads_zero_minutes(self):
+        self.assertEqual("expires in 1m", expires_in_hint(NOW + timedelta(seconds=20), now=NOW))
+
+    def test_countdown_labels_are_overridable(self):
+        self.assertEqual("expired", expires_in_hint(NOW - timedelta(seconds=1), now=NOW))
+        self.assertEqual("gone", expires_in_hint(NOW - timedelta(seconds=1), now=NOW, expired_label="gone"))
+        self.assertEqual("", expires_in_hint("not-a-date"))
+        self.assertEqual("unknown", expires_in_hint("not-a-date", unknown_label="unknown"))
+
+    def test_accepts_a_datetime_directly(self):
+        self.assertEqual("expires in 2h", expires_in_hint(NOW + timedelta(hours=2), now=NOW))
 
 
 class NonInteractiveInputTest(unittest.TestCase):
