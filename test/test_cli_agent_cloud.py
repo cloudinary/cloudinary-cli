@@ -594,7 +594,8 @@ class TestConfigListingStatus(CloudTestCase):
         self.write_config({"mycloud": self._cloud_url(FAKE_CLOUD, expires_at)})
         result = self.runner.invoke(cli, ["config", "-ls", "-j"])
 
-        row = json.loads(result.output)[0]
+        # select by name, not position: an ambient CLOUDINARY_URL adds an "(environment)" row first
+        row = {r["name"]: r for r in json.loads(result.output)}["mycloud"]
         self.assertEqual(expires_at, row["expires_at"])  # consumers get the timestamp, not "expires in 8h"
 
     def test_show_surfaces_claim_url_and_expiry(self):
