@@ -14,7 +14,7 @@ from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel
                                              populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
-    normalize_list_params, ConfigurationError, print_api_help, duplicate_values, should_dump_responses
+    normalize_list_params, ConfigurationError, print_api_help, duplicate_values, should_dump_responses, whitelist_keys
 import re
 from cloudinary.utils import is_remote_url
 
@@ -391,6 +391,8 @@ def handle_api_command(
 
     if auto_paginate:
         res = handle_auto_pagination(res, func, args, kwargs, force, filter_fields)
+    elif filter_fields:
+        logger.warning("-ff/--filter_fields has no effect without -A/--auto_paginate.")
 
     if return_data:
         return res
@@ -404,7 +406,16 @@ def handle_api_command(
 def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
     cursor_field = _cursor_fields.get(func.__name__, "next_cursor")
 
+    fields_to_keep = []
+    if filter_fields:
+        fields_to_keep = normalize_list_params(filter_fields)
+
     if cursor_field not in res:
+        # A single page: the pagination field is unknown, so filter every list in the response.
+        for key, value in res.items():
+            if isinstance(value, list):
+                res[key] = whitelist_keys(value, fields_to_keep)
+
         return res
 
     if not force:
@@ -416,10 +427,6 @@ def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
             return res
         else:
             logger.info("Continuing. You may use the -F flag to force auto_pagination.")
-
-    fields_to_keep = []
-    if filter_fields:
-        fields_to_keep = normalize_list_params(filter_fields)
 
     kwargs['max_results'] = PAGINATION_MAX_RESULTS
 

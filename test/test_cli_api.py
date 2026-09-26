@@ -6,7 +6,7 @@ import cloudinary.provisioning
 from click.testing import CliRunner
 
 from cloudinary_cli.cli import cli
-from test.helper_test import api_response_mock, uploader_response_mock, URLLIB3_REQUEST, \
+from test.helper_test import api_response_mock, uploader_response_mock, http_response_mock, URLLIB3_REQUEST, \
     CONFIG_PRESENT, REQUIRES_CONFIG
 
 API_MOCK_RESPONSE = api_response_mock()
@@ -134,3 +134,28 @@ class TestDestructiveBulkConfirmation(unittest.TestCase):
         self.assertEqual(0, result.exit_code, result.output)
         self.assertFalse(confirm_mock.called, "Read commands must not prompt regardless of --force")
         self.assertTrue(http_mock.called)
+
+
+class TestAdminFilterFields(unittest.TestCase):
+    runner = CliRunner()
+
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
+    @patch(URLLIB3_REQUEST)
+    def test_admin_filter_fields_single_page(self, http_mock):
+        http_mock.return_value = http_response_mock(
+            '{"resources": [{"public_id": "p1", "bytes": 1}, {"public_id": "p2", "bytes": 2}]}',
+            {"x-featureratelimit-remaining": '0'})
+        result = self.runner.invoke(cli, ['admin', 'resources', '-A', '-ff', 'public_id'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertIn('"public_id": "p1"', result.output)
+        self.assertNotIn('"bytes"', result.output)
+
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
+    @patch(URLLIB3_REQUEST)
+    def test_admin_filter_fields_without_auto_paginate_warns(self, http_mock):
+        http_mock.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['admin', 'resources', '-ff', 'public_id'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertIn('-ff/--filter_fields has no effect without -A/--auto_paginate', result.output)
