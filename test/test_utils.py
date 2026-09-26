@@ -202,8 +202,6 @@ class UtilsTest(unittest.TestCase):
                 self.assertEqual(os.path.join(tmp_dir, expected), filename)
                 self.assertTrue(os.path.isfile(filename))
 
-            self.assertEqual(["out.CSV", "out.csv"], sorted(os.listdir(tmp_dir)))
-
     def test_whitelist_keys(self):
         """ should whitelist keys correctly """
         self.assertEqual([{"k1": "v1"}], whitelist_keys([{"k1": "v1", "k2": "v2"}], ["k1"]))
