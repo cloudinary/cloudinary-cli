@@ -1,11 +1,13 @@
 import builtins
+import os
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from cloudinary_cli.utils.utils import parse_option_value, parse_args_kwargs, whitelist_keys, merge_responses, \
     normalize_list_params, chunker, group_params, confirm_action, get_user_action, prompt_user, is_interactive, \
-    parse_expiry, is_expired, expires_in_hint
+    parse_expiry, is_expired, expires_in_hint, write_json_list_to_csv
 
 
 NOW = datetime(2026, 8, 19, 12, 0, 0, tzinfo=timezone.utc)
@@ -191,6 +193,16 @@ class UtilsTest(unittest.TestCase):
             {"k1": ["v1", "v2", "v3"]},
             group_params([("k1", "v1")], [("k1", "v2")], [("k1", "v3")])
         )
+
+    def test_write_json_list_to_csv_file_name(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            for name, expected in (("out", "out.csv"), ("out.csv", "out.csv"), ("out.CSV", "out.CSV")):
+                filename = write_json_list_to_csv([{"k1": "v1"}], os.path.join(tmp_dir, name))
+
+                self.assertEqual(os.path.join(tmp_dir, expected), filename)
+                self.assertTrue(os.path.isfile(filename))
+
+            self.assertEqual(["out.CSV", "out.csv"], sorted(os.listdir(tmp_dir)))
 
     def test_whitelist_keys(self):
         """ should whitelist keys correctly """
