@@ -124,7 +124,13 @@ def _display_path(asset):
     if asset.get("display_name") is None:
         return ""
 
-    if asset["resource_type"] == "raw" or asset["type"] == 'fetch':
+    if asset["resource_type"] == "raw":
+        # The display name of a raw asset can omit the extension that the public ID keeps.
+        normalized_display_name = asset["display_name"]
+        extension = path.splitext(asset["public_id"])[1]
+        if extension and not normalized_display_name.lower().endswith(extension.lower()):
+            normalized_display_name += extension
+    elif asset["type"] == 'fetch':
         normalized_display_name = asset["display_name"]
     else:
         normalized_display_name = ".".join(filter(None, [asset["display_name"], asset.get("format", None)]))
