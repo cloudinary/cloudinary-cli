@@ -1,3 +1,6 @@
+import os
+import subprocess
+import sys
 import unittest
 
 from click.testing import CliRunner
@@ -47,3 +50,12 @@ class TestCLI(unittest.TestCase):
         self.assertIn('Cloudinary CLI', result.output)
         self.assertIn('Cloudinary SDK', result.output)
         self.assertIn('Python', result.output)
+
+    def test_invalid_cloudinary_url_env(self):
+        env = {**os.environ, "CLOUDINARY_URL": "garbage"}
+        result = subprocess.run([sys.executable, "-m", "cloudinary_cli.cli", "admin", "ping"],
+                                env=env, capture_output=True, text=True)
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn("Fix or unset the CLOUDINARY_URL environment variable", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
