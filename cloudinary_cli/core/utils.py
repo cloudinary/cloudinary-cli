@@ -1,4 +1,5 @@
 from click import command, argument, option, Choice, echo, launch
+import cloudinary
 from cloudinary import utils as cld_utils
 
 from cloudinary_cli.core.overrides import cloudinary_url
@@ -50,8 +51,13 @@ def url(public_id, transformation, resource_type, delivery_type, open_in_browser
     elif delivery_type == "list":
         public_id += ".json"
 
+    # Use HTTPS unless the configuration sets `secure` explicitly.
+    secure = cloudinary.config().secure
+    if secure is None:
+        secure = True
+
     res = cloudinary_url(public_id, resource_type=resource_type,
-                         raw_transformation=transformation, type=delivery_type, sign_url=sign)
+                         raw_transformation=transformation, type=delivery_type, sign_url=sign, secure=secure)
     echo(res)
 
     if open_in_browser:

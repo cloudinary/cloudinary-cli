@@ -21,6 +21,7 @@ class TestCLIURL(unittest.TestCase):
 
         self.assertEqual(0, result.exit_code)
         self.assertIn('image/upload/sample', result.output)
+        self.assertTrue(result.output.startswith('https://'), result.output)
 
     @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
     def test_url_list(self):
