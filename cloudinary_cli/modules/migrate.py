@@ -17,7 +17,7 @@ from cloudinary_cli.utils.utils import logger, log_exception
 @argument("upload_mapping")
 @argument("file")
 @option("-d", "--delimiter", default="\n", help="The separator used between the URLs. Default: New line")
-@option("-v", "--verbose", is_flag=True)
+@option("-v", "--verbose", is_flag=True, help="Log each migrated URL.")
 def migrate(upload_mapping, file, delimiter, verbose):
     if not os.path.exists(file):
         logger.error(f"Migration file: '{file}' does not exist")

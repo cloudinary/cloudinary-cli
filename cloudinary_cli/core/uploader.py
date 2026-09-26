@@ -20,9 +20,10 @@ Format: cld <cli options> uploader <command options> <method> <method parameters
 \t    cld uploader rename flowers secret_flowers -o to_type private
 """)
 @argument("params", nargs=-1)
-@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
+@option("-o", "--optional_parameter", multiple=True, nargs=2,
+        help="Pass an optional parameter as a string, with no parsing. e.g. -o tags a,b")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
-        help="Pass optional parameters as interpreted strings.")
+        help="Pass an optional parameter and parse its value as JSON or a boolean. e.g. -O context '{\"alt\": \"cat\"}'")
 @option("-ls", "--ls", is_flag=True, help="List all available methods in the Upload API.")
 @option("--save", nargs=1, help="Save output to a file.")
 @option("-d", "--doc", is_flag=True, help="Open the Upload API reference in a browser.")
