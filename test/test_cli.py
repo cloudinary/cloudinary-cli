@@ -59,3 +59,16 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(1, result.returncode)
         self.assertIn("Fix or unset the CLOUDINARY_URL environment variable", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
+
+    def test_unknown_command_suggests_similar(self):
+        result = self.runner.invoke(cli, ['serach', 'cat'])
+
+        self.assertEqual(2, result.exit_code)
+        self.assertIn("No such command", result.output)
+        self.assertIn("Did you mean: search", result.output)
+
+    def test_unknown_command_without_similar(self):
+        result = self.runner.invoke(cli, ['xyzzy'])
+
+        self.assertEqual(2, result.exit_code)
+        self.assertNotIn("Did you mean", result.output)

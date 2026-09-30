@@ -130,8 +130,8 @@ def _perform_search(query, with_field, fields, sort_by, aggregate, max_results, 
         logger.info(f"Saved search JSON to '{json}' file")
 
     if csv:
-        write_json_list_to_csv(res[result_field], csv, fields_to_keep)
-        logger.info(f"Saved search to '{csv}.csv' file")
+        csv = write_json_list_to_csv(res[result_field], csv, fields_to_keep)
+        logger.info(f"Saved search to '{csv}' file")
 
 
 def execute_single_request(expression, fields_to_keep, result_field='resources'):
