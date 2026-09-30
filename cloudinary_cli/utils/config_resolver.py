@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
+import sys
+
 import cloudinary
 from click import UsageError, echo
 
+import cloudinary_cli
 from cloudinary_cli.auth import refresh_url_if_stale
 from cloudinary_cli.auth.session import strip_oauth_internal_keys
 from cloudinary_cli.defaults import (
@@ -42,6 +45,10 @@ def resolve_cli_config(config=None, config_saved=None, warn_if_unconfigured=True
 
     if config and config_saved:
         raise UsageError("-c/--config and -C/--config_saved are mutually exclusive; pass only one.")
+
+    # An invalid CLOUDINARY_URL/CLOUDINARY_ACCOUNT_URL is an error only when -c/-C does not override it.
+    if cloudinary_cli.env_config_error and not (config or config_saved):
+        sys.exit(cloudinary_cli.env_config_error)
 
     cfg = load_config()
 

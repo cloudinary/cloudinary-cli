@@ -60,6 +60,25 @@ class TestCLI(unittest.TestCase):
         self.assertIn("Fix or unset the CLOUDINARY_URL environment variable", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
+    def test_invalid_cloudinary_url_env_with_config_override(self):
+        env = {**os.environ, "CLOUDINARY_URL": "garbage"}
+        result = subprocess.run([sys.executable, "-m", "cloudinary_cli.cli",
+                                 "-c", "cloudinary://123:abc@demo", "url", "sample"],
+                                env=env, capture_output=True, text=True)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("res.cloudinary.com/demo/image/upload/sample", result.stdout)
+
+    def test_invalid_cloudinary_account_url_env(self):
+        env = {**os.environ, "CLOUDINARY_ACCOUNT_URL": "garbage"}
+        env.pop("CLOUDINARY_URL", None)
+        result = subprocess.run([sys.executable, "-m", "cloudinary_cli.cli", "admin", "ping"],
+                                env=env, capture_output=True, text=True)
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn("Fix or unset the CLOUDINARY_ACCOUNT_URL environment variable", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_unknown_command_suggests_similar(self):
         result = self.runner.invoke(cli, ['serach', 'cat'])
 
