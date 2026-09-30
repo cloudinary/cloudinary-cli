@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import sys
+
 import cloudinary
 from click import UsageError, echo
 
@@ -21,6 +23,7 @@ from cloudinary_cli.utils.config_utils import (
     user_config_names,
     validate_config_url,
 )
+from cloudinary_cli.utils.env_config import env_config_error
 
 # What the last resolve_cli_config selected, by precedence. One of:
 #   "url"   -> an inline -c CLOUDINARY_URL
@@ -70,7 +73,12 @@ def resolve_cli_config(config=None, config_saved=None, warn_if_unconfigured=True
 
     # No stored default: fall back to the environment. Install it as an OAuthConfig (static, no
     # saved name -> never refreshes) so the active global is always an OAuthConfig and exposes
-    # has_oauth uniformly; if nothing is configured, _format_ok warns.
+    # has_oauth uniformly; if nothing is configured, _format_ok warns. An invalid CLOUDINARY_URL is an
+    # error only here, and not for the commands that work without a config (such as `config -n`).
+    url_error = env_config_error("CLOUDINARY_URL")
+    if url_error and warn_if_unconfigured:
+        sys.exit(url_error)
+
     if is_env_configured():
         _active_source = "env"
         from cloudinary_cli.auth.oauth_config import install_env_config
