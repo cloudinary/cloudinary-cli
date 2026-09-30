@@ -21,7 +21,7 @@ Format: cld <cli options> admin <command options> <method> <method parameters>
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
         help="Pass an optional parameter and parse its value as JSON or a boolean. e.g. -O context '{\"alt\": \"cat\"}'")
 @option("-A", "--auto_paginate", is_flag=True, help="Will auto paginate Admin API calls.", default=False)
-@option("-ff", "--filter_fields", multiple=True, help="Filter fields to return when using auto pagination.")
+@option("-ff", "--filter_fields", multiple=True, help="Filter fields to return. Requires -A/--auto_paginate.")
 @option("-F", "--force", is_flag=True,
         help="Skip confirmations for auto pagination and destructive bulk API methods.")
 @option("-ls", "--ls", is_flag=True, help="List all available methods in the Admin API.")
