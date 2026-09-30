@@ -15,11 +15,12 @@ from cloudinary_cli.utils.utils import parse_option_value, logger, run_tasks_con
 @option("-g", "--glob-pattern", default="**/*", help="The glob pattern. "
                                                      "For example use '**/*.jpg' to upload only jpg files.")
 @option("-H", "--include-hidden", is_flag=True, help="Include hidden files.")
-@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
+@option("-o", "--optional_parameter", multiple=True, nargs=2,
+        help="Pass an optional parameter as a string, with no parsing. e.g. -o tags a,b")
 @option("-O", "--optional_parameter_parsed",
         multiple=True,
         nargs=2,
-        help="Pass optional parameters as interpreted strings.")
+        help="Pass an optional parameter and parse its value as JSON or a boolean. e.g. -O context '{\"alt\": \"cat\"}'")
 @option("-t", "--transformation", help="The transformation to apply on all uploads.")
 @option("-f", "--folder", default="",
         help="The full path where you want to upload the assets. "
@@ -48,13 +49,13 @@ def upload_dir(directory, glob_pattern, include_hidden, optional_parameter, opti
     folder_mode = folder_mode or get_folder_mode()
 
     if exclude_dir_name:
-        contents_str = "contents of"
+        contents_str = "contents of directory"
         parent = dir_to_upload
     else:
-        contents_str = ""
+        contents_str = "directory"
         parent = dirname(dir_to_upload)
 
-    logger.info(f"Uploading {contents_str} directory '{dir_to_upload}' ({folder_mode} folder mode)")
+    logger.info(f"Uploading {contents_str} '{dir_to_upload}' ({folder_mode} folder mode)")
 
     defaults = get_default_upload_options(folder_mode)
 

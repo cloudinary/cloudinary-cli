@@ -15,9 +15,10 @@ utils_list = ["api_sign_request", "cloudinary_url", "download_archive_url", "dow
 
 @command("utils", help="Call Cloudinary utility methods.")
 @argument("params", nargs=-1)
-@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
+@option("-o", "--optional_parameter", multiple=True, nargs=2,
+        help="Pass an optional parameter as a string, with no parsing. e.g. -o tags a,b")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
-        help="Pass optional parameters as interpreted strings.")
+        help="Pass an optional parameter and parse its value as JSON or a boolean. e.g. -O sign_url true")
 @option("-ls", "--ls", is_flag=True, help="List all available utility methods.")
 def utils(params, optional_parameter, optional_parameter_parsed, ls):
     if ls or len(params) < 1:

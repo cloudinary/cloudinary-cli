@@ -41,9 +41,10 @@ _SYNC_META_FILE = '.cld-sync'
         help="Specify folder mode explicitly. By default uses cloud mode configured in your cloud.", hidden=True)
 @option("-st", "--status", type=Choice(['all', 'active', 'pending'], case_sensitive=False),
         help="Specify asset status. Server default: active.", default=None)
-@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
+@option("-o", "--optional_parameter", multiple=True, nargs=2,
+        help="Pass an optional parameter as a string, with no parsing. e.g. -o tags a,b")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
-        help="Pass optional parameters as interpreted strings.")
+        help="Pass an optional parameter and parse its value as JSON or a boolean. e.g. -O context '{\"alt\": \"cat\"}'")
 @option("--dry-run", is_flag=True, help="Simulate the sync operation without making any changes.")
 def sync(local_folder, cloudinary_folder, push, pull, include_hidden, concurrent_workers, force, keep_unique,
          deletion_batch_size, folder_mode, status, optional_parameter, optional_parameter_parsed, dry_run):
@@ -226,7 +227,8 @@ class SyncDir:
         if not files_to_pull:
             return True
 
-        logger.info(f"Preparing to download {len(files_to_pull)} items from Cloudinary folder ")
+        logger.info(f"Preparing to download {len(files_to_pull)} items "
+                    f"from Cloudinary folder '{self.user_friendly_remote_dir}'")
 
         if self.dry_run:
             logger.info("Dry run mode enabled. The following files would be downloaded:")
