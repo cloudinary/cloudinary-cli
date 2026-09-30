@@ -411,9 +411,10 @@ def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
         fields_to_keep = normalize_list_params(filter_fields)
 
     if cursor_field not in res:
-        # A single page: the pagination field is unknown, so filter every list in the response.
+        # A single page: the pagination field is unknown, so filter only the lists that have a requested field.
         for key, value in res.items():
-            if isinstance(value, list):
+            if isinstance(value, list) and any(isinstance(item, dict) and item.keys() & set(fields_to_keep)
+                                               for item in value):
                 res[key] = whitelist_keys(value, fields_to_keep)
 
         return res

@@ -159,3 +159,15 @@ class TestAdminFilterFields(unittest.TestCase):
 
         self.assertEqual(0, result.exit_code, result.output)
         self.assertIn('-ff/--filter_fields has no effect without -A/--auto_paginate', result.output)
+
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
+    @patch(URLLIB3_REQUEST)
+    def test_admin_filter_fields_single_page_keeps_other_lists(self, http_mock):
+        http_mock.return_value = http_response_mock(
+            '{"derived": [{"id": "d1", "bytes": 1}], "versions": [{"version_id": "v1", "size": 2}]}',
+            {"x-featureratelimit-remaining": '0'})
+        result = self.runner.invoke(cli, ['admin', 'resource', 'sample', '-A', '-ff', 'id'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertNotIn('"bytes"', result.output)
+        self.assertIn('"version_id": "v1"', result.output)
