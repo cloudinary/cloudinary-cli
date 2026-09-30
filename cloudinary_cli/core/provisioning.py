@@ -13,9 +13,9 @@ Format: cld <cli options> provisioning <command options> <method> <method parame
 """)
 @argument("params", nargs=-1)
 @option("-o", "--optional_parameter", multiple=True, nargs=2,
-        help="Pass an optional parameter as a string, with no parsing. e.g. -o tags a,b")
+        help="Pass an optional parameter as a string, with no parsing. e.g. -o prefix demo")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
-        help="Pass an optional parameter and parse its value as JSON or a boolean. e.g. -O context '{\"alt\": \"cat\"}'")
+        help="Pass an optional parameter and parse its value as JSON or a boolean. e.g. -O enabled true")
 @option("-ls", "--ls", is_flag=True, help="List all available methods in the Provisioning API.")
 @option("--save", nargs=1, help="Save output to a file.")
 @option("-d", "--doc", is_flag=True, help="Open the Provisioning API reference in a browser.")
