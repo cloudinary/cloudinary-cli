@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import difflib
 import platform
 import shutil
 
@@ -13,7 +14,21 @@ from cloudinary_cli.version import __version__ as cli_version
 CONTEXT_SETTINGS = dict(max_content_width=shutil.get_terminal_size()[0], terminal_width=shutil.get_terminal_size()[0])
 
 
-@click.group(context_settings=CONTEXT_SETTINGS, invoke_without_command=True)
+class SuggestingGroup(click.Group):
+    """Suggests similar command names when the command name is not known."""
+
+    def resolve_command(self, ctx, args):
+        try:
+            return super().resolve_command(ctx, args)
+        except click.UsageError as e:
+            names = [name for name in self.list_commands(ctx) if not self.get_command(ctx, name).hidden]
+            matches = difflib.get_close_matches(args[0], names) if args else []
+            if matches:
+                e.message += f"\nDid you mean: {', '.join(matches)}?"
+            raise
+
+
+@click.group(cls=SuggestingGroup, context_settings=CONTEXT_SETTINGS, invoke_without_command=True)
 @click.help_option()
 @click.version_option(cli_version, prog_name="Cloudinary CLI",
                       message=f"%(prog)s, version %(version)s\n"

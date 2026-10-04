@@ -70,6 +70,10 @@ def regen_derived(trans_str, eager_notification_url,
         logger.info("No derived assets are using this transformation.")
         exit()
 
+    if trans_details.get('next_cursor'):
+        logger.warning(f"Only the first {len(derived_resources)} derived assets will be regenerated. "
+                       f"Use -A to regenerate all of them.")
+
     is_named = trans_details.get('named')
     eager_trans = normalise_trans_name(trans_str) if is_named else trans_str
 

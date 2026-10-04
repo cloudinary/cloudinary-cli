@@ -14,7 +14,7 @@ from cloudinary_cli.utils.file_utils import (normalize_file_extension, posix_rel
                                              populate_duplicate_name)
 from cloudinary_cli.utils.json_utils import print_json, write_json_to_file
 from cloudinary_cli.utils.utils import log_exception, confirm_action, get_command_params, merge_responses, \
-    normalize_list_params, ConfigurationError, print_api_help, duplicate_values, should_dump_responses
+    normalize_list_params, ConfigurationError, print_api_help, duplicate_values, should_dump_responses, whitelist_keys
 import re
 from cloudinary.utils import is_remote_url
 
@@ -124,7 +124,13 @@ def _display_path(asset):
     if asset.get("display_name") is None:
         return ""
 
-    if asset["resource_type"] == "raw" or asset["type"] == 'fetch':
+    if asset["resource_type"] == "raw":
+        # The display name of a raw asset can omit the extension that the public ID keeps.
+        normalized_display_name = asset["display_name"]
+        extension = path.splitext(asset["public_id"])[1]
+        if extension and not normalized_display_name.lower().endswith(extension.lower()):
+            normalized_display_name += extension
+    elif asset["type"] == 'fetch':
         normalized_display_name = asset["display_name"]
     else:
         normalized_display_name = ".".join(filter(None, [asset["display_name"], asset.get("format", None)]))
@@ -391,6 +397,8 @@ def handle_api_command(
 
     if auto_paginate:
         res = handle_auto_pagination(res, func, args, kwargs, force, filter_fields)
+    elif filter_fields:
+        logger.warning("-ff/--filter_fields has no effect without -A/--auto_paginate.")
 
     if return_data:
         return res
@@ -404,7 +412,17 @@ def handle_api_command(
 def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
     cursor_field = _cursor_fields.get(func.__name__, "next_cursor")
 
+    fields_to_keep = []
+    if filter_fields:
+        fields_to_keep = normalize_list_params(filter_fields)
+
     if cursor_field not in res:
+        # A single page: the pagination field is unknown, so filter only the lists that have a requested field.
+        for key, value in res.items():
+            if isinstance(value, list) and any(isinstance(item, dict) and item.keys() & set(fields_to_keep)
+                                               for item in value):
+                res[key] = whitelist_keys(value, fields_to_keep)
+
         return res
 
     if not force:
@@ -416,10 +434,6 @@ def handle_auto_pagination(res, func, args, kwargs, force, filter_fields):
             return res
         else:
             logger.info("Continuing. You may use the -F flag to force auto_pagination.")
-
-    fields_to_keep = []
-    if filter_fields:
-        fields_to_keep = normalize_list_params(filter_fields)
 
     kwargs['max_results'] = PAGINATION_MAX_RESULTS
 

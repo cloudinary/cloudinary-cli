@@ -14,12 +14,32 @@ from cloudinary_cli.cli import cli
 from test.helper_test import unique_suffix, RESOURCES_DIR, TEST_FILES_DIR, delete_cld_folder_if_exists, retry_assertion, \
     get_request_url, get_params, URLLIB3_REQUEST
 from test.test_modules.test_cli_upload_dir import UPLOAD_MOCK_RESPONSE
-from cloudinary_cli.utils.api_utils import get_folder_mode
+from cloudinary_cli.utils.api_utils import get_folder_mode, _display_path
 from cloudinary_cli.modules.sync import SyncDir
 from cloudinary_cli.utils.utils import etag
 
 # the package exports the `sync` command under the same name as the module
 sync_module = sys.modules[SyncDir.__module__]
+
+
+class TestDisplayPath(unittest.TestCase):
+    @staticmethod
+    def _asset(resource_type, public_id, display_name, fmt=None):
+        return {"resource_type": resource_type, "type": "upload", "public_id": public_id,
+                "display_name": display_name, "format": fmt, "asset_folder": "folder"}
+
+    def test_image_display_path_adds_format(self):
+        self.assertEqual("folder/red.png", _display_path(self._asset("image", "abc123", "red", "png")))
+
+    def test_raw_display_path_adds_missing_extension(self):
+        self.assertEqual("folder/notes.txt", _display_path(self._asset("raw", "abc123.txt", "notes")))
+
+    def test_raw_display_path_keeps_existing_extension(self):
+        self.assertEqual("folder/notes.txt", _display_path(self._asset("raw", "abc123.txt", "notes.txt")))
+        self.assertEqual("folder/notes.TXT", _display_path(self._asset("raw", "abc123.txt", "notes.TXT")))
+
+    def test_raw_display_path_without_extension(self):
+        self.assertEqual("folder/notes", _display_path(self._asset("raw", "abc123", "notes")))
 
 
 class TestCLISync(unittest.TestCase):

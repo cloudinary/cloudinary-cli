@@ -40,6 +40,7 @@ class TestCLIMake(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
         self.assertIn('upload_widget', result.output)
         self.assertIn(f"cloudName: '{cloudinary.Config().cloud_name}'", result.output)
+        self.assertIn("upload_preset: '<your_unsigned_upload_preset>'", result.output)
 
     def test_cli_make_video_player(self):
         result = self.runner.invoke(cli, ["make", "video_player"])

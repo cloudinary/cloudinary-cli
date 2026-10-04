@@ -1,4 +1,5 @@
 from click import command, argument, option, Choice, echo, launch
+import cloudinary
 from cloudinary import utils as cld_utils
 
 from cloudinary_cli.core.overrides import cloudinary_url
@@ -14,9 +15,10 @@ utils_list = ["api_sign_request", "cloudinary_url", "download_archive_url", "dow
 
 @command("utils", help="Call Cloudinary utility methods.")
 @argument("params", nargs=-1)
-@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
+@option("-o", "--optional_parameter", multiple=True, nargs=2,
+        help="Pass an optional parameter as a string, with no parsing. e.g. -o tags a,b")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
-        help="Pass optional parameters as interpreted strings.")
+        help="Pass an optional parameter and parse its value as JSON or a boolean. e.g. -O sign_url true")
 @option("-ls", "--ls", is_flag=True, help="List all available utility methods.")
 def utils(params, optional_parameter, optional_parameter_parsed, ls):
     if ls or len(params) < 1:
@@ -50,8 +52,13 @@ def url(public_id, transformation, resource_type, delivery_type, open_in_browser
     elif delivery_type == "list":
         public_id += ".json"
 
+    # Use HTTPS unless the configuration sets `secure` explicitly.
+    secure = cloudinary.config().secure
+    if secure is None:
+        secure = True
+
     res = cloudinary_url(public_id, resource_type=resource_type,
-                         raw_transformation=transformation, type=delivery_type, sign_url=sign)
+                         raw_transformation=transformation, type=delivery_type, sign_url=sign, secure=secure)
     echo(res)
 
     if open_in_browser:

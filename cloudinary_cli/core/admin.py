@@ -16,11 +16,12 @@ Format: cld <cli options> admin <command options> <method> <method parameters>
 \t    cld admin resources max_results=10 -o tags sample
 """)
 @argument("params", nargs=-1)
-@option("-o", "--optional_parameter", multiple=True, nargs=2, help="Pass optional parameters as raw strings.")
+@option("-o", "--optional_parameter", multiple=True, nargs=2,
+        help="Pass an optional parameter as a string, with no parsing. e.g. -o tags a,b")
 @option("-O", "--optional_parameter_parsed", multiple=True, nargs=2,
-        help="Pass optional parameters as interpreted strings.")
+        help="Pass an optional parameter and parse its value as JSON or a boolean. e.g. -O context '{\"alt\": \"cat\"}'")
 @option("-A", "--auto_paginate", is_flag=True, help="Will auto paginate Admin API calls.", default=False)
-@option("-ff", "--filter_fields", multiple=True, help="Filter fields to return when using auto pagination.")
+@option("-ff", "--filter_fields", multiple=True, help="Filter fields to return. Requires -A/--auto_paginate.")
 @option("-F", "--force", is_flag=True,
         help="Skip confirmations for auto pagination and destructive bulk API methods.")
 @option("-ls", "--ls", is_flag=True, help="List all available methods in the Admin API.")

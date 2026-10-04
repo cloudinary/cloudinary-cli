@@ -245,13 +245,18 @@ def invert_dict(d):
 
 
 def write_json_list_to_csv(json_list, filename, fields_to_keep=()):
-    with open(f'{filename}.csv', 'w') as f:
+    if not filename.lower().endswith('.csv'):
+        filename = f'{filename}.csv'
+
+    with open(filename, 'w') as f:
         if not fields_to_keep:
             fields_to_keep = list(reduce(lambda x, y: set(y.keys()) | x, json_list, set()))
 
         writer = DictWriter(f, fieldnames=fields_to_keep)
         writer.writeheader()
         writer.writerows(json_list)
+
+    return filename
 
 
 def run_tasks_concurrently(func, tasks, concurrent_workers):
