@@ -125,7 +125,8 @@ def retry_assertion(num_tries=3, delay=3):
 
 def delete_cld_folder_if_exists(folder, folder_mode = "fixed"):
     if folder_mode == "fixed":
-        cloudinary.api.delete_resources_by_prefix(folder)
+        for resource_type in ("image", "raw", "video"):
+            cloudinary.api.delete_resources_by_prefix(folder, resource_type=resource_type)
     else:
         assets = query_cld_folder(folder, folder_mode)
         for resource_type in {f["resource_type"] for f in assets.values()}:
