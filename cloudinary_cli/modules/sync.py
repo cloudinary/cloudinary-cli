@@ -12,7 +12,7 @@ from cloudinary import api
 from cloudinary_cli.utils.api_utils import query_cld_folder, upload_file, download_file, get_folder_mode, \
     get_default_upload_options, get_destination_folder_options, cld_folder_exists, call_api
 from cloudinary_cli.utils.file_utils import (walk_dir, delete_empty_dirs, normalize_file_extension, posix_rel_path,
-                                             populate_duplicate_name)
+                                             populate_duplicate_name, exclude_file)
 from cloudinary_cli.utils.json_utils import print_json, read_json_from_file, write_json_to_file
 from cloudinary_cli.utils.utils import logger, run_tasks_concurrently, get_user_action, invert_dict, chunker, \
     group_params, parse_option_value, duplicate_values, should_dump_responses
@@ -92,7 +92,7 @@ class SyncDir:
         if not self.local_folder_exists:
             logger.info(f"Local folder '{self.local_dir}' does not exist.")
         else:
-            self.local_files = walk_dir(path.abspath(self.local_dir), include_hidden)
+            self.local_files = exclude_file(walk_dir(path.abspath(self.local_dir), include_hidden), _SYNC_META_FILE)
             if len(self.local_files):
                 logger.info(f"Found {len(self.local_files)} items in local folder '{self.local_dir}'")
             else:
@@ -113,7 +113,8 @@ class SyncDir:
                 logger.info(f"Cloudinary folder '{self.user_friendly_remote_dir}' is empty. "
                             f"({self.folder_mode} folder mode)")
 
-        self.remote_files = self._normalize_remote_file_names(raw_remote_files, self.local_files)
+        self.remote_files = exclude_file(self._normalize_remote_file_names(raw_remote_files, self.local_files),
+                                         _SYNC_META_FILE)
         self.remote_duplicate_names = duplicate_values(self.remote_files, "normalized_path", "asset_id")
         self._print_duplicate_file_names()
 
