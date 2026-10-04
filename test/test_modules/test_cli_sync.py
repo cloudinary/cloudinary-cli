@@ -14,7 +14,7 @@ from cloudinary_cli.cli import cli
 from test.helper_test import unique_suffix, RESOURCES_DIR, TEST_FILES_DIR, delete_cld_folder_if_exists, retry_assertion, \
     get_request_url, get_params, URLLIB3_REQUEST
 from test.test_modules.test_cli_upload_dir import UPLOAD_MOCK_RESPONSE
-from cloudinary_cli.utils.api_utils import get_folder_mode, _display_path
+from cloudinary_cli.utils.api_utils import get_folder_mode, _display_path, query_cld_folder
 from cloudinary_cli.modules.sync import SyncDir
 from cloudinary_cli.utils.utils import etag
 
@@ -217,6 +217,78 @@ class TestCLISync(unittest.TestCase):
         self.assertIn("Skipping 12 items", result.output)
         self.assertIn("Done!", result.output)
 
+
+    def _local_files(self, files):
+        local_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, local_dir, True)
+        for name, content in files.items():
+            Path(local_dir, name).write_text(content)
+        return local_dir
+
+    def _sync(self, direction, local_dir, *expected):
+        result = self.runner.invoke(cli, ['sync', direction, '-F', local_dir, self.CLD_SYNC_DIR])
+        self.assertEqual(0, result.exit_code, result.output)
+        for text in expected:
+            self.assertIn(text, result.output)
+        return result
+
+    def _wait_for_cld_files(self, count):
+        for _ in range(10):
+            if len(query_cld_folder(self.CLD_SYNC_DIR, self.folder_mode)) == count:
+                return
+            time.sleep(1)
+
+    def _assert_nothing_to_sync(self, direction, local_dir, count):
+        result = self._sync(direction, local_dir, f"Skipping {count} items", "Done!")
+        self.assertNotIn("Deleting", result.output)
+        self.assertNotIn("Uploading", result.output)
+        self.assertNotIn("Downloading", result.output)
+
+    @unittest.skipUnless(get_folder_mode() == "dynamic", "requires dynamic folder mode")
+    def test_cli_sync_push_raw_files_with_cld_sync_entries_without_extension(self):
+        local_dir = self._local_files({"notes.txt": "txt", "notes.csv": "csv"})
+        self._sync('--push', local_dir, "Synced | 2")
+        self._wait_for_cld_files(2)
+        # entries saved by versions that did not keep the extension of raw files
+        Path(local_dir, ".cld-sync").write_text(json.dumps({"notes.txt": "notes", "notes.csv": "notes"}))
+
+        self._assert_nothing_to_sync('--push', local_dir, 2)
+        self._assert_nothing_to_sync('--push', local_dir, 2)
+        self._assert_nothing_to_sync('--pull', local_dir, 2)
+
+    @unittest.skipUnless(get_folder_mode() == "dynamic", "requires dynamic folder mode")
+    def test_cli_sync_raw_file_saved_without_extension(self):
+        self._sync('--push', self._local_files({"notes.txt": "txt"}), "Synced | 1")
+        self._wait_for_cld_files(1)
+        # file pulled by versions that did not keep the extension of raw files
+        local_dir = self._local_files({"notes": "txt"})
+
+        self._assert_nothing_to_sync('--push', local_dir, 1)
+        self._assert_nothing_to_sync('--pull', local_dir, 1)
+
+    @unittest.skipUnless(get_folder_mode() == "dynamic", "requires dynamic folder mode")
+    def test_cli_sync_push_raw_duplicates_saved_without_extension(self):
+        result = self.runner.invoke(cli, ['sync', '--push', '-F', self._local_files({"b.txt": "b", "c.txt": "c"}),
+                                          self.CLD_SYNC_DIR, '-o', 'display_name', 'notes'])
+        self.assertEqual(0, result.exit_code, result.output)
+        self._wait_for_cld_files(2)
+        # files pulled by versions that did not keep the extension of raw files, the first one deleted remotely
+        local_dir = self._local_files({"notes (1)": "a", "notes (2)": "b", "notes (3)": "c"})
+
+        result = self._sync('--push', local_dir, "Skipping 2 items", "Synced | 1")
+        self.assertNotIn("Deleting", result.output)
+        self._wait_for_cld_files(3)
+
+    @unittest.skipUnless(get_folder_mode() == "dynamic", "requires dynamic folder mode")
+    def test_cli_sync_raw_file_keeps_extension(self):
+        local_dir = self._local_files({"notes.txt": "txt"})
+        self._sync('--push', local_dir, "Synced | 1")
+        self.assertFalse(Path(local_dir, ".cld-sync").exists())
+        self._wait_for_cld_files(1)
+
+        self._sync('--pull', self.LOCAL_SYNC_PULL_DIR, "Synced | 1")
+        self.assertTrue(Path(self.LOCAL_SYNC_PULL_DIR, "notes.txt").is_file())
+        self._assert_nothing_to_sync('--push', self.LOCAL_SYNC_PULL_DIR, 1)
 
     @retry_assertion
     def test_cli_sync_push_dry_run(self):
