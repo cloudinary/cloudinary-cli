@@ -1,4 +1,3 @@
-import time
 import unittest
 from unittest.mock import patch
 
@@ -20,11 +19,9 @@ class TestCLIUploadDir(unittest.TestCase):
 
     def setUp(self) -> None:
         delete_cld_folder_if_exists(self.CLD_UPLOAD_DIR)
-        time.sleep(1)
 
     def tearDown(self) -> None:
         delete_cld_folder_if_exists(self.CLD_UPLOAD_DIR)
-        time.sleep(1)
 
     def test_cli_upload_dir(self):
         result = self.runner.invoke(cli, ["upload_dir", TEST_FILES_DIR] + self.FOLDER_OPTIONS)
