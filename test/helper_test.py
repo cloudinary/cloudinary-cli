@@ -95,32 +95,58 @@ def get_params(mocker):
     return params
 
 
-def retry_assertion(num_tries=3, delay=3):
+def retry_assertion(func=None, *, num_tries=3, delay=3):
     """
-    Helper for retrying inconsistent unit tests
+    Helper for retrying inconsistent unit tests, running tearDown and setUp between tries
 
+    :param func: The test method, when used without parentheses
     :param num_tries: Number of tries to perform
     :param delay: Delay in seconds between retries
     """
+    if func is None:
+        return lambda f: retry_assertion(f, num_tries=num_tries, delay=delay)
 
-    def retry_decorator(func):
-        @wraps(func)
-        def retry_func(*args, **kwargs):
-            try_num = 1
-            while try_num < num_tries:
-                try:
-                    return func(*args, **kwargs)
-                except AssertionError:
-                    logger.warning("Assertion #{} out of {} failed, retrying in {} seconds".format(try_num, num_tries,
-                                                                                                   delay))
-                    time.sleep(delay)
-                    try_num += 1
+    @wraps(func)
+    def retry_func(self, *args, **kwargs):
+        for try_num in range(1, num_tries):
+            try:
+                return func(self, *args, **kwargs)
+            except AssertionError:
+                logger.warning(f"Assertion #{try_num} out of {num_tries} failed, retrying in {delay} seconds")
+                self.tearDown()
+                time.sleep(delay)
+                self.setUp()
 
-            return func(*args, **kwargs)
+        return func(self, *args, **kwargs)
 
-        return retry_func
+    return retry_func
 
-    return retry_decorator
+
+def _asset_folder_resources(folder):
+    resources = []
+    options = {"max_results": 500}
+    try:
+        while True:
+            res = cloudinary.api.resources_by_asset_folder(folder, **options)
+            resources += res["resources"]
+            if not res.get("next_cursor"):
+                break
+            options["next_cursor"] = res["next_cursor"]
+        subfolders = cloudinary.api.subfolders(folder)["folders"]
+    except cloudinary.exceptions.NotFound:
+        return resources
+
+    for subfolder in subfolders:
+        resources += _asset_folder_resources(subfolder["path"])
+
+    return resources
+
+
+def _delete_assets(assets):
+    for resource_type in {a["resource_type"] for a in assets}:
+        public_ids = [a["public_id"] for a in assets if a["resource_type"] == resource_type]
+        for batch in range(0, len(public_ids), 100):
+            cloudinary.api.delete_resources(public_ids[batch:batch + 100], resource_type=resource_type)
 
 
 def delete_cld_folder_if_exists(folder, folder_mode = "fixed"):
@@ -128,12 +154,14 @@ def delete_cld_folder_if_exists(folder, folder_mode = "fixed"):
         for resource_type in ("image", "raw", "video"):
             cloudinary.api.delete_resources_by_prefix(folder, resource_type=resource_type)
     else:
-        assets = query_cld_folder(folder, folder_mode)
-        for resource_type in {f["resource_type"] for f in assets.values()}:
-            cloudinary.api.delete_resources([f["public_id"] for f in assets.values()
-                                             if f["resource_type"] == resource_type], resource_type=resource_type)
+        _delete_assets(list(query_cld_folder(folder, folder_mode).values()))
 
     try:
         cloudinary.api.delete_folder(folder)
     except cloudinary.exceptions.NotFound:
         pass
+    except cloudinary.exceptions.BadRequest:
+        if folder_mode == "fixed":
+            raise
+        _delete_assets(_asset_folder_resources(folder))
+        cloudinary.api.delete_folder(folder)

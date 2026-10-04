@@ -208,6 +208,8 @@ class SyncDir:
         if upload_errors:
             raise Exception("Sync did not finish successfully")
 
+        return True
+
     def pull(self):
         """
         Pulls changes from the Cloudinary folder to the local folder.
@@ -252,6 +254,8 @@ class SyncDir:
 
         if download_errors:
             raise Exception("Sync did not finish successfully")
+
+        return True
 
     def _normalize_remote_file_names(self, remote_files, local_files):
         """

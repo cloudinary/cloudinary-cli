@@ -14,7 +14,7 @@ from cloudinary_cli.cli import cli
 from test.helper_test import unique_suffix, RESOURCES_DIR, TEST_FILES_DIR, delete_cld_folder_if_exists, retry_assertion, \
     get_request_url, get_params, URLLIB3_REQUEST
 from test.test_modules.test_cli_upload_dir import UPLOAD_MOCK_RESPONSE
-from cloudinary_cli.utils.api_utils import get_folder_mode, _display_path, query_cld_folder
+from cloudinary_cli.utils.api_utils import get_folder_mode, _display_path, query_cld_folder, cld_folder_exists
 from cloudinary_cli.modules.sync import SyncDir
 from cloudinary_cli.utils.utils import etag
 
@@ -51,18 +51,15 @@ class TestCLISync(unittest.TestCase):
 
     DUPLICATE_NAME = unique_suffix("duplicate_name")
 
-    GRACE_PERIOD = 3  # seconds
-
     folder_mode = "fixed"
 
     def setUp(self) -> None:
         self.folder_mode = get_folder_mode()
         delete_cld_folder_if_exists(self.CLD_SYNC_DIR, self.folder_mode)
-        time.sleep(1)
+        self._wait_for_cld_files(0)
 
     def tearDown(self) -> None:
         delete_cld_folder_if_exists(self.CLD_SYNC_DIR, self.folder_mode)
-        time.sleep(1)
         shutil.rmtree(self.LOCAL_SYNC_PULL_DIR, ignore_errors=True)
 
     @retry_assertion
@@ -87,9 +84,6 @@ class TestCLISync(unittest.TestCase):
     def test_cli_sync_push_twice(self):
         self._upload_sync_files(TEST_FILES_DIR)
 
-        # wait for indexing to be updated
-        time.sleep(self.GRACE_PERIOD)
-
         result = self.runner.invoke(cli, ['sync', '--push', '-F', TEST_FILES_DIR, self.CLD_SYNC_DIR])
 
         self.assertEqual(0, result.exit_code)
@@ -99,9 +93,6 @@ class TestCLISync(unittest.TestCase):
     @retry_assertion
     def test_cli_sync_push_out_of_sync(self):
         self._upload_sync_files(TEST_FILES_DIR)
-
-        # wait for indexing to be updated
-        time.sleep(self.GRACE_PERIOD)
 
         result = self.runner.invoke(cli, ['sync', '--push', '-F', self.LOCAL_PARTIAL_SYNC_DIR, self.CLD_SYNC_DIR])
 
@@ -116,9 +107,6 @@ class TestCLISync(unittest.TestCase):
     @retry_assertion
     def test_cli_sync_pull(self):
         self._upload_sync_files(TEST_FILES_DIR)
-
-        # wait for indexing to be updated
-        time.sleep(self.GRACE_PERIOD)
 
         result = self.runner.invoke(cli, ['sync', '--pull', '-F', self.LOCAL_SYNC_PULL_DIR, self.CLD_SYNC_DIR])
 
@@ -138,9 +126,6 @@ class TestCLISync(unittest.TestCase):
     def test_cli_sync_pull_twice(self):
         self._upload_sync_files(TEST_FILES_DIR)
 
-        # wait for indexing to be updated
-        time.sleep(self.GRACE_PERIOD)
-
         result = self.runner.invoke(cli, ['sync', '--pull', '-F', self.LOCAL_SYNC_PULL_DIR, self.CLD_SYNC_DIR])
 
         self.assertEqual(0, result.exit_code)
@@ -155,9 +140,6 @@ class TestCLISync(unittest.TestCase):
     @retry_assertion
     def test_cli_sync_pull_out_of_sync(self):
         self._upload_sync_files(TEST_FILES_DIR)
-
-        # wait for indexing to be updated
-        time.sleep(self.GRACE_PERIOD)
 
         shutil.copytree(self.LOCAL_PARTIAL_SYNC_DIR, self.LOCAL_SYNC_PULL_DIR)
 
@@ -180,6 +162,7 @@ class TestCLISync(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
         self.assertIn("Synced | 12", result.output)
         self.assertIn("Done!", result.output)
+        self._wait_for_cld_files(12)
 
     @patch(URLLIB3_REQUEST)
     def test_sync_override_defaults(self, mocker):
@@ -199,13 +182,10 @@ class TestCLISync(unittest.TestCase):
     def test_cli_sync_duplicate_file_names_dynamic_folder_mode(self):
         self._upload_sync_files(TEST_FILES_DIR, ['-o', 'display_name', self.DUPLICATE_NAME])
 
-        # wait for indexing to be updated
-        time.sleep(self.GRACE_PERIOD)
-
         result = self.runner.invoke(cli, ['sync', '--pull', '-F', self.LOCAL_SYNC_PULL_DIR, self.CLD_SYNC_DIR])
 
         self.assertEqual(0, result.exit_code)
-        self.assertIn("Found 0 items in local folder", result.output)
+        self.assertIn(f"Local folder '{self.LOCAL_SYNC_PULL_DIR}' does not exist.", result.output)
         self.assertIn("Downloading 12 files", result.output)
         for index in range(1, 6):
             self.assertIn(f"{self.DUPLICATE_NAME} ({index})", result.output)
@@ -232,11 +212,15 @@ class TestCLISync(unittest.TestCase):
             self.assertIn(text, result.output)
         return result
 
-    def _wait_for_cld_files(self, count):
-        for _ in range(10):
-            if len(query_cld_folder(self.CLD_SYNC_DIR, self.folder_mode)) == count:
-                return
-            time.sleep(1)
+    def _wait_for_cld_files(self, count, timeout=15):
+        expected = (count, count > 0)
+        deadline = time.monotonic() + timeout
+        while (found := (len(query_cld_folder(self.CLD_SYNC_DIR, self.folder_mode)),
+                         cld_folder_exists(self.CLD_SYNC_DIR))) != expected:
+            if time.monotonic() > deadline:
+                self.fail(f"Expected (items, folder exists) {expected} in Cloudinary folder "
+                          f"'{self.CLD_SYNC_DIR}', found {found}")
+            time.sleep(0.5)
 
     def _assert_nothing_to_sync(self, direction, local_dir, count):
         result = self._sync(direction, local_dir, f"Skipping {count} items", "Done!")
@@ -301,9 +285,6 @@ class TestCLISync(unittest.TestCase):
     def test_cli_sync_push_dry_run(self):
         self._upload_sync_files(TEST_FILES_DIR)
 
-        # wait for indexing to be updated
-        time.sleep(self.GRACE_PERIOD)
-
         result = self.runner.invoke(cli, ['sync', '--push', '-F', self.LOCAL_PARTIAL_SYNC_DIR, self.CLD_SYNC_DIR, '--dry-run'])
 
         # check that no files were uploaded
@@ -315,9 +296,6 @@ class TestCLISync(unittest.TestCase):
     @retry_assertion
     def test_cli_sync_pull_dry_run(self):
         self._upload_sync_files(TEST_FILES_DIR)
-
-        # wait for indexing to be updated
-        time.sleep(self.GRACE_PERIOD)
 
         shutil.copytree(self.LOCAL_PARTIAL_SYNC_DIR, self.LOCAL_SYNC_PULL_DIR)
 
