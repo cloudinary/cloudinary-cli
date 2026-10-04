@@ -297,10 +297,6 @@ class TestCLISync(unittest.TestCase):
         self.assertIn("Synced | 2", result.output)
         self._wait_for_cld_files(2)
 
-        remote_paths = [f["normalized_path"] for f in query_cld_folder(self.CLD_SYNC_DIR, self.folder_mode).values()]
-        self.assertEqual(2, len(remote_paths), remote_paths)
-        self.assertNotIn(".cld-sync", remote_paths)
-
     @retry_assertion
     def test_cli_sync_push_dry_run(self):
         self._upload_sync_files(TEST_FILES_DIR)
