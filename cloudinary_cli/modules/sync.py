@@ -135,8 +135,8 @@ class SyncDir:
 
         # handle fixed folder mode public_id differences
         diverse_file_names = read_json_from_file(self.sync_meta_file, does_not_exist_ok=True)
-        self.diverse_file_names = dict(
-            (normalize_file_extension(k), normalize_file_extension(v)) for k, v in diverse_file_names.items())
+        self.diverse_file_names = self._verify_diverse_file_names(dict(
+            (normalize_file_extension(k), normalize_file_extension(v)) for k, v in diverse_file_names.items()))
         inverted_diverse_file_names = invert_dict(self.diverse_file_names)
 
         cloudinarized_local_file_names = [self.diverse_file_names.get(f, f) for f in local_file_names]
@@ -301,6 +301,26 @@ class SyncDir:
                 curr_index += 1
 
         return {dt["normalized_unique_path"]: dt for dt in remote_files.values()}
+
+    def _verify_diverse_file_names(self, diverse_file_names):
+        """
+        Keeps entries of existing remote files and maps local raw files saved without extension, e.g. 'notes (1)'.
+        """
+        # drop entries that point to a file that is not on Cloudinary, e.g. 'notes.txt' -> 'notes'
+        file_names = {k: v for k, v in diverse_file_names.items() if v in self.remote_files}
+        for name, dt in self.remote_files.items():
+            # only unmatched raw files in dynamic folder mode can have a local copy without extension
+            if (self.folder_mode != "dynamic" or dt["resource_type"] != "raw" or name in self.local_files
+                    or name in file_names.values()):
+                continue
+            # local copies are named after the display name: 'notes', 'notes (1)', 'notes (2)', ...
+            for local_name in self._local_candidates(path.splitext(dt["normalized_path"])[0]):
+                # take a free local file with the same content
+                if (local_name not in self.remote_files and local_name not in file_names
+                        and self.local_files[local_name]["etag"] == dt["etag"]):
+                    file_names[local_name] = name
+                    break
+        return file_names
 
     def _local_candidates(self, candidate_path):
         filename, extension = path.splitext(candidate_path)

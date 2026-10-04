@@ -128,8 +128,9 @@ def delete_cld_folder_if_exists(folder, folder_mode = "fixed"):
         cloudinary.api.delete_resources_by_prefix(folder)
     else:
         assets = query_cld_folder(folder, folder_mode)
-        if (len(assets)):
-            cloudinary.api.delete_resources([f["public_id"] for f in assets.values()])
+        for resource_type in {f["resource_type"] for f in assets.values()}:
+            cloudinary.api.delete_resources([f["public_id"] for f in assets.values()
+                                             if f["resource_type"] == resource_type], resource_type=resource_type)
 
     try:
         cloudinary.api.delete_folder(folder)
