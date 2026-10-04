@@ -102,6 +102,10 @@ def walk_dir(root_dir, include_hidden=False):
     return all_files
 
 
+def exclude_file(files, file_name):
+    return {file_path: dt for file_path, dt in files.items() if path.basename(file_path) != file_name}
+
+
 def is_hidden(root, relative_path):
     return is_hidden_path(path.join(root, relative_path))
 

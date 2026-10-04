@@ -290,6 +290,17 @@ class TestCLISync(unittest.TestCase):
         self.assertTrue(Path(self.LOCAL_SYNC_PULL_DIR, "notes.txt").is_file())
         self._assert_nothing_to_sync('--push', self.LOCAL_SYNC_PULL_DIR, 1)
 
+    def test_cli_sync_push_include_hidden_skips_meta_file(self):
+        local_dir = self._local_files({"notes.txt": "txt", ".hidden.txt": "hidden", ".cld-sync": "{}"})
+        result = self.runner.invoke(cli, ['sync', '--push', '-F', '-H', local_dir, self.CLD_SYNC_DIR])
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertIn("Synced | 2", result.output)
+        self._wait_for_cld_files(2)
+
+        remote_paths = [f["normalized_path"] for f in query_cld_folder(self.CLD_SYNC_DIR, self.folder_mode).values()]
+        self.assertEqual(2, len(remote_paths), remote_paths)
+        self.assertNotIn(".cld-sync", remote_paths)
+
     @retry_assertion
     def test_cli_sync_push_dry_run(self):
         self._upload_sync_files(TEST_FILES_DIR)
@@ -370,3 +381,66 @@ class TestCLISyncDuplicateNamesOffline(unittest.TestCase):
         uploaded = [c.args[0] for c in upload_mock.call_args_list]
         # notes.txt must stay on Cloudinary: either a remote copy is kept, or the file is uploaded again.
         self.assertTrue(len(deleted) < 2 or uploaded, f"deleted {deleted}, uploaded {uploaded}")
+
+
+class TestCLISyncMetaFileOffline(unittest.TestCase):
+    runner = CliRunner()
+
+    def setUp(self) -> None:
+        self.local_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.local_dir, True)
+        self.notes_path = os.path.join(self.local_dir, "notes.txt")
+        Path(self.notes_path).write_text("notes")
+        os.mkdir(os.path.join(self.local_dir, "sub"))
+        for meta_file in [".cld-sync", "sub/.cld-sync"]:
+            Path(self.local_dir, meta_file).write_text("{}")
+
+        self.query_mock = self._patch("query_cld_folder", return_value={})
+        self._patch("cld_folder_exists", return_value=True)
+        self.call_api_mock = self._patch("call_api")
+        self.upload_mock = self._patch("upload_file")
+        self.download_mock = self._patch("download_file")
+
+    def _patch(self, name, **kwargs):
+        patcher = patch.object(sync_module, name, **kwargs)
+        self.addCleanup(patcher.stop)
+        return patcher.start()
+
+    def _remote_files(self, *names):
+        return {name: {
+            "asset_id": name, "normalized_path": name, "normalized_unique_path": name,
+            "type": "upload", "resource_type": "raw", "public_id": name, "format": None,
+            "etag": etag(self.notes_path), "relative_path": name, "access_mode": "public",
+            "created_at": "2026-01-01",
+        } for name in names}
+
+    def _sync(self, direction):
+        result = self.runner.invoke(cli, ['sync', direction, '-F', '-H', '-fm', 'fixed', self.local_dir, 'folder'])
+        self.assertEqual(0, result.exit_code, result.output)
+
+    def test_sync_push_include_hidden_does_not_upload_meta_file(self):
+        self._sync('--push')
+
+        self.assertEqual([self.notes_path], [c.args[0] for c in self.upload_mock.call_args_list])
+
+    def test_sync_pull_include_hidden_does_not_delete_meta_file(self):
+        self.query_mock.return_value = self._remote_files("notes.txt")
+
+        self._sync('--pull')
+
+        self.assertTrue(Path(self.local_dir, ".cld-sync").is_file())
+        self.assertTrue(Path(self.local_dir, "sub/.cld-sync").is_file())
+
+    def test_sync_push_does_not_delete_remote_meta_file(self):
+        self.query_mock.return_value = self._remote_files("notes.txt", ".cld-sync", "sub/.cld-sync")
+
+        self._sync('--push')
+
+        self.call_api_mock.assert_not_called()
+
+    def test_sync_pull_does_not_download_remote_meta_file(self):
+        self.query_mock.return_value = self._remote_files("notes.txt", ".cld-sync", "sub/.cld-sync")
+
+        self._sync('--pull')
+
+        self.download_mock.assert_not_called()
