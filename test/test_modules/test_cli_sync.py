@@ -1,4 +1,8 @@
+import json
+import os
 import shutil
+import sys
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -11,6 +15,11 @@ from test.helper_test import unique_suffix, RESOURCES_DIR, TEST_FILES_DIR, delet
     get_request_url, get_params, URLLIB3_REQUEST
 from test.test_modules.test_cli_upload_dir import UPLOAD_MOCK_RESPONSE
 from cloudinary_cli.utils.api_utils import get_folder_mode, _display_path
+from cloudinary_cli.modules.sync import SyncDir
+from cloudinary_cli.utils.utils import etag
+
+# the package exports the `sync` command under the same name as the module
+sync_module = sys.modules[SyncDir.__module__]
 
 
 class TestDisplayPath(unittest.TestCase):
@@ -239,4 +248,53 @@ class TestCLISync(unittest.TestCase):
         self.assertEqual(0, result.exit_code)
         self.assertIn("Dry run mode enabled. The following files would be downloaded:", result.output)
         self.assertIn("Done!", result.output)
-        
+
+
+class TestCLISyncDuplicateNamesOffline(unittest.TestCase):
+    runner = CliRunner()
+
+    def setUp(self) -> None:
+        self.local_dir = tempfile.mkdtemp()
+        self.notes_path = os.path.join(self.local_dir, "notes.txt")
+        with open(self.notes_path, "w") as f:
+            f.write("notes")
+        # mapping that an earlier push of a raw file saves in dynamic folder mode
+        with open(os.path.join(self.local_dir, ".cld-sync"), "w") as f:
+            json.dump({"notes.txt": "notes"}, f)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.local_dir, ignore_errors=True)
+
+    def _remote_notes(self, asset_id, created_at):
+        return {
+            "asset_id": asset_id, "normalized_path": "notes", "normalized_unique_path": "notes",
+            "type": "upload", "resource_type": "raw", "public_id": f"pid_{asset_id}", "format": None,
+            "etag": etag(self.notes_path), "relative_path": f"pid_{asset_id}", "access_mode": "public",
+            "created_at": created_at,
+        }
+
+    def test_local_candidates_exact_match(self):
+        sync_dir = SyncDir.__new__(SyncDir)
+        sync_dir.local_files = {f: {"etag": f} for f in ["notes.txt", "notes", "notes (1)", "notes (12)",
+                                                         "notes (1).txt", "notesX", "a+b.jpg", "aab.jpg"]}
+
+        self.assertEqual(["notes", "notes (1)", "notes (12)"], sorted(sync_dir._local_candidates("notes")))
+        self.assertEqual(["notes (1).txt", "notes.txt"], sorted(sync_dir._local_candidates("notes.txt")))
+        self.assertEqual(["a+b.jpg"], list(sync_dir._local_candidates("a+b.jpg")))
+
+    @patch.object(sync_module, "call_api")
+    @patch.object(sync_module, "query_cld_folder")
+    @patch.object(sync_module, "cld_folder_exists", return_value=True)
+    def test_sync_push_does_not_delete_all_duplicates_of_synced_file(self, _, query_mock, call_api_mock):
+        query_mock.return_value = {"a1": self._remote_notes("a1", "2026-01-01"),
+                                   "a2": self._remote_notes("a2", "2026-01-02")}
+        call_api_mock.return_value = {"deleted": {"pid_a1": "deleted", "pid_a2": "deleted"}}
+
+        with patch.object(sync_module, "upload_file") as upload_mock:
+            result = self.runner.invoke(cli, ['sync', '--push', '-F', '-fm', 'dynamic', self.local_dir, 'folder'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        deleted = [pid for c in call_api_mock.call_args_list for pid in c.args[1]]
+        uploaded = [c.args[0] for c in upload_mock.call_args_list]
+        # notes.txt must stay on Cloudinary: either a remote copy is kept, or the file is uploaded again.
+        self.assertTrue(len(deleted) < 2 or uploaded, f"deleted {deleted}, uploaded {uploaded}")
