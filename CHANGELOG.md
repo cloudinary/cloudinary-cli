@@ -1,3 +1,25 @@
+1.17.0 / 2026-10-04
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for `agent cloud create` and `agent cloud claim` commands
+  * Suggest similar command names for an unknown command
+  * Generate HTTPS URLs by default in `cld url`
+
+Other Changes
+-------------
+
+  * Fix `sync` for duplicate asset names with special characters
+  * Fix `sync` for raw files whose display name has no extension
+  * Fix crash on an invalid `CLOUDINARY_URL` or `CLOUDINARY_ACCOUNT_URL` environment variable
+  * Fix `admin -A -ff` when all results fit on one page
+  * Warn when `regen_derived` regenerates only the first page
+  * Fix `search --csv` file name when the name ends with `.csv`
+  * Replace the fake upload preset in the `upload_widget` template
+  * Clarify `-o`/`-O` help text and fix two log messages
+
 1.16.1 / 2026-08-11
 ==================
 
