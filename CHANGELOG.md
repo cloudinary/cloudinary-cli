@@ -1,3 +1,11 @@
+1.18.0 / 2026-11-05
+==================
+
+New functionality and features
+------------------------------
+
+  * Add support for Collections commands
+
 1.17.0 / 2026-10-04
 ==================
 
