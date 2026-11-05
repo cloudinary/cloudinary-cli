@@ -155,6 +155,7 @@ cld logout         # Revokes and removes a saved OAuth login.
 cld search --help  # Shows usage for the Search API.
 cld admin          # Lists Admin API methods.
 cld uploader       # Lists Upload API methods.
+cld collections    # Lists Collections API methods.
 cld agent signup   # For AI agents: creates a Cloudinary account on behalf of a human.
 cld agent cloud    # For AI agents: creates a temporary cloud that works immediately.
 ```
@@ -235,6 +236,32 @@ cld admin transformation my_new_transformation
 ```
 
 _**Note:** you can omit 'admin' from the command when calling an Admin API method._
+
+## Collections API
+
+Enables you to run any methods that can be called through the collections API, to organize assets into collections and share them through public pages.
+
+You can find documentation for each of the Collections API methods at [https://cloudinary.com/documentation/collections_api](https://cloudinary.com/documentation/collections_api).
+
+The basic syntax using the Collections API is as follows:
+
+```
+cld [cli options] collections [command options] [method] [method parameters]
+```
+
+Example: create a collection, add an asset to it and publish it as a public page:
+
+```
+cld collections create_collection "Summer campaign" -o description "Campaign assets"
+cld collections add_collection_assets <collection_id> '["<asset_id>"]'
+cld collections create_collection_public_page <collection_id>
+```
+
+Create a dynamic collection from a search expression:
+
+```
+cld collections create_collection "Summer images" -o type dynamic -O configuration '{"expression": "tags=summer"}'
+```
 
 ## Search API
 

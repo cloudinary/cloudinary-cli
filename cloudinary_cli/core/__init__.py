@@ -3,6 +3,7 @@ import click
 from cloudinary_cli.core.admin import admin
 from cloudinary_cli.core.agent import agent_group
 from cloudinary_cli.core.auth import login, logout
+from cloudinary_cli.core.collections import collections
 from cloudinary_cli.core.config import config_command
 from cloudinary_cli.core.search import search, search_folders
 from cloudinary_cli.core.uploader import uploader
@@ -22,6 +23,7 @@ commands = [
     admin,
     uploader,
     provisioning,
+    collections,
     url,
     utils
 ]
