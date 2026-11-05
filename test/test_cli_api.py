@@ -45,6 +45,23 @@ class TestCLIApi(unittest.TestCase):
         self.assertEqual(0, result.exit_code, result.output)
         self.assertIn('"foo": "bar"', result.output)
 
+    @unittest.skipUnless(CONFIG_PRESENT, REQUIRES_CONFIG)
+    @patch(URLLIB3_REQUEST)
+    def test_collections(self, mocker):
+        mocker.return_value = API_MOCK_RESPONSE
+        result = self.runner.invoke(cli, ['collections', 'add_collection_assets', 'col1', '["a1", "a2"]'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertIn('"foo": "bar"', result.output)
+        self.assertIn('/collections/col1/assets', mocker.call_args[1]['url'])
+
+    def test_collections_ls(self):
+        result = self.runner.invoke(cli, ['collections', '-ls'])
+
+        self.assertEqual(0, result.exit_code, result.output)
+        self.assertIn('create_collection', result.output)
+        self.assertNotIn('base64url_decode', result.output)
+
 
 class TestDestructiveBulkConfirmation(unittest.TestCase):
     runner = CliRunner()

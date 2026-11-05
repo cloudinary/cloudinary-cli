@@ -22,7 +22,8 @@ from cloudinary.utils import build_array
 
 not_callable = ('is_appengine_sandbox', 'call_tags_api', 'call_context_api', 'call_cacheable_api', 'call_api',
                 'call_metadata_api', 'call_json_api', 'only', 'transformation_string', 'account_config',
-                'reset_config', 'upload_large_part', 'upload_image', 'upload_resource', 'build_eager')
+                'reset_config', 'upload_large_part', 'upload_image', 'upload_resource', 'build_eager',
+                'base64url_decode')
 
 BLOCK_SIZE = 65536
 

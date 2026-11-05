@@ -250,6 +250,9 @@ docker run --rm -e CLOUDINARY_URL cloudinary-cli uploader -ls
 # List all admin methods
 docker run --rm -e CLOUDINARY_URL cloudinary-cli admin -ls
 
+# List all collections methods
+docker run --rm -e CLOUDINARY_URL cloudinary-cli collections -ls
+
 # Get help for specific commands
 docker run --rm -e CLOUDINARY_URL cloudinary-cli uploader --help
 docker run --rm -e CLOUDINARY_URL cloudinary-cli search --help

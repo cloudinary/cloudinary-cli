@@ -16,6 +16,7 @@ class TestCLI(unittest.TestCase):
     COMMANDS = [
         'admin',
         'agent',
+        'collections',
         'config',
         'login',
         'logout',
